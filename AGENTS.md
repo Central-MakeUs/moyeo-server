@@ -96,6 +96,8 @@ Before reporting completion, Codex must review the change using the following ch
 - If docs were not updated, is that reasonable?
 - Do not update unrelated docs.
 - Do not describe future plans as already implemented.
+- If JPA entities, table names, columns, indexes, or relationships changed, update `docs/01-dbdiagram.md`.
+- Keep the DBML in `docs/01-dbdiagram.md` copy-paste ready for dbdiagram.io.
 
 ### Report Format
 
@@ -107,4 +109,3 @@ After each task, report only:
 4. Docs updated or not updated
 5. Uncertain points
 6. Intentionally not implemented items
-
