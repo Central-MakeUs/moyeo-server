@@ -125,6 +125,7 @@ Do not implement domain behavior until a human-defined policy exists.
 - Keep the current JWT implementation minimal: no refresh token, logout, token rotation, or guest token yet.
 - Store real JWT secrets through environment variables in dev/prod.
 - Configure CORS with explicit frontend origins and update them when frontend deployment URLs are decided.
+- If `CORS_ALLOWED_ORIGINS` exists in the EC2 runtime `.env`, it overrides the default origins in `application-dev.yml`.
 - Do not store CI/DI unless a separate human decision, consent policy, and security policy are documented.
 
 ## Deployment Policy
@@ -153,6 +154,7 @@ Do not implement domain behavior until a human-defined policy exists.
 - Deployment workflow: `.github/workflows/deploy-dev.yml`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
 - Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager Run Command -> EC2 Docker Compose
+- Repository mirrors: push verified `main` changes to both `origin` and `cmc` while the personal and CMC repositories are maintained together.
 
 ## Documentation Policy
 
