@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-06-21
+> Last reviewed: 2026-06-27
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -22,17 +22,20 @@ View results
 Finalize decision
 ```
 
-## Today's Scope
+## Current Scope
 
 - Basic server runtime
 - Health check
 - Swagger/OpenAPI
 - Actuator
 - Local profile
-- H2/MySQL configuration template
-- CI
-- `AGENTS.md`
-- `README.md`
+- H2 local datasource
+- MySQL dev/prod datasource configuration
+- GitHub Actions CI/CD
+- Common error response base
+- Member/login base entities
+- Temporary local login API and Access JWT issue flow
+- AWS dev deployment
 
 ## Tech Decisions
 
@@ -48,12 +51,12 @@ Finalize decision
 ### JPA
 
 - Appointment rooms, participants, votes, responses, and results are expected to have clear relationships, making a relational model and ORM a suitable candidate.
-- No entity or domain model is defined during initial setup.
+- Current implemented entities are limited to member/login base structures.
 
 ### MySQL
 
-- Use as the candidate database for real dev/prod environments.
-- Prefer its relational consistency and broad operational references.
+- Use MySQL as the candidate database for real dev/prod environments.
+- Dev server uses Amazon RDS MySQL.
 
 ### H2
 
@@ -62,30 +65,35 @@ Finalize decision
 
 ## Currently Excluded
 
-### NoSQL
+### Domain Logic
+
+- Appointment-room domain logic
+- Voting domain logic
+- Participant domain logic
+- Result domain logic
+
+Do not implement domain behavior until a human-defined policy exists.
+
+### Redis/Kafka/WebSocket/NoSQL
 
 - Current MVP data appears relational.
-- No document or key-value storage requirement has been established.
-
-### Redis/Kafka/WebSocket
-
 - Traffic, real-time, and event-processing requirements are not yet clear for the six-week MVP.
 - Revisit after operational needs are validated.
 
 ### Nginx/Blue-Green/Zero-downtime Deployment
 
-- Consider operational needs, but do not implement them today.
-- Revisit after MVP completion during operational hardening.
+- Consider operational needs, but do not implement them in the current dev setup.
+- Revisit before public launch or operational hardening.
 
 ### MCP/Sub-agents/Complex Hooks
 
-- Codex working rules, documentation, and CI are sufficient for now.
+- Codex working rules, documentation, and CI/CD are sufficient for now.
 - Revisit only when a concrete need appears.
 
 ## AI-assisted Development Policy
 
-- Codex assists with repetitive work and initial setup.
-- Humans decide domain policy and technical direction.
+- Codex assists with repetitive work and implementation.
+- Humans decide domain policy, product policy, and technical direction.
 - Codex does not create policies absent from documentation.
 - Humans review AI-generated code.
 - Work is not complete until build and tests pass.
@@ -99,6 +107,7 @@ Finalize decision
 - Do not expose rejected values, exception types, stack traces, or internal exception messages.
 - Keep `/health`, Actuator, and Swagger/OpenAPI responses in their native formats.
 - Define domain error codes only after the related domain policy is documented.
+- Current common error handling is temporary until domain-specific errors are defined.
 
 ## Authentication Policy
 
@@ -114,13 +123,28 @@ Finalize decision
 
 - Use Docker for a repeatable dev deployment artifact.
 - Use AWS EC2 as the first dev deployment target.
+- Use Amazon RDS MySQL as the dev database.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.
 - Prefer AWS Systems Manager Run Command over opening SSH to GitHub Actions runners.
 - Keep EC2 runtime secrets in a server-side `.env` file or managed secret storage instead of passing them through deployment commands.
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in repository files.
+- Keep dev API port `8080` public for frontend collaboration.
+- Keep SSH port `22` restricted to the developer IP.
+- Keep RDS MySQL port `3306` private and accessible only from the EC2 application path.
 - Keep zero-downtime deployment, blue/green deployment, load balancer setup, and autoscaling out of the current MVP setup.
-- Revisit RDS, HTTPS, reverse proxy, migration, rollback, and zero-downtime strategy before public launch.
+- Revisit HTTPS, reverse proxy, migration, rollback, and zero-downtime strategy before public launch.
+
+## Current Dev Infrastructure
+
+- Dev API base URL: `http://3.35.119.70:8080`
+- EC2 instance: `moyeo-api-dev`
+- Elastic IP: `3.35.119.70`
+- RDS instance: `moyeo-dev-db`
+- ECR repository: `moyeo-server`
+- Deployment workflow: `.github/workflows/deploy-dev.yml`
+- Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
+- Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager Run Command -> EC2 Docker Compose
 
 ## Documentation Policy
 
@@ -137,12 +161,14 @@ Finalize decision
 
 After MVP completion, review these items in sequence as needs become clear:
 
-- Docker
-- Nginx reverse proxy
-- Blue/Green or Rolling deployment
-- Zero-downtime deployment
+- HTTPS and domain
+- Nginx or Caddy reverse proxy
 - Database migration
+- Refresh Token and token rotation
+- JWT authentication filter
 - traceId-based logging
 - Error monitoring
-- Deployment automation
+- Deployment rollback strategy
+- Blue/Green or rolling deployment
+- Zero-downtime deployment
 - Operational metrics collection

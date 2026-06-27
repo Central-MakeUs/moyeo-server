@@ -1,18 +1,25 @@
 # Moyeo Server
 
-CMC 모여 프로젝트의 6주 MVP 개발을 위한 Spring Boot 서버입니다. 현재는 도메인 기능 없이 실행, 연결 확인, API 문서, CI를 위한 최소 기반만 제공합니다.
+CMC 모여(Moyeo) 프로젝트의 Spring Boot 기반 MVP 백엔드 서버입니다.
 
-## 기술 스택
+현재 서버는 기본 실행 환경, health check, Swagger/OpenAPI, 공통 오류 응답, 회원/로그인 기반 구조, dev 배포 환경을 포함합니다.
+
+## Tech Stack
 
 - Java 21
 - Spring Boot 3.5.15
 - Gradle
 - Spring Web, Validation, Data JPA
-- H2(local/test), MySQL(dev/prod configuration template)
-- Springdoc OpenAPI, Spring Boot Actuator
+- H2(local/test)
+- MySQL(dev/prod)
+- Springdoc OpenAPI
+- Spring Boot Actuator
 - JUnit 5
+- Docker, Docker Compose
+- AWS EC2, ECR, RDS MySQL, Systems Manager
+- GitHub Actions
 
-## 로컬 실행
+## Local Run
 
 macOS/Linux:
 
@@ -26,24 +33,13 @@ Windows PowerShell:
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-기본 포트는 `8080`입니다.
+Default local port:
 
-## API 확인
-
-- 서버 health check: `GET http://localhost:8080/health`
-- Actuator health: `GET http://localhost:8080/actuator/health`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-
-`GET /health` 응답:
-
-```json
-{
-  "status": "OK"
-}
+```text
+8080
 ```
 
-## 테스트와 빌드
+## Test and Build
 
 macOS/Linux:
 
@@ -59,10 +55,96 @@ Windows PowerShell:
 .\gradlew.bat build
 ```
 
-## dev/prod 데이터베이스 설정 틀
+## API Paths
 
-`dev` 또는 `prod` profile을 사용할 때 다음 환경변수를 외부에서 주입합니다. 실제 값과 secret은 저장소에 커밋하지 않습니다.
+Local:
 
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
+- Health Check: `GET http://localhost:8080/health`
+- Actuator Health: `GET http://localhost:8080/actuator/health`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+
+Dev Server:
+
+- API Base URL: `http://3.35.119.70:8080`
+- Health Check: `http://3.35.119.70:8080/health`
+- Swagger UI: `http://3.35.119.70:8080/swagger-ui.html`
+- OpenAPI JSON: `http://3.35.119.70:8080/v3/api-docs`
+
+`GET /health` response:
+
+```json
+{
+  "status": "OK"
+}
+```
+
+## Current Auth APIs
+
+The current auth implementation is a temporary MVP base.
+
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+
+Login responses include an Access JWT.
+
+Not included yet:
+
+- Refresh Token
+- JWT authentication filter
+- Logout
+- Kakao/Apple OAuth integration
+- Guest participant authentication
+
+## Dev Deployment
+
+The dev server is deployed on AWS.
+
+```text
+GitHub Actions
+→ Gradle test/build
+→ Docker image build
+→ Amazon ECR push
+→ AWS Systems Manager Run Command
+→ EC2 Docker Compose deployment
+→ RDS MySQL connection
+```
+
+Runtime components:
+
+- EC2: `moyeo-api-dev`
+- RDS MySQL: `moyeo-dev-db`
+- ECR repository: `moyeo-server`
+- App container: `moyeo-server`
+
+Security policy for dev:
+
+- API port `8080` is public for frontend development and testing.
+- SSH port `22` is restricted to the developer IP.
+- RDS MySQL port `3306` is not publicly exposed.
+- GitHub Actions deploys through AWS Systems Manager instead of opening SSH to GitHub Actions runners.
+
+## Environment Variables
+
+`dev` and `prod` profiles require environment variables.
+
+```text
+DB_URL
+DB_USERNAME
+DB_PASSWORD
+JWT_SECRET
+```
+
+The EC2 dev server stores runtime values in:
+
+```text
+/home/ubuntu/moyeo/.env
+```
+
+Do not commit real secrets to the repository.
+
+## Documentation
+
+- Codex working rules: `AGENTS.md`
+- Project setup and technical decisions: `docs/00-project-setup.md`
+- DB diagram DBML: `docs/01-dbdiagram.md`
