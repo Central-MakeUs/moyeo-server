@@ -85,13 +85,14 @@ The current auth implementation is a temporary MVP base.
 
 - `POST /api/auth/signup`
 - `POST /api/auth/login`
+- `GET /api/auth/me`
 
 Login responses include an Access JWT.
+Protected APIs use the `Authorization: Bearer {accessToken}` header.
 
 Not included yet:
 
 - Refresh Token
-- JWT authentication filter
 - Logout
 - Kakao/Apple OAuth integration
 - Guest participant authentication
@@ -133,6 +134,7 @@ DB_URL
 DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
+CORS_ALLOWED_ORIGINS
 ```
 
 The EC2 dev server stores runtime values in:

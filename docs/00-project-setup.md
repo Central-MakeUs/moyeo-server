@@ -114,9 +114,10 @@ Do not implement domain behavior until a human-defined policy exists.
 - Keep `User` as the service user identity.
 - Keep local login credentials in `LoginAccount` instead of storing password data directly on `User`.
 - Keep social provider identities in `SocialAccount` using `provider + providerUserId`.
-- Use an Access JWT for local signup/login responses.
-- Keep the current JWT implementation minimal: no refresh token, logout, token rotation, guest token, or authorization filter yet.
+- Use an Access JWT for local signup/login responses and protected API authentication.
+- Keep the current JWT implementation minimal: no refresh token, logout, token rotation, or guest token yet.
 - Store real JWT secrets through environment variables in dev/prod.
+- Configure CORS with explicit frontend origins and update them when frontend deployment URLs are decided.
 - Do not store CI/DI unless a separate human decision, consent policy, and security policy are documented.
 
 ## Deployment Policy
@@ -165,7 +166,6 @@ After MVP completion, review these items in sequence as needs become clear:
 - Nginx or Caddy reverse proxy
 - Database migration
 - Refresh Token and token rotation
-- JWT authentication filter
 - traceId-based logging
 - Error monitoring
 - Deployment rollback strategy

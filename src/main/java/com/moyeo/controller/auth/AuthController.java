@@ -1,10 +1,12 @@
 package com.moyeo.controller.auth;
 
+import com.moyeo.global.security.CurrentMember;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,5 +40,10 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         AuthenticatedMember member = memberAuthService.loginLocal(request.loginId(), request.password());
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+    }
+
+    @GetMapping("/me")
+    public AuthUserResponse me(@CurrentMember AuthenticatedMember member) {
+        return AuthUserResponse.from(member);
     }
 }

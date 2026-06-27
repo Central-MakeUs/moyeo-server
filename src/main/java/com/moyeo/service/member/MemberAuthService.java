@@ -57,6 +57,12 @@ public class MemberAuthService {
         return AuthenticatedMember.from(loginAccount.getUser(), false);
     }
 
+    public AuthenticatedMember findAuthenticatedMember(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        return AuthenticatedMember.from(user, false);
+    }
+
     @Transactional
     public AuthenticatedMember loginSocial(
             AuthProvider provider,
