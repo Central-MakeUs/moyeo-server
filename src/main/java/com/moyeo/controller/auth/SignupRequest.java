@@ -7,7 +7,13 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "일반 회원가입 요청")
 public record SignupRequest(
-        @Schema(description = "로그인 ID", example = "moyeo1", minLength = 4, maxLength = 50)
+        @Schema(
+                description = "로그인 ID",
+                example = "moyeo1",
+                minLength = 4,
+                maxLength = 50,
+                pattern = "^[a-zA-Z0-9._-]+$"
+        )
         @NotBlank
         @Size(min = 4, max = 50)
         @Pattern(regexp = "^[a-zA-Z0-9._-]+$")

@@ -74,6 +74,15 @@ class MemberAuthServiceTest {
     }
 
     @Test
+    void registerLocalAllowsDuplicatedNickname() {
+        AuthenticatedMember first = memberAuthService.registerLocal("moyeo1", "password123!", "현우");
+        AuthenticatedMember second = memberAuthService.registerLocal("moyeo2", "password123!", "현우");
+
+        assertThat(second.userId()).isNotEqualTo(first.userId());
+        assertThat(second.nickname()).isEqualTo("현우");
+    }
+
+    @Test
     void loginLocalRejectsUnknownLoginId() {
         assertThatThrownBy(() -> memberAuthService.loginLocal("unknown", "password123!"))
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->

@@ -10,6 +10,7 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.LoginAccountRepository;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,10 +42,14 @@ public class MemberAuthService {
             throw new MoyeoException(AuthenticationErrorCode.DUPLICATE_LOGIN_ID);
         }
 
-        User user = userRepository.save(new User(nickname));
-        LoginAccount loginAccount = new LoginAccount(user, loginId, passwordEncoder.encode(rawPassword));
-        loginAccountRepository.save(loginAccount);
-        return AuthenticatedMember.from(user, true);
+        try {
+            User user = userRepository.save(new User(nickname));
+            LoginAccount loginAccount = new LoginAccount(user, loginId, passwordEncoder.encode(rawPassword));
+            loginAccountRepository.saveAndFlush(loginAccount);
+            return AuthenticatedMember.from(user, true);
+        } catch (DataIntegrityViolationException exception) {
+            throw new MoyeoException(AuthenticationErrorCode.DUPLICATE_LOGIN_ID);
+        }
     }
 
     public AuthenticatedMember loginLocal(String loginId, String rawPassword) {

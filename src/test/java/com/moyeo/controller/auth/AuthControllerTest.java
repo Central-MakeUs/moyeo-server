@@ -116,6 +116,19 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginValidatesRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "loginId", "한글아이디",
+                                "password", "password123!"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void signupValidatesRequest() throws Exception {
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
