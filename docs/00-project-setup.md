@@ -109,6 +109,13 @@ Do not implement domain behavior until a human-defined policy exists.
 - Define domain error codes only after the related domain policy is documented.
 - Current common error handling is temporary until domain-specific errors are defined.
 
+## API Documentation Policy
+
+- Use Swagger/OpenAPI as the primary API contract reference.
+- When adding or changing APIs, keep Swagger easy to read for frontend collaboration.
+- Add operation summaries, descriptions, DTO field descriptions, and example values when they help API consumers.
+- Keep Notion focused on product flow, policies, decisions, and links to Swagger rather than duplicating every request/response shape.
+
 ## Authentication Policy
 
 - Keep `User` as the service user identity.
