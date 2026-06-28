@@ -156,6 +156,18 @@ class RoomControllerTest {
     }
 
     @Test
+    void joinGuestAllowsMultipleGuestsWithNullUserId() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost9", "방장9", 6);
+
+        joinGuest(inviteCode, "게스트1");
+        joinGuest(inviteCode, "게스트2");
+
+        mockMvc.perform(get("/api/rooms/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(3));
+    }
+
+    @Test
     void joinGuestRejectsHostNicknameInSameRoom() throws Exception {
         String inviteCode = createRoomAndGetInviteCode("roomhost6", "현우", 6);
 

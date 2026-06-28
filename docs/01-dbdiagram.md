@@ -67,6 +67,7 @@ Table room_participants {
 
   indexes {
     (room_id, nickname) [unique, name: "uk_room_participants_room_nickname"]
+    (room_id, user_id) [unique, name: "uk_room_participants_room_user"]
   }
 }
 
@@ -86,4 +87,5 @@ Ref fk_room_participants_user: room_participants.user_id > users.id
 - `rooms` stores the first milestone room creation and invite code base.
 - `room_participants` stores host and guest participants.
 - `room_participants.nickname` is unique only inside a room.
+- `room_participants.user_id` is unique only inside a room when a participant is linked to a service user.
 - Guest participants do not use `users.id` yet; `room_participants.user_id` is nullable for guest participation.
