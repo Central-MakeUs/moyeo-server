@@ -4,10 +4,12 @@ import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.room.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,7 @@ public class RoomController {
             summary = "모임 생성",
             description = "로그인한 사용자가 방장이 되어 모임을 생성하고 초대 코드를 발급받습니다."
     )
+    @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "모임 생성 성공"),
             @ApiResponse(
@@ -60,7 +63,7 @@ public class RoomController {
             )
     })
     public CreateRoomResponse createRoom(
-            @CurrentMember AuthenticatedMember member,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
             @Valid @RequestBody CreateRoomRequest request
     ) {
         return CreateRoomResponse.from(roomService.createRoom(
