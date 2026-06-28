@@ -72,7 +72,7 @@ public class RoomService {
 
     @Transactional
     public GuestJoinResult joinGuest(String inviteCode, String nickname, String rawPassword) {
-        Room room = findRoomByInviteCode(inviteCode);
+        Room room = findRoomByInviteCodeForUpdate(inviteCode);
         String normalizedNickname = normalizeRequired(nickname);
 
         if (roomParticipantRepository.countByRoomId(room.getId()) >= room.getMaxParticipants()) {
@@ -95,6 +95,11 @@ public class RoomService {
 
     private Room findRoomByInviteCode(String inviteCode) {
         return roomRepository.findByInviteCode(inviteCode)
+                .orElseThrow(() -> new MoyeoException(RoomErrorCode.ROOM_INVITATION_NOT_FOUND));
+    }
+
+    private Room findRoomByInviteCodeForUpdate(String inviteCode) {
+        return roomRepository.findByInviteCodeForUpdate(inviteCode)
                 .orElseThrow(() -> new MoyeoException(RoomErrorCode.ROOM_INVITATION_NOT_FOUND));
     }
 

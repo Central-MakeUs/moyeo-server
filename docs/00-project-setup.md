@@ -158,6 +158,13 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - If `CORS_ALLOWED_ORIGINS` exists in the EC2 runtime `.env`, it overrides the default origins in `application-dev.yml`.
 - Do not store CI/DI unless a separate human decision, consent policy, and security policy are documented.
 
+## Room Participation Policy
+
+- Room participant nicknames are unique only inside each room.
+- Guest participation checks the current participant count before saving.
+- To prevent concurrent guest joins from exceeding `maxParticipants`, guest participation may acquire a pessimistic write lock on the target room row during the join transaction.
+- Keep this lock limited to the room join path; ordinary invite-code lookup should remain read-only.
+
 ## Deployment Policy
 
 - Use Docker for a repeatable dev deployment artifact.
