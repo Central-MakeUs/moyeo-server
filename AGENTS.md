@@ -18,7 +18,7 @@
 - Java 21, Spring Boot 3.5.x, Gradle.
 - Local profile uses H2.
 - Dev/prod profiles use MySQL configuration through environment variables.
-- Dev server is deployed to AWS EC2 with Docker, Amazon ECR, RDS MySQL, and GitHub Actions.
+- Dev server is deployed to AWS EC2 with Docker, Docker Compose MySQL, Amazon ECR, and GitHub Actions.
 - Deployment uses AWS Systems Manager Run Command instead of opening SSH to GitHub Actions runners.
 - API documentation is served through Swagger/OpenAPI.
 - Current API error handling uses RFC 9457 Problem Details as a temporary common error response base.
@@ -63,6 +63,7 @@ The following areas are currently allowed when explicitly requested:
 - MySQL dev/prod datasource configuration
 - GitHub Actions CI/CD
 - Docker-based dev deployment
+- EC2 Docker Compose MySQL dev database
 - SSM-based EC2 deployment
 - Common error response base
 - Member/login base entities

@@ -57,7 +57,8 @@ Finalize decision
 ### MySQL
 
 - Use MySQL as the candidate database for real dev/prod environments.
-- Dev server uses Amazon RDS MySQL.
+- Dev server currently uses MySQL 8.4 running in Docker Compose on the EC2 dev instance to reduce early MVP infrastructure cost.
+- Amazon RDS MySQL was used initially, but is being phased out from the dev environment after data backup and migration.
 
 ### H2
 
@@ -184,7 +185,9 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 
 - Use Docker for a repeatable dev deployment artifact.
 - Use AWS EC2 as the first dev deployment target.
-- Use Amazon RDS MySQL as the dev database.
+- Use MySQL 8.4 in Docker Compose on the EC2 dev instance as the current dev database.
+- Keep the dev MySQL container private to the EC2 Docker network; do not expose port `3306` publicly.
+- RDS may be revisited later if managed database reliability becomes more important than early cost control.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.
 - Prefer AWS Systems Manager Run Command over opening SSH to GitHub Actions runners.
@@ -192,7 +195,7 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in repository files.
 - Keep dev API port `8080` public for frontend collaboration.
 - Keep SSH port `22` restricted to the developer IP.
-- Keep RDS MySQL port `3306` private and accessible only from the EC2 application path.
+- Keep MySQL port `3306` private and accessible only from the EC2 application path.
 - Keep zero-downtime deployment, blue/green deployment, load balancer setup, and autoscaling out of the current MVP setup.
 - Revisit HTTPS, reverse proxy, migration, rollback, and zero-downtime strategy before public launch.
 
@@ -201,11 +204,12 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Dev API base URL: `http://3.35.119.70:8080`
 - EC2 instance: `moyeo-api-dev`
 - Elastic IP: `3.35.119.70`
-- RDS instance: `moyeo-dev-db`
+- Dev database: MySQL 8.4 container `moyeo-mysql` on the EC2 Docker Compose network
 - ECR repository: `moyeo-server`
 - Deployment workflow: `.github/workflows/deploy-dev.yml`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
 - Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager Run Command -> EC2 Docker Compose
+- Runtime `DB_URL` on EC2 should point to the Compose service name, for example `jdbc:mysql://mysql:3306/moyeo?...`.
 - Repository mirrors: push verified `main` changes to both `origin` and `cmc` while the personal and CMC repositories are maintained together.
 
 ## Documentation Policy
