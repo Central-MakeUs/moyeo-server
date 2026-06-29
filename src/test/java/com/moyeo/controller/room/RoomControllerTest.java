@@ -8,10 +8,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +42,9 @@ class RoomControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void createRoomReturnsInviteCodeAndHostParticipant() throws Exception {
         String accessToken = signupAndGetAccessToken("roomhost1", "방장1");
@@ -45,17 +52,20 @@ class RoomControllerTest {
         mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "토요일 모임",
-                                "description", "같이 저녁 먹어요.",
-                                "maxParticipants", 6
-                        ))))
+                        .content(objectMapper.writeValueAsString(defaultCreateRoomRequest(6))))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.roomId").isNumber())
                 .andExpect(jsonPath("$.name").value("토요일 모임"))
                 .andExpect(jsonPath("$.description").value("같이 저녁 먹어요."))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
+                .andExpect(jsonPath("$.scheduleMode").value("VOTE"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0]").value("2026-07-01"))
+                .andExpect(jsonPath("$.availableStartTime").value("09:00:00"))
+                .andExpect(jsonPath("$.availableEndTime").value("18:00:00"))
+                .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
+                .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.inviteCode").isString())
                 .andExpect(jsonPath("$.invitePath").isString())
                 .andExpect(jsonPath("$.hostParticipantId").isNumber());
@@ -81,14 +91,134 @@ class RoomControllerTest {
         mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "",
-                                "description", "x".repeat(101),
-                                "maxParticipants", 1
-                        ))))
+                        .content(objectMapper.writeValueAsString(invalidCreateRoomRequest())))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createRoomRejectsNonHourUnitScheduleTime() throws Exception {
+        String accessToken = signupAndGetAccessToken("roomhost10", "host10");
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.room.ScheduleMode.VOTE,
+                null,
+                List.of(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2)),
+                LocalTime.of(18, 30),
+                LocalTime.of(22, 0),
+                com.moyeo.domain.room.PlaceMode.RECOMMEND,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                null,
+                null,
+                1440
+        );
+
+        mockMvc.perform(post("/api/rooms")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createRoomRejectsNonTenMinuteDeadline() throws Exception {
+        String accessToken = signupAndGetAccessToken("roomhost11", "host11");
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.room.ScheduleMode.VOTE,
+                null,
+                List.of(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2)),
+                LocalTime.of(18, 0),
+                LocalTime.of(22, 0),
+                com.moyeo.domain.room.PlaceMode.RECOMMEND,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                null,
+                null,
+                15
+        );
+
+        mockMvc.perform(post("/api/rooms")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createRoomIgnoresFieldsNotMatchingSelectedModes() throws Exception {
+        String accessToken = signupAndGetAccessToken("roomhost13", "host13");
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.room.ScheduleMode.NONE,
+                java.time.LocalDateTime.of(2026, 7, 4, 19, 0),
+                List.of(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2)),
+                LocalTime.of(18, 0),
+                LocalTime.of(22, 0),
+                com.moyeo.domain.room.PlaceMode.NONE,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.RANDOM,
+                "Gangnam",
+                "Seoul Gangnam",
+                1440
+        );
+
+        mockMvc.perform(post("/api/rooms")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.scheduleMode").value("NONE"))
+                .andExpect(jsonPath("$.fixedScheduleAt").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.scheduleCandidateDates").isEmpty())
+                .andExpect(jsonPath("$.availableStartTime").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.availableEndTime").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.placeMode").value("NONE"))
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.fixedPlaceName").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.fixedPlaceAddress").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void createRoomRemovesDuplicatedScheduleCandidateDatesAndSortsThem() throws Exception {
+        String accessToken = signupAndGetAccessToken("roomhost14", "host14");
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.room.ScheduleMode.VOTE,
+                null,
+                List.of(LocalDate.of(2026, 7, 2), LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 1)),
+                LocalTime.of(18, 0),
+                LocalTime.of(22, 0),
+                com.moyeo.domain.room.PlaceMode.RECOMMEND,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                null,
+                null,
+                1440
+        );
+
+        mockMvc.perform(post("/api/rooms")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.scheduleCandidateDates.length()").value(2))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0]").value("2026-07-01"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[1]").value("2026-07-02"));
     }
 
     @Test
@@ -101,6 +231,11 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.roomId").isNumber())
                 .andExpect(jsonPath("$.name").value("토요일 모임"))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
+                .andExpect(jsonPath("$.scheduleMode").value("VOTE"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0]").value("2026-07-01"))
+                .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
+                .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.participantCount").value(1))
                 .andExpect(jsonPath("$.hostNickname").value("방장3"));
     }
@@ -199,6 +334,22 @@ class RoomControllerTest {
     }
 
     @Test
+    void joinGuestRejectsClosedRoomParticipation() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost12", "host12", 6);
+        jdbcTemplate.update("update rooms set deadline_at = dateadd('second', -1, current_timestamp) where invite_code = ?", inviteCode);
+
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "guest-deadline",
+                                "password", "guestpass123"
+                        ))))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("ROOM_PARTICIPATION_CLOSED"));
+    }
+
+    @Test
     void joinGuestValidatesRequest() throws Exception {
         String inviteCode = createRoomAndGetInviteCode("roomhost8", "방장8", 6);
 
@@ -234,11 +385,7 @@ class RoomControllerTest {
         String response = mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "토요일 모임",
-                                "description", "같이 저녁 먹어요.",
-                                "maxParticipants", maxParticipants
-                        ))))
+                        .content(objectMapper.writeValueAsString(defaultCreateRoomRequest(maxParticipants))))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -246,6 +393,42 @@ class RoomControllerTest {
 
         JsonNode jsonNode = objectMapper.readTree(response);
         return jsonNode.get("inviteCode").asText();
+    }
+
+    private CreateRoomRequest defaultCreateRoomRequest(int maxParticipants) {
+        return new CreateRoomRequest(
+                "토요일 모임",
+                "같이 저녁 먹어요.",
+                maxParticipants,
+                com.moyeo.domain.room.ScheduleMode.VOTE,
+                null,
+                List.of(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2)),
+                LocalTime.of(9, 0),
+                LocalTime.of(18, 0),
+                com.moyeo.domain.room.PlaceMode.RECOMMEND,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                null,
+                null,
+                1440
+        );
+    }
+
+    private CreateRoomRequest invalidCreateRoomRequest() {
+        return new CreateRoomRequest(
+                "",
+                "x".repeat(101),
+                1,
+                com.moyeo.domain.room.ScheduleMode.VOTE,
+                null,
+                List.of(),
+                LocalTime.of(18, 0),
+                LocalTime.of(9, 0),
+                com.moyeo.domain.room.PlaceMode.RECOMMEND,
+                null,
+                null,
+                null,
+                0
+        );
     }
 
     private void joinGuest(String inviteCode, String nickname) throws Exception {

@@ -108,15 +108,25 @@ The current room implementation covers the first milestone base flow.
 Current room scope:
 
 - A logged-in user can create a room as host.
+- Room creation for the first MVP accepts the first creation flow settings in one request.
 - The server issues an invite code.
 - A public invite-code lookup returns room basic information.
 - A guest can join with nickname and password.
 - Participant nicknames are unique only inside each room.
+- `deadlineAt` is calculated by the server from request `deadlineMinutes`.
+- `deadlineMinutes` is accepted in 10-minute units up to 72 hours.
+- Schedule voting applies the same available time range to every selected candidate date.
+- Schedule voting time ranges are accepted in 1-hour units.
+- Guest participation is rejected after `deadlineAt`.
+- Schedule/place coordination modes are stored, but recommendation calculation is not implemented yet.
 
 Not included yet:
 
+- Step-by-step room draft save
 - Schedule coordination
 - Place coordination
+- Tmap/Tmap Transit integration
+- Store-area/place recommendation data
 - Voting/free-poll
 - Final decision/result
 - Room list/detail tabs

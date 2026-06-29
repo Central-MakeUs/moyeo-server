@@ -160,11 +160,22 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 
 ## Room Participation Policy
 
+- For the first MVP, room creation is completed with one final API request after the creation steps are filled out.
+- Draft or step-by-step room creation should be added later as a separate draft flow if product policy requires it.
+- Schedule mode is currently modeled as `VOTE`, `FIXED`, or `NONE`.
+- Place mode is currently modeled as `FIXED`, `RECOMMEND`, or `NONE`.
+- Place recommendation strategy is separated from place mode so recommendation sorting or refresh behavior can evolve later.
+- Room creation receives `deadlineMinutes`; the server calculates and returns `deadlineAt`.
+- `deadlineMinutes` is currently accepted in 10-minute units, up to 72 hours.
+- Schedule voting candidate dates are stored as separate rows and are currently limited to 14 dates by request validation.
+- Schedule voting applies the same available time range to every selected candidate date.
+- Schedule voting time ranges are currently accepted in 1-hour units.
 - Room participant nicknames are unique only inside each room.
 - A service user should not be linked to the same room more than once; enforce this with a room-scoped uniqueness rule such as `unique(room_id, user_id)`.
 - Guest participants currently have nullable `user_id`, so multiple guest participants remain allowed.
 - Guest re-entry, guest modification, participant password verification, member invitation, and group invitation remain deferred until their policies are confirmed.
 - A repeated guest join attempt with the same nickname should continue to return a duplicate nickname conflict, even if the same password is provided.
+- Guest participation is rejected after the room `deadlineAt`.
 - Guest participation checks the current participant count before saving.
 - To prevent concurrent guest joins from exceeding `maxParticipants`, guest participation may acquire a pessimistic write lock on the target room row during the join transaction.
 - Keep this lock limited to the room join path; ordinary invite-code lookup should remain read-only.

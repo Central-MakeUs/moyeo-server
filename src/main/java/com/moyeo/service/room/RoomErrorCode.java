@@ -27,6 +27,13 @@ public enum RoomErrorCode implements ErrorCode {
             "room-participant-limit-exceeded",
             "모임 인원 초과",
             "모임 최대 참여 인원을 초과했습니다."
+    ),
+    ROOM_PARTICIPATION_CLOSED(
+            HttpStatus.CONFLICT,
+            "ROOM_PARTICIPATION_CLOSED",
+            "room-participation-closed",
+            "모임 참여 마감",
+            "모임 참여 마감 시간이 지났습니다."
     );
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";

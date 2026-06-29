@@ -47,12 +47,31 @@ Table rooms {
   name varchar(15) [not null]
   description varchar(100)
   max_participants int [not null]
+  schedule_mode varchar(20) [not null]
+  fixed_schedule_at datetime
+  available_start_time time
+  available_end_time time
+  place_mode varchar(20) [not null]
+  place_recommendation_strategy varchar(30)
+  fixed_place_name varchar(100)
+  fixed_place_address varchar(255)
+  deadline_at datetime [not null]
   invite_code varchar(20) [not null, unique]
   created_at datetime [not null]
   updated_at datetime [not null]
 
   indexes {
     invite_code [unique, name: "uk_rooms_invite_code"]
+  }
+}
+
+Table room_schedule_candidates {
+  id bigint [pk, increment]
+  room_id bigint [not null]
+  candidate_date date [not null]
+
+  indexes {
+    (room_id, candidate_date) [unique, name: "uk_room_schedule_candidates_room_date"]
   }
 }
 
@@ -74,6 +93,7 @@ Table room_participants {
 Ref fk_login_accounts_user: login_accounts.user_id - users.id
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
 Ref fk_rooms_host_user: rooms.host_user_id > users.id
+Ref fk_room_schedule_candidates_room: room_schedule_candidates.room_id > rooms.id
 Ref fk_room_participants_room: room_participants.room_id > rooms.id
 Ref fk_room_participants_user: room_participants.user_id > users.id
 ```
@@ -85,6 +105,12 @@ Ref fk_room_participants_user: room_participants.user_id > users.id
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - `rooms` stores the first milestone room creation and invite code base.
+- `rooms.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.
+- `rooms.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
+- `rooms.place_recommendation_strategy` is used only when `place_mode` is `RECOMMEND`.
+- `rooms.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
+- `rooms.available_start_time` and `rooms.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
+- `room_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `room_participants` stores host and guest participants.
 - `room_participants.nickname` is unique only inside a room.
 - `room_participants.user_id` is unique only inside a room when a participant is linked to a service user.

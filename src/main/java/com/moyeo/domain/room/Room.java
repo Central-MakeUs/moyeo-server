@@ -3,6 +3,8 @@ package com.moyeo.domain.room;
 import com.moyeo.domain.member.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.ForeignKey;
 import jakarta.persistence.GeneratedValue;
@@ -16,6 +18,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Entity
 @Table(
@@ -43,6 +46,33 @@ public class Room {
     @Column(nullable = false)
     private Integer maxParticipants;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ScheduleMode scheduleMode;
+
+    private LocalDateTime fixedScheduleAt;
+
+    private LocalTime availableStartTime;
+
+    private LocalTime availableEndTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PlaceMode placeMode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private PlaceRecommendationStrategy placeRecommendationStrategy;
+
+    @Column(length = 100)
+    private String fixedPlaceName;
+
+    @Column(length = 255)
+    private String fixedPlaceAddress;
+
+    @Column(nullable = false)
+    private LocalDateTime deadlineAt;
+
     @Column(name = "invite_code", nullable = false, length = 20)
     private String inviteCode;
 
@@ -55,11 +85,35 @@ public class Room {
     protected Room() {
     }
 
-    public Room(User hostUser, String name, String description, Integer maxParticipants, String inviteCode) {
+    public Room(
+            User hostUser,
+            String name,
+            String description,
+            Integer maxParticipants,
+            ScheduleMode scheduleMode,
+            LocalDateTime fixedScheduleAt,
+            LocalTime availableStartTime,
+            LocalTime availableEndTime,
+            PlaceMode placeMode,
+            PlaceRecommendationStrategy placeRecommendationStrategy,
+            String fixedPlaceName,
+            String fixedPlaceAddress,
+            LocalDateTime deadlineAt,
+            String inviteCode
+    ) {
         this.hostUser = hostUser;
         this.name = name;
         this.description = description;
         this.maxParticipants = maxParticipants;
+        this.scheduleMode = scheduleMode;
+        this.fixedScheduleAt = fixedScheduleAt;
+        this.availableStartTime = availableStartTime;
+        this.availableEndTime = availableEndTime;
+        this.placeMode = placeMode;
+        this.placeRecommendationStrategy = placeRecommendationStrategy;
+        this.fixedPlaceName = fixedPlaceName;
+        this.fixedPlaceAddress = fixedPlaceAddress;
+        this.deadlineAt = deadlineAt;
         this.inviteCode = inviteCode;
     }
 
@@ -93,6 +147,42 @@ public class Room {
 
     public Integer getMaxParticipants() {
         return maxParticipants;
+    }
+
+    public ScheduleMode getScheduleMode() {
+        return scheduleMode;
+    }
+
+    public LocalDateTime getFixedScheduleAt() {
+        return fixedScheduleAt;
+    }
+
+    public LocalTime getAvailableStartTime() {
+        return availableStartTime;
+    }
+
+    public LocalTime getAvailableEndTime() {
+        return availableEndTime;
+    }
+
+    public PlaceMode getPlaceMode() {
+        return placeMode;
+    }
+
+    public PlaceRecommendationStrategy getPlaceRecommendationStrategy() {
+        return placeRecommendationStrategy;
+    }
+
+    public String getFixedPlaceName() {
+        return fixedPlaceName;
+    }
+
+    public String getFixedPlaceAddress() {
+        return fixedPlaceAddress;
+    }
+
+    public LocalDateTime getDeadlineAt() {
+        return deadlineAt;
     }
 
     public String getInviteCode() {

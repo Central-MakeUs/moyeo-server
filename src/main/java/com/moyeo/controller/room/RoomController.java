@@ -66,12 +66,7 @@ public class RoomController {
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
             @Valid @RequestBody CreateRoomRequest request
     ) {
-        return CreateRoomResponse.from(roomService.createRoom(
-                member,
-                request.name(),
-                request.description(),
-                request.maxParticipants()
-        ));
+        return CreateRoomResponse.from(roomService.createRoom(member, request.toCommand()));
     }
 
     @GetMapping("/invitations/{inviteCode}")
@@ -126,10 +121,10 @@ public class RoomController {
             ),
             @ApiResponse(
                     responseCode = "409",
-                    description = "닉네임 중복 또는 모임 인원 초과",
+                    description = "닉네임 중복, 모임 인원 초과 또는 참여 마감",
                     content = @Content(examples = @ExampleObject(value = """
                             {
-                              "code": "DUPLICATE_ROOM_PARTICIPANT_NICKNAME",
+                              "code": "ROOM_PARTICIPATION_CLOSED",
                               "status": 409
                             }
                             """))
