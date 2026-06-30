@@ -17,8 +17,10 @@ public record GuestJoinResponse(
         @Schema(
                 description = """
                         참여자 타입.
-                        - HOST: 방장
-                        - GUEST: 게스트 참여자
+                        <ul>
+                          <li>HOST: 방장</li>
+                          <li>GUEST: 게스트 참여자</li>
+                        </ul>
                         """,
                 example = "GUEST",
                 allowableValues = {"HOST", "GUEST"}

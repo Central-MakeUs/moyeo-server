@@ -18,9 +18,12 @@ import java.time.LocalTime;
 import java.util.List;
 
 @Schema(description = """
-        모임 생성 요청.
-        화면 STEP 1~4에서 입력한 값을 마지막 링크 생성 시 한 번에 전송합니다.
-        scheduleMode/placeMode 값에 따라 사용하는 필드가 달라지며, 사용하지 않는 필드는 보내지 않거나 null로 보내도 됩니다.
+        모임 생성 요청입니다.<br>
+        <ul>
+          <li>화면 STEP 1~4에서 입력한 값을 마지막 링크 생성 시 한 번에 전송합니다.</li>
+          <li>scheduleMode/placeMode 값에 따라 사용하는 필드가 달라집니다.</li>
+          <li>사용하지 않는 필드는 보내지 않거나 null로 보내도 됩니다.</li>
+        </ul>
         """)
 public record CreateRoomRequest(
         @Schema(description = "모임 카드와 초대 화면에 표시할 이름입니다.", example = "토요일 저녁 모임", minLength = 1, maxLength = 15)
@@ -40,9 +43,11 @@ public record CreateRoomRequest(
         @Schema(
                 description = """
                         일정 설정 방식.
-                        - VOTE: 일정 투표
-                        - FIXED: 일정 확정
-                        - NONE: 일정 미정/건너뛰기
+                        <ul>
+                          <li>VOTE: 일정 투표</li>
+                          <li>FIXED: 일정 확정</li>
+                          <li>NONE: 일정 미정/건너뛰기</li>
+                        </ul>
                         """,
                 example = "VOTE",
                 allowableValues = {"VOTE", "FIXED", "NONE"}
@@ -66,9 +71,11 @@ public record CreateRoomRequest(
         @Schema(
                 description = """
                         장소 설정 방식.
-                        - FIXED: 장소 확정
-                        - RECOMMEND: 장소 추천/조율
-                        - NONE: 장소 미정/건너뛰기
+                        <ul>
+                          <li>FIXED: 장소 확정</li>
+                          <li>RECOMMEND: 장소 추천/조율</li>
+                          <li>NONE: 장소 미정/건너뛰기</li>
+                        </ul>
                         """,
                 example = "RECOMMEND",
                 allowableValues = {"FIXED", "RECOMMEND", "NONE"}
@@ -79,8 +86,10 @@ public record CreateRoomRequest(
         @Schema(
                 description = """
                         장소 추천 방식. placeMode=RECOMMEND일 때 필수입니다. FIXED/NONE에서는 사용하지 않습니다.
-                        - MIDDLE_POINT: 중간 지점 기반 추천
-                        - RANDOM: 랜덤 추천
+                        <ul>
+                          <li>MIDDLE_POINT: 중간 지점 기반 추천</li>
+                          <li>RANDOM: 랜덤 추천</li>
+                        </ul>
                         """,
                 example = "MIDDLE_POINT",
                 allowableValues = {"MIDDLE_POINT", "RANDOM"}

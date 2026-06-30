@@ -25,9 +25,11 @@ public record CreateRoomResponse(
         @Schema(
                 description = """
                         일정 설정 방식.
-                        - VOTE: 일정 투표
-                        - FIXED: 일정 확정
-                        - NONE: 일정 미정/건너뛰기
+                        <ul>
+                          <li>VOTE: 일정 투표</li>
+                          <li>FIXED: 일정 확정</li>
+                          <li>NONE: 일정 미정/건너뛰기</li>
+                        </ul>
                         """,
                 example = "VOTE",
                 allowableValues = {"VOTE", "FIXED", "NONE"}
@@ -49,9 +51,11 @@ public record CreateRoomResponse(
         @Schema(
                 description = """
                         장소 설정 방식.
-                        - FIXED: 장소 확정
-                        - RECOMMEND: 장소 추천/조율
-                        - NONE: 장소 미정/건너뛰기
+                        <ul>
+                          <li>FIXED: 장소 확정</li>
+                          <li>RECOMMEND: 장소 추천/조율</li>
+                          <li>NONE: 장소 미정/건너뛰기</li>
+                        </ul>
                         """,
                 example = "RECOMMEND",
                 allowableValues = {"FIXED", "RECOMMEND", "NONE"}
@@ -61,8 +65,10 @@ public record CreateRoomResponse(
         @Schema(
                 description = """
                         장소 추천 방식. placeMode=RECOMMEND일 때만 값이 있고, FIXED/NONE에서는 null입니다.
-                        - MIDDLE_POINT: 중간 지점 기반 추천
-                        - RANDOM: 랜덤 추천
+                        <ul>
+                          <li>MIDDLE_POINT: 중간 지점 기반 추천</li>
+                          <li>RANDOM: 랜덤 추천</li>
+                        </ul>
                         """,
                 example = "MIDDLE_POINT",
                 allowableValues = {"MIDDLE_POINT", "RANDOM"}

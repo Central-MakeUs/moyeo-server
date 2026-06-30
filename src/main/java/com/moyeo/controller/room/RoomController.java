@@ -37,15 +37,15 @@ public class RoomController {
     @Operation(
             summary = "모임 생성",
             description = """
-                    로그인한 사용자가 방장이 되어 모임을 생성하고 초대 코드를 발급받습니다.
+                    로그인한 사용자가 방장이 되어 모임을 생성하고 초대 코드를 발급받습니다.<br>
                     프론트 화면의 STEP 1~4 입력값을 마지막 링크 생성 시 한 번에 전송합니다.
-                    
-                    STEP 1 기본 정보: name, description, maxParticipants
-                    STEP 2 일정 설정: scheduleMode에 따라 VOTE/FIXED/NONE 중 하나 사용
-                    STEP 3 장소 설정: placeMode에 따라 RECOMMEND/FIXED/NONE 중 하나 사용
-                    STEP 4 마감 설정: deadlineMinutes를 보내면 서버가 deadlineAt을 계산
-                    
-                    사용하지 않는 모드의 필드는 보내지 않거나 null로 보내도 됩니다.
+                    <ul>
+                      <li>STEP 1 기본 정보: name, description, maxParticipants</li>
+                      <li>STEP 2 일정 설정: scheduleMode에 따라 VOTE/FIXED/NONE 중 하나 사용</li>
+                      <li>STEP 3 장소 설정: placeMode에 따라 RECOMMEND/FIXED/NONE 중 하나 사용</li>
+                      <li>STEP 4 마감 설정: deadlineMinutes를 보내면 서버가 deadlineAt을 계산</li>
+                    </ul>
+                    사용하지 않는 모드의 필드는 보내지 않거나 null로 보내도 됩니다.<br>
                     예: scheduleMode=VOTE이면 fixedScheduleAt은 사용하지 않고,
                     placeMode=RECOMMEND이면 fixedPlaceName/fixedPlaceAddress는 사용하지 않습니다.
                     """,
