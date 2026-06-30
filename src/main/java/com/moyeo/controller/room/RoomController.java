@@ -45,6 +45,8 @@ public class RoomController {
                       <li>STEP 3 장소 설정: placeMode에 따라 RECOMMEND/FIXED/NONE 중 하나 사용</li>
                       <li>STEP 4 마감 설정: deadlineMinutes를 보내면 서버가 deadlineAt을 계산</li>
                     </ul>
+                    scheduleMode와 placeMode는 서로 독립적으로 조합할 수 있습니다.<br>
+                    예: scheduleMode=VOTE + placeMode=NONE, scheduleMode=FIXED + placeMode=RECOMMEND<br>
                     사용하지 않는 모드의 필드는 보내지 않거나 null로 보내도 됩니다.<br>
                     예: scheduleMode=VOTE이면 fixedScheduleAt은 사용하지 않고,
                     placeMode=RECOMMEND이면 fixedPlaceName/fixedPlaceAddress는 사용하지 않습니다.
