@@ -36,7 +36,78 @@ public class RoomController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "모임 생성",
-            description = "로그인한 사용자가 방장이 되어 모임을 생성하고 초대 코드를 발급받습니다."
+            description = """
+                    로그인한 사용자가 방장이 되어 모임을 생성하고 초대 코드를 발급받습니다.
+                    프론트 화면의 STEP 1~4 입력값을 마지막 링크 생성 시 한 번에 전송합니다.
+                    
+                    STEP 1 기본 정보: name, description, maxParticipants
+                    STEP 2 일정 설정: scheduleMode에 따라 VOTE/FIXED/NONE 중 하나 사용
+                    STEP 3 장소 설정: placeMode에 따라 RECOMMEND/FIXED/NONE 중 하나 사용
+                    STEP 4 마감 설정: deadlineMinutes를 보내면 서버가 deadlineAt을 계산
+                    
+                    사용하지 않는 모드의 필드는 보내지 않거나 null로 보내도 됩니다.
+                    예: scheduleMode=VOTE이면 fixedScheduleAt은 사용하지 않고,
+                    placeMode=RECOMMEND이면 fixedPlaceName/fixedPlaceAddress는 사용하지 않습니다.
+                    """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "STEP 1~4: 일정 투표 + 장소 추천",
+                                            description = "후보 날짜들과 공통 시간대를 받고, 참여자 출발지를 기반으로 장소 추천을 진행하는 흐름입니다.",
+                                            value = """
+                                                    {
+                                                      "name": "토요일 저녁 모임",
+                                                      "description": "오랜만에 같이 저녁 먹어요.",
+                                                      "maxParticipants": 6,
+                                                      "scheduleMode": "VOTE",
+                                                      "scheduleCandidateDates": [
+                                                        "2026-07-04",
+                                                        "2026-07-05"
+                                                      ],
+                                                      "availableStartTime": "18:00",
+                                                      "availableEndTime": "22:00",
+                                                      "placeMode": "RECOMMEND",
+                                                      "placeRecommendationStrategy": "MIDDLE_POINT",
+                                                      "deadlineMinutes": 1440
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "STEP 1~4: 일정 확정 + 장소 확정",
+                                            description = "모임장이 일정과 장소를 이미 정한 상태로 방을 만드는 흐름입니다.",
+                                            value = """
+                                                    {
+                                                      "name": "강남 점심 모임",
+                                                      "description": "점심 먹고 카페까지 가요.",
+                                                      "maxParticipants": 4,
+                                                      "scheduleMode": "FIXED",
+                                                      "fixedScheduleAt": "2026-07-04T12:00:00",
+                                                      "placeMode": "FIXED",
+                                                      "fixedPlaceName": "강남역",
+                                                      "fixedPlaceAddress": "서울 강남구 강남대로 지하 396",
+                                                      "deadlineMinutes": 180
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "STEP 1~4: 일정/장소 건너뛰기",
+                                            description = "일정과 장소를 아직 정하지 않고 기본 정보와 마감만 설정하는 흐름입니다.",
+                                            value = """
+                                                    {
+                                                      "name": "번개 모임",
+                                                      "description": "일정과 장소는 나중에 정해요.",
+                                                      "maxParticipants": 8,
+                                                      "scheduleMode": "NONE",
+                                                      "placeMode": "NONE",
+                                                      "deadlineMinutes": 720
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            )
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
@@ -122,12 +193,35 @@ public class RoomController {
             @ApiResponse(
                     responseCode = "409",
                     description = "닉네임 중복, 모임 인원 초과 또는 참여 마감",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "code": "ROOM_PARTICIPATION_CLOSED",
-                              "status": 409
-                            }
-                            """))
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "모임 참여 마감",
+                                    value = """
+                                            {
+                                              "code": "ROOM_PARTICIPATION_CLOSED",
+                                              "status": 409
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "모임 인원 초과",
+                                    value = """
+                                            {
+                                              "code": "ROOM_PARTICIPANT_LIMIT_EXCEEDED",
+                                              "status": 409
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "모임 안 닉네임 중복",
+                                    value = """
+                                            {
+                                              "code": "DUPLICATE_ROOM_PARTICIPANT_NICKNAME",
+                                              "status": 409
+                                            }
+                                            """
+                            )
+                    })
             )
     })
     public GuestJoinResponse joinGuest(

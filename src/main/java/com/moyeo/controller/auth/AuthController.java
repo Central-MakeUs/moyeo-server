@@ -38,7 +38,11 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "일반 회원가입",
-            description = "로그인 ID, 비밀번호, 닉네임으로 회원가입하고 Access Token을 발급합니다."
+            description = """
+                    로그인 ID, 비밀번호, 닉네임으로 회원가입하고 Access Token을 발급합니다.
+                    현재 MVP에서는 회원가입 성공 시 즉시 로그인된 것으로 보고 Access Token을 함께 반환합니다.
+                    회원 기본 닉네임은 전역 고유값이 아니며, 모임 안 표시 닉네임은 참여자 기준으로 별도 관리합니다.
+                    """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "회원가입 성공"),
@@ -75,7 +79,7 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(
             summary = "일반 로그인",
-            description = "로그인 ID와 비밀번호로 로그인하고 Access Token을 발급합니다."
+            description = "로그인 ID와 비밀번호로 로그인하고 Access Token을 발급합니다. 이후 보호된 API는 `Authorization: Bearer {accessToken}` 헤더를 사용합니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "로그인 성공"),
