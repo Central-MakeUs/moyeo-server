@@ -142,6 +142,9 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Use Swagger/OpenAPI as the primary API contract reference.
 - When adding or changing APIs, keep Swagger easy to read for frontend collaboration.
 - Add operation summaries, descriptions, DTO field descriptions, and example values when they help API consumers.
+- For enum or code-like fields, document the allowed values and their meanings.
+- For mode-dependent fields, document when each field is required, nullable, ignored, or returned as an empty list.
+- For complex request flows, provide Swagger examples that frontend developers can copy and adjust.
 - Until authentication/authorization is hardened or replaced by a different framework-level approach, controller parameters that inject the current user through `@CurrentMember AuthenticatedMember` must be hidden from Swagger with `@Parameter(hidden = true)`.
 - For APIs that require the current user, show the Bearer token requirement in Swagger instead of exposing the internal current-user parameter.
 - If the current-user injection structure changes later and Swagger no longer exposes these internal parameters, this temporary documentation rule and related annotations may be removed.
@@ -220,6 +223,7 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - README.md is for humans: setup, run commands, API paths, and basic project information.
 - docs/00-project-setup.md is for project-level decisions, such as tech choices, excluded technologies, and operational roadmap.
 - docs/01-dbdiagram.md is for the current database schema in dbdiagram.io DBML format.
+- Keep entity comments and DBML notes concise, useful, and aligned when schema meaning changes.
 - Do not create new markdown documents unless the topic is stable enough to maintain.
 - For feature-level work, prefer adding a short policy section only when the policy is actually needed.
 - Do not create separate workflow or review checklist documents unless the project complexity justifies them.

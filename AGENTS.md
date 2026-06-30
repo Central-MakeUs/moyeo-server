@@ -124,12 +124,17 @@ Do not implement the following until a human explicitly requests it and the poli
 - The error response format is still temporary and may be revisited later.
 - Swagger/OpenAPI is the primary API contract reference.
 - When adding or changing APIs, add useful Swagger summaries, descriptions, status-code responses, DTO field descriptions, and examples.
+- For enum or code-like API fields, document the allowed values and their meanings in Swagger.
+- For mode-dependent fields, document when each field is required, nullable, ignored, or returned as an empty list.
+- Use Swagger examples for complex request flows so frontend developers can copy and adjust them.
 - Keep Notion focused on product flow, policies, decisions, and links to Swagger rather than duplicating every request/response shape.
 
 ## Database and DBML Policy
 
 - If JPA entities, table names, columns, indexes, unique constraints, or relationships change, update `docs/01-dbdiagram.md`.
 - Keep DBML copy-paste ready for dbdiagram.io.
+- Add concise entity/table/column comments when they clarify domain meaning, nullable behavior, or enum/code values.
+- Keep JPA comments and DBML notes aligned when schema documentation changes.
 - Dev may temporarily use `ddl-auto=update` for early schema iteration.
 - Prod must not rely on unsafe automatic schema changes.
 - Schema rename/delete/type-change work should be handled deliberately, preferably with migration planning.
