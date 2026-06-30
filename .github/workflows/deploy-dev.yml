@@ -108,6 +108,8 @@ jobs:
               "    image: mysql:8.4",
               "    container_name: moyeo-mysql",
               "    restart: unless-stopped",
+              "    ports:",
+              "      - \"127.0.0.1:3306:3306\"",
               "    environment:",
               "      MYSQL_DATABASE: moyeo",
               "      MYSQL_USER: ${DB_USERNAME}",

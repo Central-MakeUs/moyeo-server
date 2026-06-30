@@ -187,6 +187,7 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Use AWS EC2 as the first dev deployment target.
 - Use MySQL 8.4 in Docker Compose on the EC2 dev instance as the current dev database.
 - Keep the dev MySQL container private to the EC2 Docker network; do not expose port `3306` publicly.
+- Binding MySQL to `127.0.0.1:3306` on EC2 is allowed for developer DBeaver access through SSH tunneling only.
 - RDS may be revisited later if managed database reliability becomes more important than early cost control.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.

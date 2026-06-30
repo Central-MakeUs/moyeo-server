@@ -159,6 +159,7 @@ Security policy for dev:
 - API port `8080` is public for frontend development and testing.
 - SSH port `22` is restricted to the developer IP.
 - MySQL port `3306` is not publicly exposed.
+- MySQL may be bound to EC2 localhost `127.0.0.1:3306` for DBeaver access through SSH tunneling.
 - GitHub Actions deploys through AWS Systems Manager instead of opening SSH to GitHub Actions runners.
 
 ## Environment Variables
