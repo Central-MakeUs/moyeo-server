@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-06-27
+> Last reviewed: 2026-07-01
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -58,7 +58,7 @@ Finalize decision
 
 - Use MySQL as the candidate database for real dev/prod environments.
 - Dev server currently uses MySQL 8.4 running in Docker Compose on the EC2 dev instance to reduce early MVP infrastructure cost.
-- Amazon RDS MySQL was used initially, but is being phased out from the dev environment after data backup and migration.
+- Amazon RDS MySQL is not the current default dev database. Keep any remaining RDS notes as legacy/reference only.
 
 ### H2
 
@@ -166,12 +166,15 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 
 - For the first MVP, room creation is completed with one final API request after the creation steps are filled out.
 - Draft or step-by-step room creation should be added later as a separate draft flow if product policy requires it.
-- Schedule mode is currently modeled as `VOTE`, `FIXED`, or `NONE`.
-- Place mode is currently modeled as `FIXED`, `RECOMMEND`, or `NONE`.
+- Room creation is selected by `planningType`: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
+- Schedule mode is currently stored as `VOTE`, `FIXED`, or `NONE`, but current room creation derives it from `planningType` and does not accept fixed schedule input.
+- Place mode is currently stored as `FIXED`, `RECOMMEND`, or `NONE`, but current room creation derives it from `planningType` and does not accept fixed place input.
+- Fixed schedule/place creation remains deferred until wireframes or product policy confirm the flow.
 - Place recommendation strategy is separated from place mode so recommendation sorting or refresh behavior can evolve later.
+- Middle-point room creation stores the host departure address on the host `room_participants` row. Actual middle-point calculation remains deferred.
 - Room creation receives `deadlineMinutes`; the server calculates and returns `deadlineAt`.
 - `deadlineMinutes` is currently accepted in 10-minute units, up to 72 hours.
-- Schedule voting candidate dates are stored as separate rows and are currently limited to 14 dates by request validation.
+- Schedule voting candidate dates are stored as separate rows and are temporarily limited to 21 dates by request validation until the final 3-week policy is confirmed.
 - Schedule voting applies the same available time range to every selected candidate date.
 - Schedule voting time ranges are currently accepted in 1-hour units.
 - Room participant nicknames are unique only inside each room.
@@ -191,7 +194,7 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Use MySQL 8.4 in Docker Compose on the EC2 dev instance as the current dev database.
 - Keep the dev MySQL container private to the EC2 Docker network; do not expose port `3306` publicly.
 - Binding MySQL to `127.0.0.1:3306` on EC2 is allowed for developer DBeaver access through SSH tunneling only.
-- RDS may be revisited later if managed database reliability becomes more important than early cost control.
+- RDS is legacy/reference only for the current dev setup and may be revisited later if managed database reliability becomes more important than early cost control.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.
 - Prefer AWS Systems Manager Run Command over opening SSH to GitHub Actions runners.
@@ -213,7 +216,7 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Deployment workflow: `.github/workflows/deploy-dev.yml`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
 - Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager Run Command -> EC2 Docker Compose
-- Runtime `DB_URL` on EC2 should point to the Compose service name, for example `jdbc:mysql://mysql:3306/moyeo?...`.
+- Runtime `DB_URL` on the EC2 app container should point to the Compose service name: `jdbc:mysql://mysql:3306/moyeo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8`.
 - Repository mirrors: push verified `main` changes to both `origin` and `cmc` while the personal and CMC repositories are maintained together.
 
 ## Documentation Policy

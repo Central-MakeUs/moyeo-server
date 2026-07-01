@@ -47,6 +47,7 @@ Table rooms {
   name varchar(15) [not null, note: "모임 이름"]
   description varchar(100) [note: "모임 설명"]
   max_participants int [not null, note: "최대 참여 인원. 방장 포함"]
+  planning_type varchar(30) [not null, note: "모임 생성 유형: SCHEDULE_ONLY/PLACE_ONLY/SCHEDULE_AND_PLACE"]
   schedule_mode varchar(20) [not null, note: "일정 설정 방식: VOTE/FIXED/NONE"]
   fixed_schedule_at datetime [note: "확정 일정. schedule_mode가 FIXED일 때 사용"]
   available_start_time time [note: "일정 투표 공통 시작 시간. schedule_mode가 VOTE일 때 사용"]
@@ -82,6 +83,7 @@ Table room_participants {
   nickname varchar(30) [not null, note: "모임 안에서 표시할 닉네임"]
   password_hash varchar(100) [note: "게스트 참여 비밀번호 해시. 회원/방장은 null"]
   participant_type varchar(20) [not null, note: "참여자 타입: HOST/GUEST"]
+  departure_address varchar(255) [note: "방장 또는 참여자 출발지 주소. 중간지점 추천에서 사용"]
   created_at datetime [not null, note: "참여 생성 일시"]
 
   indexes {
@@ -105,6 +107,7 @@ Ref fk_room_participants_user: room_participants.user_id > users.id
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - `rooms` stores the first milestone room creation and invite code base.
+- `rooms.planning_type` stores the FAB-selected creation type: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
 - `rooms.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.
 - `rooms.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
 - `rooms.place_recommendation_strategy` is used only when `place_mode` is `RECOMMEND`.
@@ -112,6 +115,7 @@ Ref fk_room_participants_user: room_participants.user_id > users.id
 - `rooms.available_start_time` and `rooms.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
 - `room_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `room_participants` stores host and guest participants.
+- `room_participants.departure_address` stores a participant departure address when needed for middle-point recommendation. Room creation currently stores only the host departure address.
 - `room_participants.nickname` is unique only inside a room.
 - `room_participants.user_id` is unique only inside a room when a participant is linked to a service user.
 - Guest participants do not use `users.id` yet; `room_participants.user_id` is nullable for guest participation.
