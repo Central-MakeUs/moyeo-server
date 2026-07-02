@@ -39,3 +39,6 @@ out/
 ### Local deployment notes with secret mappings ###
 # Do not commit files that map real deployment secrets or server-side .env values.
 docs/local-deploy-env.md
+
+### Codex temporary attachments ###
+.codex-remote-attachments/
