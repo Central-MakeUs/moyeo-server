@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Comment;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -58,9 +59,26 @@ public class RoomParticipant {
     @Comment("참여자 타입: HOST/GUEST")
     private ParticipantType participantType;
 
-    @Column(length = 255)
+    @Column(name = "departure_name", length = 30)
+    @Comment("방장 또는 참여자의 출발지 이름. 중간지점 추천에서 사용")
+    private String departureName;
+
+    @Column(name = "departure_address", length = 255)
     @Comment("방장 또는 참여자의 출발지 주소. 중간지점 추천에서 사용")
     private String departureAddress;
+
+    @Column(name = "departure_latitude", precision = 10, scale = 7)
+    @Comment("방장 또는 참여자의 출발지 위도. 중간지점 추천에서 사용")
+    private BigDecimal departureLatitude;
+
+    @Column(name = "departure_longitude", precision = 10, scale = 7)
+    @Comment("방장 또는 참여자의 출발지 경도. 중간지점 추천에서 사용")
+    private BigDecimal departureLongitude;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transportation_mode", length = 20)
+    @Comment("중간지점 추천에 사용할 이동수단: PUBLIC_TRANSIT/CAR")
+    private TransportationMode transportationMode;
 
     @Column(nullable = false)
     @Comment("참여 생성 일시")
@@ -75,26 +93,53 @@ public class RoomParticipant {
             String nickname,
             String passwordHash,
             ParticipantType participantType,
-            String departureAddress
+            String departureName,
+            String departureAddress,
+            BigDecimal departureLatitude,
+            BigDecimal departureLongitude,
+            TransportationMode transportationMode
     ) {
         this.room = room;
         this.user = user;
         this.nickname = nickname;
         this.passwordHash = passwordHash;
         this.participantType = participantType;
+        this.departureName = departureName;
         this.departureAddress = departureAddress;
+        this.departureLatitude = departureLatitude;
+        this.departureLongitude = departureLongitude;
+        this.transportationMode = transportationMode;
     }
 
     public static RoomParticipant host(Room room, User user) {
-        return host(room, user, null);
+        return host(room, user, null, null, null, null, null);
     }
 
-    public static RoomParticipant host(Room room, User user, String departureAddress) {
-        return new RoomParticipant(room, user, user.getNickname(), null, ParticipantType.HOST, departureAddress);
+    public static RoomParticipant host(
+            Room room,
+            User user,
+            String departureName,
+            String departureAddress,
+            BigDecimal departureLatitude,
+            BigDecimal departureLongitude,
+            TransportationMode transportationMode
+    ) {
+        return new RoomParticipant(
+                room,
+                user,
+                user.getNickname(),
+                null,
+                ParticipantType.HOST,
+                departureName,
+                departureAddress,
+                departureLatitude,
+                departureLongitude,
+                transportationMode
+        );
     }
 
     public static RoomParticipant guest(Room room, String nickname, String passwordHash) {
-        return new RoomParticipant(room, null, nickname, passwordHash, ParticipantType.GUEST, null);
+        return new RoomParticipant(room, null, nickname, passwordHash, ParticipantType.GUEST, null, null, null, null, null);
     }
 
     @PrePersist
@@ -126,7 +171,23 @@ public class RoomParticipant {
         return participantType;
     }
 
+    public String getDepartureName() {
+        return departureName;
+    }
+
     public String getDepartureAddress() {
         return departureAddress;
+    }
+
+    public BigDecimal getDepartureLatitude() {
+        return departureLatitude;
+    }
+
+    public BigDecimal getDepartureLongitude() {
+        return departureLongitude;
+    }
+
+    public TransportationMode getTransportationMode() {
+        return transportationMode;
     }
 }

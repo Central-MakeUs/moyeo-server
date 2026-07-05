@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-07-01
+> Last reviewed: 2026-07-05
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -58,6 +58,7 @@ Finalize decision
 
 - Use MySQL as the candidate database for real dev/prod environments.
 - Dev server currently uses MySQL 8.4 running in Docker Compose on the EC2 dev instance to reduce early MVP infrastructure cost.
+- Dev server temporarily uses Hibernate `ddl-auto=update` while the MVP schema is still changing quickly. Revisit this before real user data matters and move to explicit migrations or `validate`.
 - Amazon RDS MySQL is not the current default dev database. Keep any remaining RDS notes as legacy/reference only.
 
 ### H2
@@ -171,28 +172,39 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Schedule mode is currently stored as `VOTE`, `FIXED`, or `NONE`, but current room creation derives it from `planningType` and does not accept fixed schedule input.
 - Place mode is currently stored as `FIXED`, `RECOMMEND`, or `NONE`, but current room creation derives it from `planningType` and does not accept fixed place input.
 - Fixed schedule/place direct input is excluded from the current MVP creation flow and may be reconsidered in a later product discussion.
-- Place recommendation strategy is separated from place mode so recommendation sorting or refresh behavior can evolve later.
-- Middle-point room creation stores the host departure address on the host `room_participants` row. Actual middle-point calculation remains deferred.
+- TODO: After the MVP creation flow is stable, decide whether to remove the remaining fixed schedule/place fields and enum values or reintroduce a fixed direct-input flow.
+- Place recommendation strategy is separated from place mode. The first MVP keeps the room creation strategy fixed after creation; later place recommendation/finalization flow may revisit switching between middle-point and random recommendations.
+- Middle-point room creation stores the host departure name, address, latitude, longitude, and transportation mode snapshot on the host `room_participants` row. Actual middle-point calculation remains deferred.
+- TODO: Host departure address modification is out of the first MVP creation scope and should be handled with the later participation/modification flow.
 - Room creation receives `deadlineMinutes`; the server calculates and returns `deadlineAt`.
-- `deadlineMinutes` is currently accepted in 10-minute units, up to 72 hours.
-- Schedule voting candidate dates are stored as separate rows and are temporarily limited to 21 dates by request validation until the final 3-week policy is confirmed.
+- `deadlineMinutes` is currently accepted in 10-minute units from 10 minutes up to 72 hours. A zero-minute deadline is not allowed.
+- `deadlineAt` is calculated from the server processing time of the final room creation request. Any client-side expected end time is only a preview and may differ if the user stays on the screen before submitting.
+- Schedule voting candidate dates are stored as separate rows and are temporarily limited to 21 dates by request validation until the final 3-week policy is confirmed. Keep the limit isolated in the room creation constraints so it can be changed without reshaping the API.
 - Schedule voting applies the same available time range to every selected candidate date.
 - Schedule voting time ranges are currently accepted in 1-hour units.
+- The first room participation expansion should collect participant schedule availability only.
+- Place coordination participation, including participant departure input and recommendation/finalization behavior, is deferred until the schedule-only participation flow is stable.
+- For `SCHEDULE_AND_PLACE` rooms, the first participation expansion may collect schedule availability first and leave place participation as an explicit later step.
+- `PLACE_ONLY` room participation remains deferred until place coordination policy is confirmed.
 - Room participant nicknames are unique only inside each room.
 - A service user should not be linked to the same room more than once; enforce this with a room-scoped uniqueness rule such as `unique(room_id, user_id)`.
 - Guest participants currently have nullable `user_id`, so multiple guest participants remain allowed.
+- Guest join currently accepts only nickname and password. Guest departure address, coordinates, and transportation mode are not part of the join API and should be handled by a later place coordination participation API.
 - Guest re-entry, guest modification, participant password verification, member invitation, and group invitation remain deferred until their policies are confirmed.
 - A repeated guest join attempt with the same nickname should continue to return a duplicate nickname conflict, even if the same password is provided.
 - Guest participation is rejected after the room `deadlineAt`.
 - Guest participation checks the current participant count before saving.
 - To prevent concurrent guest joins from exceeding `maxParticipants`, guest participation may acquire a pessimistic write lock on the target room row during the join transaction.
 - Keep this lock limited to the room join path; ordinary invite-code lookup should remain read-only.
+- Invite-code lookup returns the current participation availability status for the entry screen.
+- If both the deadline and participant limit block joining, the deadline-passed status takes priority in the entry response.
 
 ## Deployment Policy
 
 - Use Docker for a repeatable dev deployment artifact.
 - Use AWS EC2 as the first dev deployment target.
 - Use MySQL 8.4 in Docker Compose on the EC2 dev instance as the current dev database.
+- Use temporary Hibernate schema update only for the dev profile while MVP schema churn is high; do not use it as the production migration strategy.
 - Keep the dev MySQL container private to the EC2 Docker network; do not expose port `3306` publicly.
 - Binding MySQL to `127.0.0.1:3306` on EC2 is allowed for developer DBeaver access through SSH tunneling only.
 - RDS is legacy/reference only for the current dev setup and may be revisited later if managed database reliability becomes more important than early cost control.

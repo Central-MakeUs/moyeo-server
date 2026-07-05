@@ -4,7 +4,9 @@ import com.moyeo.domain.room.PlaceMode;
 import com.moyeo.domain.room.PlaceRecommendationStrategy;
 import com.moyeo.domain.room.PlanningType;
 import com.moyeo.domain.room.ScheduleMode;
+import com.moyeo.domain.room.TransportationMode;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -24,7 +26,11 @@ public record CreateRoomCommand(
         PlaceRecommendationStrategy placeRecommendationStrategy,
         String fixedPlaceName,
         String fixedPlaceAddress,
+        String hostDepartureName,
         String hostDepartureAddress,
+        BigDecimal hostDepartureLatitude,
+        BigDecimal hostDepartureLongitude,
+        TransportationMode hostTransportationMode,
         int deadlineMinutes
 ) {
 }

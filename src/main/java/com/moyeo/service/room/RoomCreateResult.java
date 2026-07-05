@@ -7,6 +7,7 @@ import com.moyeo.domain.room.RoomScheduleCandidate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.math.BigDecimal;
 import java.util.List;
 
 public record RoomCreateResult(
@@ -16,18 +17,19 @@ public record RoomCreateResult(
         Integer maxParticipants,
         String planningType,
         String scheduleMode,
-        LocalDateTime fixedScheduleAt,
         List<LocalDate> scheduleCandidateDates,
         LocalTime availableStartTime,
         LocalTime availableEndTime,
         String placeMode,
         String placeRecommendationStrategy,
-        String fixedPlaceName,
-        String fixedPlaceAddress,
         LocalDateTime deadlineAt,
         String inviteCode,
         String invitePath,
+        String hostDepartureName,
         String hostDepartureAddress,
+        BigDecimal hostDepartureLatitude,
+        BigDecimal hostDepartureLongitude,
+        String hostTransportationMode,
         Long hostParticipantId
 ) {
 
@@ -43,18 +45,19 @@ public record RoomCreateResult(
                 room.getMaxParticipants(),
                 room.getPlanningType().name(),
                 room.getScheduleMode().name(),
-                room.getFixedScheduleAt(),
                 scheduleCandidates.stream().map(RoomScheduleCandidate::getCandidateDate).toList(),
                 room.getAvailableStartTime(),
                 room.getAvailableEndTime(),
                 room.getPlaceMode().name(),
                 room.getPlaceRecommendationStrategy() != null ? room.getPlaceRecommendationStrategy().name() : null,
-                room.getFixedPlaceName(),
-                room.getFixedPlaceAddress(),
                 room.getDeadlineAt(),
                 room.getInviteCode(),
                 "/rooms/invitations/" + room.getInviteCode(),
+                hostParticipant.getDepartureName(),
                 hostParticipant.getDepartureAddress(),
+                hostParticipant.getDepartureLatitude(),
+                hostParticipant.getDepartureLongitude(),
+                hostParticipant.getTransportationMode() != null ? hostParticipant.getTransportationMode().name() : null,
                 hostParticipant.getId()
         );
     }

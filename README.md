@@ -112,18 +112,24 @@ Current room scope:
 - The server issues an invite code.
 - A public invite-code lookup returns room basic information.
 - A guest can join with nickname and password.
+- Guest join does not accept departure address, coordinates, or transportation mode yet.
 - Participant nicknames are unique only inside each room.
 - `deadlineAt` is calculated by the server from request `deadlineMinutes`.
-- `deadlineMinutes` is accepted in 10-minute units up to 72 hours.
+- `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
 - Schedule voting applies the same available time range to every selected candidate date.
 - Schedule voting time ranges are accepted in 1-hour units.
 - Guest participation is rejected after `deadlineAt`.
+- Invite-code lookup returns whether the current room can still be joined and the reason/message when joining is blocked.
 - Schedule/place coordination modes are stored, but recommendation calculation is not implemented yet.
+- Middle-point creation stores the host departure name, address, coordinates, and transportation mode as the host participant snapshot.
+- Place recommendation strategy is fixed after room creation in the first MVP.
+- The next participation milestone should collect schedule availability first.
+- Place coordination participation is planned as a later expansion after the schedule-only participation flow is stable.
 
 Not included yet:
 
 - Step-by-step room draft save
-- Schedule coordination
+- Schedule coordination beyond the first schedule availability participation milestone
 - Place coordination
 - Tmap/Tmap Transit integration
 - Store-area/place recommendation data
@@ -136,6 +142,8 @@ Not included yet:
 ## Dev Deployment
 
 The dev server is deployed on AWS.
+
+The dev profile currently uses Hibernate schema update while the MVP schema is still changing. Treat this as temporary development convenience, not a production migration strategy.
 
 ```text
 GitHub Actions

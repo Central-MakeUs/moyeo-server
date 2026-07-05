@@ -79,7 +79,15 @@ public class RoomService {
         saveScheduleCandidates(savedRoom, command);
 
         RoomParticipant hostParticipant = roomParticipantRepository.saveAndFlush(
-                RoomParticipant.host(savedRoom, hostUser, normalizeOptional(command.hostDepartureAddress()))
+                RoomParticipant.host(
+                        savedRoom,
+                        hostUser,
+                        normalizeOptional(command.hostDepartureName()),
+                        normalizeOptional(command.hostDepartureAddress()),
+                        command.hostDepartureLatitude(),
+                        command.hostDepartureLongitude(),
+                        command.hostTransportationMode()
+                )
         );
 
         List<RoomScheduleCandidate> scheduleCandidates = roomScheduleCandidateRepository

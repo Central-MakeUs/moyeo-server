@@ -15,17 +15,15 @@ public record RoomInvitationResult(
         Integer maxParticipants,
         String planningType,
         String scheduleMode,
-        LocalDateTime fixedScheduleAt,
         List<LocalDate> scheduleCandidateDates,
         LocalTime availableStartTime,
         LocalTime availableEndTime,
         String placeMode,
         String placeRecommendationStrategy,
-        String fixedPlaceName,
-        String fixedPlaceAddress,
         LocalDateTime deadlineAt,
         long participantCount,
-        String hostNickname
+        String hostNickname,
+        ParticipationStatus participationStatus
 ) {
 
     public static RoomInvitationResult from(
@@ -33,6 +31,7 @@ public record RoomInvitationResult(
             long participantCount,
             List<RoomScheduleCandidate> scheduleCandidates
     ) {
+        ParticipationStatus participationStatus = ParticipationStatus.from(room, participantCount);
         return new RoomInvitationResult(
                 room.getId(),
                 room.getName(),
@@ -40,17 +39,40 @@ public record RoomInvitationResult(
                 room.getMaxParticipants(),
                 room.getPlanningType().name(),
                 room.getScheduleMode().name(),
-                room.getFixedScheduleAt(),
                 scheduleCandidates.stream().map(RoomScheduleCandidate::getCandidateDate).toList(),
                 room.getAvailableStartTime(),
                 room.getAvailableEndTime(),
                 room.getPlaceMode().name(),
                 room.getPlaceRecommendationStrategy() != null ? room.getPlaceRecommendationStrategy().name() : null,
-                room.getFixedPlaceName(),
-                room.getFixedPlaceAddress(),
                 room.getDeadlineAt(),
                 participantCount,
-                room.getHostUser().getNickname()
+                room.getHostUser().getNickname(),
+                participationStatus
         );
+    }
+
+    public record ParticipationStatus(
+            boolean canJoin,
+            String reason,
+            String message
+    ) {
+
+        private static final String AVAILABLE = "AVAILABLE";
+        private static final String DEADLINE_PASSED = "DEADLINE_PASSED";
+        private static final String PARTICIPANT_LIMIT_EXCEEDED = "PARTICIPANT_LIMIT_EXCEEDED";
+        private static final String DEADLINE_PASSED_MESSAGE = "기한이 지난 모임이에요. 아쉽지만 현재는 더 이상 참여할 수 없어요.";
+        private static final String PARTICIPANT_LIMIT_EXCEEDED_MESSAGE = "모인 인원이 모두 찼어요. 아쉽지만 현재는 더 이상 참여할 수 없어요.";
+
+        private static ParticipationStatus from(Room room, long participantCount) {
+            if (!room.getDeadlineAt().isAfter(LocalDateTime.now())) {
+                return new ParticipationStatus(false, DEADLINE_PASSED, DEADLINE_PASSED_MESSAGE);
+            }
+
+            if (participantCount >= room.getMaxParticipants()) {
+                return new ParticipationStatus(false, PARTICIPANT_LIMIT_EXCEEDED, PARTICIPANT_LIMIT_EXCEEDED_MESSAGE);
+            }
+
+            return new ParticipationStatus(true, AVAILABLE, null);
+        }
     }
 }

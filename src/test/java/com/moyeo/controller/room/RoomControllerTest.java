@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
@@ -69,7 +70,11 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.inviteCode").isString())
                 .andExpect(jsonPath("$.invitePath").isString())
+                .andExpect(jsonPath("$.hostDepartureName").value("회사"))
                 .andExpect(jsonPath("$.hostDepartureAddress").value("Seoul Gangnam"))
+                .andExpect(jsonPath("$.hostDepartureLatitude").value(37.498095))
+                .andExpect(jsonPath("$.hostDepartureLongitude").value(127.027610))
+                .andExpect(jsonPath("$.hostTransportationMode").value("PUBLIC_TRANSIT"))
                 .andExpect(jsonPath("$.hostParticipantId").isNumber());
     }
 
@@ -113,6 +118,10 @@ class RoomControllerTest {
                 LocalTime.of(22, 0),
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
                 1440
         );
 
@@ -138,8 +147,42 @@ class RoomControllerTest {
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
                 com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                "회사",
                 "Seoul Gangnam",
+                BigDecimal.valueOf(37.498095),
+                BigDecimal.valueOf(127.027610),
+                com.moyeo.domain.room.TransportationMode.PUBLIC_TRANSIT,
                 15
+        );
+
+        mockMvc.perform(post("/api/rooms")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createRoomRejectsMiddlePointWithoutHostDepartureSnapshot() throws Exception {
+        String accessToken = signupAndGetAccessToken("roomhost17", "host17");
+
+        CreateRoomRequest request = new CreateRoomRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.room.PlanningType.PLACE_ONLY,
+                null,
+                null,
+                null,
+                com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                null,
+                "Seoul Gangnam",
+                BigDecimal.valueOf(37.498095),
+                BigDecimal.valueOf(127.027610),
+                com.moyeo.domain.room.TransportationMode.PUBLIC_TRANSIT,
+                1440
         );
 
         mockMvc.perform(post("/api/rooms")
@@ -165,6 +208,10 @@ class RoomControllerTest {
                 null,
                 com.moyeo.domain.room.PlaceRecommendationStrategy.RANDOM,
                 null,
+                null,
+                null,
+                null,
+                null,
                 1440
         );
 
@@ -175,14 +222,11 @@ class RoomControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.planningType").value("PLACE_ONLY"))
                 .andExpect(jsonPath("$.scheduleMode").value("NONE"))
-                .andExpect(jsonPath("$.fixedScheduleAt").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.scheduleCandidateDates").isEmpty())
                 .andExpect(jsonPath("$.availableStartTime").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.availableEndTime").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
-                .andExpect(jsonPath("$.placeRecommendationStrategy").value("RANDOM"))
-                .andExpect(jsonPath("$.fixedPlaceName").value(org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.fixedPlaceAddress").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value("RANDOM"));
     }
 
     @Test
@@ -197,6 +241,10 @@ class RoomControllerTest {
                 List.of(LocalDate.of(2026, 7, 2), LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 1)),
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 1440
@@ -229,7 +277,10 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
                 .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.participantCount").value(1))
-                .andExpect(jsonPath("$.hostNickname").value("방장3"));
+                .andExpect(jsonPath("$.hostNickname").value("방장3"))
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(true))
+                .andExpect(jsonPath("$.participationStatus.reason").value("AVAILABLE"))
+                .andExpect(jsonPath("$.participationStatus.message").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test
@@ -238,6 +289,33 @@ class RoomControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("ROOM_INVITATION_NOT_FOUND"));
+    }
+
+    @Test
+    void getInvitationReturnsParticipantLimitExceededStatus() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost15", "host15", 2);
+        joinGuest(inviteCode, "guest-limit");
+
+        mockMvc.perform(get("/api/rooms/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("PARTICIPANT_LIMIT_EXCEEDED"))
+                .andExpect(jsonPath("$.participationStatus.message").value("모인 인원이 모두 찼어요. 아쉽지만 현재는 더 이상 참여할 수 없어요."));
+    }
+
+    @Test
+    void getInvitationReturnsDeadlinePassedStatusBeforeParticipantLimitStatus() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost16", "host16", 2);
+        joinGuest(inviteCode, "guest-deadline-status");
+        jdbcTemplate.update("update rooms set deadline_at = dateadd('second', -1, current_timestamp) where invite_code = ?", inviteCode);
+
+        mockMvc.perform(get("/api/rooms/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("DEADLINE_PASSED"))
+                .andExpect(jsonPath("$.participationStatus.message").value("기한이 지난 모임이에요. 아쉽지만 현재는 더 이상 참여할 수 없어요."));
     }
 
     @Test
@@ -397,7 +475,11 @@ class RoomControllerTest {
                 LocalTime.of(9, 0),
                 LocalTime.of(18, 0),
                 com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
+                "회사",
                 "Seoul Gangnam",
+                BigDecimal.valueOf(37.498095),
+                BigDecimal.valueOf(127.027610),
+                com.moyeo.domain.room.TransportationMode.PUBLIC_TRANSIT,
                 1440
         );
     }
@@ -411,6 +493,10 @@ class RoomControllerTest {
                 List.of(),
                 LocalTime.of(18, 0),
                 LocalTime.of(9, 0),
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 0

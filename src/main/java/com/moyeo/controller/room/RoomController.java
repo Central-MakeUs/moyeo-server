@@ -41,10 +41,11 @@ public class RoomController {
                     클라이언트는 FAB에서 선택한 생성 플로우를 완료한 뒤 마지막 링크 생성 시 한 번에 요청합니다.
                     <ul>
                       <li>SCHEDULE_ONLY: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)만 사용합니다.</li>
-                      <li>PLACE_ONLY: SCR-06 기본 정보 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 장소를 나중에 정할 방식(RECOMMEND)을 저장하며 MIDDLE_POINT 또는 RANDOM을 선택합니다.</li>
-                      <li>SCHEDULE_AND_PLACE: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)과 장소를 나중에 정할 방식(RECOMMEND)을 함께 저장합니다.</li>
+                      <li>PLACE_ONLY: SCR-06 기본 정보 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 장소 추천 방식으로 MIDDLE_POINT 또는 RANDOM을 선택합니다.</li>
+                      <li>SCHEDULE_AND_PLACE: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)과 장소 추천 방식(RECOMMEND)을 함께 저장합니다.</li>
                     </ul>
                     scheduleMode와 placeMode는 서버가 planningType 기준으로 파생합니다.
+                    placeRecommendationStrategy는 1차 MVP에서 생성 후 변경하지 않으며, 추후 전환 기능을 검토할 수 있습니다.
                     확정 일정/확정 장소 직접 입력 플로우는 이번 MVP 생성 범위에서 제외하며, 추후 회의에서 재검토합니다.
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -53,7 +54,7 @@ public class RoomController {
                             examples = {
                                     @ExampleObject(
                                             name = "SCHEDULE_AND_PLACE",
-                                            description = "일정 조율(VOTE)과 장소를 나중에 정할 방식(RECOMMEND)을 함께 저장하는 생성 요청입니다. 장소 방식은 MIDDLE_POINT 또는 RANDOM 중 선택하며, 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. MIDDLE_POINT를 선택하면 방장 출발지 주소를 방장 참여자 정보에 저장합니다.",
+                                            description = "일정 조율(VOTE)과 장소 추천 방식(RECOMMEND)을 함께 저장하는 생성 요청입니다. 장소 추천 방식은 MIDDLE_POINT 또는 RANDOM 중 선택합니다. 1차 MVP에서는 생성 후 변경하지 않으며, 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. MIDDLE_POINT를 선택하면 방장 출발지 이름, 주소, 좌표, 이동수단을 방장 참여자 정보에 저장합니다.",
                                             value = """
                                                     {
                                                       "name": "토요일 저녁 모임",
@@ -67,7 +68,11 @@ public class RoomController {
                                                       "availableStartTime": "18:00",
                                                       "availableEndTime": "22:00",
                                                       "placeRecommendationStrategy": "MIDDLE_POINT",
+                                                      "hostDepartureName": "회사",
                                                       "hostDepartureAddress": "서울 강남구 테헤란로 123",
+                                                      "hostDepartureLatitude": 37.498095,
+                                                      "hostDepartureLongitude": 127.027610,
+                                                      "hostTransportationMode": "PUBLIC_TRANSIT",
                                                       "deadlineMinutes": 1440
                                                     }
                                                     """
@@ -93,7 +98,7 @@ public class RoomController {
                                     ),
                                     @ExampleObject(
                                             name = "PLACE_ONLY",
-                                            description = "장소만 정하는 생성 요청입니다. 현재는 장소를 나중에 정할 방식(RECOMMEND)만 저장하며, MIDDLE_POINT 또는 RANDOM 중 하나를 선택합니다. 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. 일정 후보와 시간대는 받지 않습니다.",
+                                            description = "장소만 정하는 생성 요청입니다. 현재는 장소 추천 방식(RECOMMEND)으로 MIDDLE_POINT 또는 RANDOM 중 하나를 선택합니다. 1차 MVP에서는 생성 후 변경하지 않으며, 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. 일정 후보와 시간대는 받지 않습니다.",
                                             value = """
                                                     {
                                                       "name": "카페 장소 정하기",
@@ -166,7 +171,26 @@ public class RoomController {
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(
             summary = "게스트 모임 참여",
-            description = "초대 코드에 해당하는 모임에 게스트 참여자를 생성합니다."
+            description = """
+                    초대 코드에 해당하는 모임에 게스트 참여자를 생성합니다.<br>
+                    현재 게스트 참여 단계에서는 닉네임과 비밀번호만 받습니다.
+                    출발지 주소, 좌표, 이동수단은 1차 일정 참여 플로우 이후 장소 조율 참여 API에서 별도로 입력받습니다.
+                    """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(
+                                    name = "게스트 참여",
+                                    description = "현재 게스트 참여 API는 주소/좌표를 받지 않습니다. 장소 조율 참여는 후속 API에서 다룹니다.",
+                                    value = """
+                                            {
+                                              "nickname": "guest1",
+                                              "password": "guestpass123"
+                                            }
+                                            """
+                            )
+                    )
+            )
     )
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "게스트 참여 성공"),
