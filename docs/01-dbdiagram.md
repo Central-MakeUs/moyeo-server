@@ -76,6 +76,19 @@ Table room_schedule_candidates {
   }
 }
 
+Table room_participant_schedule_availabilities {
+  id bigint [pk, increment, note: "참여자 일정 가능 시간 ID"]
+  participant_id bigint [not null, note: "일정 가능 시간을 입력한 참여자 ID"]
+  schedule_candidate_id bigint [not null, note: "일정 후보 날짜 ID"]
+  start_time time [not null, note: "가능 시간 시작"]
+  end_time time [not null, note: "가능 시간 종료"]
+  created_at datetime [not null, note: "일정 가능 시간 생성 일시"]
+
+  indexes {
+    (participant_id, schedule_candidate_id, start_time, end_time) [unique, name: "uk_room_participant_schedule_availabilities_slot"]
+  }
+}
+
 Table room_participants {
   id bigint [pk, increment, note: "모임 참여자 ID"]
   room_id bigint [not null, note: "참여한 모임 ID"]
@@ -102,6 +115,8 @@ Ref fk_rooms_host_user: rooms.host_user_id > users.id
 Ref fk_room_schedule_candidates_room: room_schedule_candidates.room_id > rooms.id
 Ref fk_room_participants_room: room_participants.room_id > rooms.id
 Ref fk_room_participants_user: room_participants.user_id > users.id
+Ref fk_room_participant_schedule_availabilities_participant: room_participant_schedule_availabilities.participant_id > room_participants.id
+Ref fk_room_participant_schedule_availabilities_candidate: room_participant_schedule_availabilities.schedule_candidate_id > room_schedule_candidates.id
 ```
 
 ## Notes
@@ -118,8 +133,9 @@ Ref fk_room_participants_user: room_participants.user_id > users.id
 - `rooms.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
 - `rooms.available_start_time` and `rooms.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
 - `room_schedule_candidates` stores variable-length date candidates for schedule voting.
+- `room_participant_schedule_availabilities` stores INV-02 participant-selected availability slots.
 - `room_participants` stores host and guest participants.
-- `room_participants.departure_name`, `departure_address`, `departure_latitude`, `departure_longitude`, and `transportation_mode` store a participant departure snapshot when needed for middle-point recommendation. Room creation currently stores only the host departure snapshot.
+- `room_participants.departure_name`, `departure_address`, `departure_latitude`, `departure_longitude`, and `transportation_mode` store host and participant departure snapshots for place coordination.
 - `room_participants.nickname` is unique only inside a room.
 - `room_participants.user_id` is unique only inside a room when a participant is linked to a service user.
 - Guest participants do not use `users.id` yet; `room_participants.user_id` is nullable for guest participation.

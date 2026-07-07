@@ -5,12 +5,14 @@ import com.moyeo.domain.room.PlaceMode;
 import com.moyeo.domain.room.PlaceRecommendationStrategy;
 import com.moyeo.domain.room.Room;
 import com.moyeo.domain.room.RoomParticipant;
+import com.moyeo.domain.room.RoomParticipantScheduleAvailability;
 import com.moyeo.domain.room.RoomScheduleCandidate;
 import com.moyeo.domain.room.ScheduleMode;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.room.RoomParticipantRepository;
+import com.moyeo.repository.room.RoomParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.room.RoomRepository;
 import com.moyeo.repository.room.RoomScheduleCandidateRepository;
 import com.moyeo.service.member.AuthenticatedMember;
@@ -19,9 +21,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -29,6 +36,7 @@ public class RoomService {
 
     private final RoomRepository roomRepository;
     private final RoomParticipantRepository roomParticipantRepository;
+    private final RoomParticipantScheduleAvailabilityRepository roomParticipantScheduleAvailabilityRepository;
     private final RoomScheduleCandidateRepository roomScheduleCandidateRepository;
     private final UserRepository userRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
@@ -37,6 +45,7 @@ public class RoomService {
     public RoomService(
             RoomRepository roomRepository,
             RoomParticipantRepository roomParticipantRepository,
+            RoomParticipantScheduleAvailabilityRepository roomParticipantScheduleAvailabilityRepository,
             RoomScheduleCandidateRepository roomScheduleCandidateRepository,
             UserRepository userRepository,
             InviteCodeGenerator inviteCodeGenerator,
@@ -44,6 +53,7 @@ public class RoomService {
     ) {
         this.roomRepository = roomRepository;
         this.roomParticipantRepository = roomParticipantRepository;
+        this.roomParticipantScheduleAvailabilityRepository = roomParticipantScheduleAvailabilityRepository;
         this.roomScheduleCandidateRepository = roomScheduleCandidateRepository;
         this.userRepository = userRepository;
         this.inviteCodeGenerator = inviteCodeGenerator;
@@ -132,6 +142,42 @@ public class RoomService {
         }
     }
 
+    @Transactional
+    public SaveParticipationResult saveParticipation(
+            String inviteCode,
+            Long participantId,
+            SaveParticipationCommand command
+    ) {
+        Room room = findRoomByInviteCode(inviteCode);
+        RoomParticipant participant = roomParticipantRepository.findByIdAndRoomId(participantId, room.getId())
+                .orElseThrow(() -> new MoyeoException(RoomErrorCode.ROOM_PARTICIPANT_NOT_FOUND));
+
+        if (!room.getDeadlineAt().isAfter(LocalDateTime.now())) {
+            throw new MoyeoException(RoomErrorCode.ROOM_PARTICIPATION_CLOSED);
+        }
+
+        boolean requiresSchedule = room.getScheduleMode() == ScheduleMode.VOTE;
+        boolean requiresPlace = room.getPlaceMode() == PlaceMode.RECOMMEND;
+        validateParticipationInput(command, requiresSchedule, requiresPlace);
+
+        int scheduleAvailabilityCount = saveScheduleAvailabilities(room, participant, command);
+        boolean hasDeparture = false;
+
+        if (requiresPlace) {
+            SaveParticipationCommand.Departure departure = command.departure();
+            participant.updateDeparture(
+                    normalizeRequired(departure.name()),
+                    normalizeRequired(departure.address()),
+                    departure.latitude(),
+                    departure.longitude(),
+                    departure.transportationMode()
+            );
+            hasDeparture = true;
+        }
+
+        return new SaveParticipationResult(room.getId(), participant.getId(), scheduleAvailabilityCount, hasDeparture);
+    }
+
     private Room findRoomByInviteCode(String inviteCode) {
         return roomRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new MoyeoException(RoomErrorCode.ROOM_INVITATION_NOT_FOUND));
@@ -150,6 +196,75 @@ public class RoomService {
                     .map(candidateDate -> new RoomScheduleCandidate(room, candidateDate))
                     .toList();
             roomScheduleCandidateRepository.saveAll(candidates);
+        }
+    }
+
+    private void validateParticipationInput(
+            SaveParticipationCommand command,
+            boolean requiresSchedule,
+            boolean requiresPlace
+    ) {
+        boolean hasScheduleAvailabilities = command.scheduleAvailabilities() != null
+                && !command.scheduleAvailabilities().isEmpty();
+        boolean hasDeparture = command.departure() != null;
+
+        if (requiresSchedule != hasScheduleAvailabilities || requiresPlace != hasDeparture) {
+            throw new MoyeoException(RoomErrorCode.INVALID_ROOM_PARTICIPATION_INPUT);
+        }
+    }
+
+    private int saveScheduleAvailabilities(
+            Room room,
+            RoomParticipant participant,
+            SaveParticipationCommand command
+    ) {
+        roomParticipantScheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+
+        if (room.getScheduleMode() != ScheduleMode.VOTE) {
+            return 0;
+        }
+
+        Map<LocalDate, RoomScheduleCandidate> candidatesByDate = roomScheduleCandidateRepository
+                .findAllByRoomIdOrderByCandidateDateAsc(room.getId())
+                .stream()
+                .collect(Collectors.toMap(RoomScheduleCandidate::getCandidateDate, Function.identity()));
+
+        LinkedHashSet<ScheduleSlot> slots = new LinkedHashSet<>();
+        for (SaveParticipationCommand.ScheduleAvailability availability : command.scheduleAvailabilities()) {
+            validateScheduleAvailability(room, candidatesByDate, availability);
+            slots.add(new ScheduleSlot(
+                    availability.candidateDate(),
+                    availability.startTime(),
+                    availability.endTime()
+            ));
+        }
+
+        List<RoomParticipantScheduleAvailability> entities = slots.stream()
+                .map(slot -> new RoomParticipantScheduleAvailability(
+                        participant,
+                        candidatesByDate.get(slot.candidateDate()),
+                        slot.startTime(),
+                        slot.endTime()
+                ))
+                .toList();
+        roomParticipantScheduleAvailabilityRepository.saveAll(entities);
+        return entities.size();
+    }
+
+    private void validateScheduleAvailability(
+            Room room,
+            Map<LocalDate, RoomScheduleCandidate> candidatesByDate,
+            SaveParticipationCommand.ScheduleAvailability availability
+    ) {
+        if (!candidatesByDate.containsKey(availability.candidateDate())
+                || availability.startTime() == null
+                || availability.endTime() == null
+                || !availability.startTime().isBefore(availability.endTime())
+                || !isHourUnit(availability.startTime())
+                || !isHourUnit(availability.endTime())
+                || availability.startTime().isBefore(room.getAvailableStartTime())
+                || availability.endTime().isAfter(room.getAvailableEndTime())) {
+            throw new MoyeoException(RoomErrorCode.INVALID_ROOM_PARTICIPATION_INPUT);
         }
     }
 
@@ -186,5 +301,16 @@ public class RoomService {
             return null;
         }
         return value.strip();
+    }
+
+    private boolean isHourUnit(LocalTime time) {
+        return time.getMinute() == 0 && time.getSecond() == 0 && time.getNano() == 0;
+    }
+
+    private record ScheduleSlot(
+            LocalDate candidateDate,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
     }
 }

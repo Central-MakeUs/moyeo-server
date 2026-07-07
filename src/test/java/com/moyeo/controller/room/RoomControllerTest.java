@@ -3,6 +3,7 @@ package com.moyeo.controller.room;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.repository.room.RoomParticipantRepository;
+import com.moyeo.repository.room.RoomParticipantScheduleAvailabilityRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -22,6 +23,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -39,6 +41,9 @@ class RoomControllerTest {
 
     @Autowired
     private RoomParticipantRepository roomParticipantRepository;
+
+    @Autowired
+    private RoomParticipantScheduleAvailabilityRepository roomParticipantScheduleAvailabilityRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -434,6 +439,128 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
     }
 
+    @Test
+    void saveParticipationStoresScheduleAvailabilitiesAndDeparture() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost18", "host18", 6);
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-participation");
+
+        mockMvc.perform(put("/api/rooms/invitations/{inviteCode}/participants/{participantId}/participation", inviteCode, participantId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduleAvailabilities", List.of(
+                                        Map.of(
+                                                "candidateDate", "2026-07-01",
+                                                "startTime", "09:00",
+                                                "endTime", "10:00"
+                                        ),
+                                        Map.of(
+                                                "candidateDate", "2026-07-01",
+                                                "startTime", "10:00",
+                                                "endTime", "11:00"
+                                        )
+                                ),
+                                "departure", Map.of(
+                                        "name", "company",
+                                        "address", "Seoul Gangnam",
+                                        "latitude", 37.498095,
+                                        "longitude", 127.027610,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantId").value(participantId))
+                .andExpect(jsonPath("$.scheduleAvailabilityCount").value(2))
+                .andExpect(jsonPath("$.hasDeparture").value(true));
+
+        var participant = roomParticipantRepository.findById(participantId).orElseThrow();
+        assertThat(participant.getDepartureName()).isEqualTo("company");
+        assertThat(participant.getDepartureAddress()).isEqualTo("Seoul Gangnam");
+        assertThat(participant.getTransportationMode()).isEqualTo(com.moyeo.domain.room.TransportationMode.PUBLIC_TRANSIT);
+        assertThat(roomParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isEqualTo(2);
+    }
+
+    @Test
+    void saveParticipationReplacesPreviousScheduleAvailabilities() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost19", "host19", 6);
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-replace");
+
+        saveDefaultParticipation(inviteCode, participantId, "09:00", "10:00");
+        saveDefaultParticipation(inviteCode, participantId, "11:00", "12:00");
+
+        assertThat(roomParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isEqualTo(1);
+    }
+
+    @Test
+    void saveParticipationRejectsOutOfRangeScheduleAvailability() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost20", "host20", 6);
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-invalid-time");
+
+        mockMvc.perform(put("/api/rooms/invitations/{inviteCode}/participants/{participantId}/participation", inviteCode, participantId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduleAvailabilities", List.of(Map.of(
+                                        "candidateDate", "2026-07-01",
+                                        "startTime", "08:00",
+                                        "endTime", "09:00"
+                                )),
+                                "departure", Map.of(
+                                        "name", "company",
+                                        "address", "Seoul Gangnam",
+                                        "latitude", 37.498095,
+                                        "longitude", 127.027610,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("INVALID_ROOM_PARTICIPATION_INPUT"));
+    }
+
+    @Test
+    void saveParticipationRejectsDepartureForScheduleOnlyRoom() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode(
+                "roomhost21",
+                "host21",
+                new CreateRoomRequest(
+                        "schedule",
+                        "schedule only",
+                        6,
+                        com.moyeo.domain.room.PlanningType.SCHEDULE_ONLY,
+                        List.of(LocalDate.of(2026, 7, 1)),
+                        LocalTime.of(9, 0),
+                        LocalTime.of(18, 0),
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        1440
+                )
+        );
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-schedule-only");
+
+        mockMvc.perform(put("/api/rooms/invitations/{inviteCode}/participants/{participantId}/participation", inviteCode, participantId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduleAvailabilities", List.of(Map.of(
+                                        "candidateDate", "2026-07-01",
+                                        "startTime", "09:00",
+                                        "endTime", "10:00"
+                                )),
+                                "departure", Map.of(
+                                        "name", "company",
+                                        "address", "Seoul Gangnam",
+                                        "latitude", 37.498095,
+                                        "longitude", 127.027610,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("INVALID_ROOM_PARTICIPATION_INPUT"));
+    }
+
     private String signupAndGetAccessToken(String loginId, String nickname) throws Exception {
         String response = mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -451,11 +578,15 @@ class RoomControllerTest {
     }
 
     private String createRoomAndGetInviteCode(String loginId, String nickname, int maxParticipants) throws Exception {
+        return createRoomAndGetInviteCode(loginId, nickname, defaultCreateRoomRequest(maxParticipants));
+    }
+
+    private String createRoomAndGetInviteCode(String loginId, String nickname, CreateRoomRequest request) throws Exception {
         String accessToken = signupAndGetAccessToken(loginId, nickname);
         String response = mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultCreateRoomRequest(maxParticipants))))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -511,5 +642,40 @@ class RoomControllerTest {
                                 "password", "guestpass123"
                         ))))
                 .andExpect(status().isCreated());
+    }
+
+    private Long joinGuestAndGetParticipantId(String inviteCode, String nickname) throws Exception {
+        String response = mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", nickname,
+                                "password", "guestpass123"
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readTree(response).get("participantId").asLong();
+    }
+
+    private void saveDefaultParticipation(String inviteCode, Long participantId, String startTime, String endTime) throws Exception {
+        mockMvc.perform(put("/api/rooms/invitations/{inviteCode}/participants/{participantId}/participation", inviteCode, participantId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "scheduleAvailabilities", List.of(Map.of(
+                                        "candidateDate", "2026-07-01",
+                                        "startTime", startTime,
+                                        "endTime", endTime
+                                )),
+                                "departure", Map.of(
+                                        "name", "company",
+                                        "address", "Seoul Gangnam",
+                                        "latitude", 37.498095,
+                                        "longitude", 127.027610,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isOk());
     }
 }

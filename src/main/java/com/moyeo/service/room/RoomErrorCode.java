@@ -34,6 +34,20 @@ public enum RoomErrorCode implements ErrorCode {
             "room-participation-closed",
             "모임 참여 마감",
             "모임 참여 마감 시간이 지났습니다."
+    ),
+    ROOM_PARTICIPANT_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "ROOM_PARTICIPANT_NOT_FOUND",
+            "room-participant-not-found",
+            "모임 참여자 없음",
+            "해당 모임의 참여자를 찾을 수 없습니다."
+    ),
+    INVALID_ROOM_PARTICIPATION_INPUT(
+            HttpStatus.BAD_REQUEST,
+            "INVALID_ROOM_PARTICIPATION_INPUT",
+            "invalid-room-participation-input",
+            "모임 참여 입력 오류",
+            "모임 참여 입력 값이 모임 설정과 맞지 않습니다."
     );
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";

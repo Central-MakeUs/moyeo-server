@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-07-05
+> Last reviewed: 2026-07-06
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -182,14 +182,15 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - Schedule voting candidate dates are stored as separate rows and are temporarily limited to 21 dates by request validation until the final 3-week policy is confirmed. Keep the limit isolated in the room creation constraints so it can be changed without reshaping the API.
 - Schedule voting applies the same available time range to every selected candidate date.
 - Schedule voting time ranges are currently accepted in 1-hour units.
-- The first room participation expansion should collect participant schedule availability only.
-- Place coordination participation, including participant departure input and recommendation/finalization behavior, is deferred until the schedule-only participation flow is stable.
-- For `SCHEDULE_AND_PLACE` rooms, the first participation expansion may collect schedule availability first and leave place participation as an explicit later step.
-- `PLACE_ONLY` room participation remains deferred until place coordination policy is confirmed.
+- The first room participation expansion covers the 2026-07-06 P0 INV-02 flow: schedule availability input for schedule-coordination rooms and participant departure snapshot input for place-coordination rooms.
+- Schedule participation stores selected 1-hour availability slots within the room host's candidate dates and common available time range.
+- A participation save request replaces the participant's previous schedule availability slots for that room.
+- Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `room_participants`.
+- Address search, GPS/current-location lookup, saved departure lists, and member departure CRUD are P1 or later client/domain work; the server only stores the selected departure snapshot in this flow.
 - Room participant nicknames are unique only inside each room.
 - A service user should not be linked to the same room more than once; enforce this with a room-scoped uniqueness rule such as `unique(room_id, user_id)`.
 - Guest participants currently have nullable `user_id`, so multiple guest participants remain allowed.
-- Guest join currently accepts only nickname and password. Guest departure address, coordinates, and transportation mode are not part of the join API and should be handled by a later place coordination participation API.
+- Guest join currently accepts only nickname and password. Guest departure address, coordinates, and transportation mode are saved later through the INV-02 participation input API when the room includes place coordination.
 - Guest re-entry, guest modification, participant password verification, member invitation, and group invitation remain deferred until their policies are confirmed.
 - A repeated guest join attempt with the same nickname should continue to return a duplicate nickname conflict, even if the same password is provided.
 - Guest participation is rejected after the room `deadlineAt`.
@@ -199,8 +200,10 @@ The development harness includes GitHub Actions CI/CD, Swagger/OpenAPI, the curr
 - INV-01 invite entry is currently implemented through invite-code lookup. It returns the current participation availability status for the entry screen.
 - If both the deadline and participant limit block joining, the deadline-passed status takes priority in the entry response.
 - INV-01 guest join currently creates only the participant row with nickname and password.
-- INV-02 schedule participation has not been implemented yet. The next implementation should start with schedule availability submission only after the screen policy stabilizes.
-- INV-02 departure input and transportation mode are not implemented yet because place coordination participation remains deferred.
+- INV-02 participation input saves schedule availability for `SCHEDULE_ONLY` and `SCHEDULE_AND_PLACE` rooms.
+- INV-02 participation input saves departure and transportation mode for `PLACE_ONLY` and `SCHEDULE_AND_PLACE` rooms.
+- INV-02 rejects mismatched input, such as departure input for schedule-only rooms or schedule availability input for place-only rooms.
+- Schedule result logic is not implemented yet. Intersection calculation, longest-meeting-time sorting, earliest-date sorting, result recommendation, and final decision APIs remain separate follow-up work.
 
 ## Deployment Policy
 

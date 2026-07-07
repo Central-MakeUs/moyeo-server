@@ -16,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -148,7 +149,12 @@ public class RoomController {
     @GetMapping("/invitations/{inviteCode}")
     @Operation(
             summary = "초대 코드로 모임 조회",
-            description = "초대 링크 진입 화면에서 사용할 모임 정보를 조회합니다."
+            description = """
+                    초대 링크 진입 화면에서 사용할 모임 정보를 조회합니다.<br>
+                    참여 가능 여부와 마감/정원 초과 안내 문구를 함께 반환합니다.
+                    모임장 프로필 이미지는 아직 사용자 프로필 정책이 확정되지 않아 응답에 포함하지 않았고, 프로필 정책 확정 후 협의하여 확장할 예정입니다.
+                    진행상황 확인 버튼은 추후 VIEW-01 모임 현황 API와 연결됩니다.
+                    """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "초대 코드 모임 조회 성공"),
@@ -174,7 +180,8 @@ public class RoomController {
             description = """
                     초대 코드에 해당하는 모임에 게스트 참여자를 생성합니다.<br>
                     현재 게스트 참여 단계에서는 닉네임과 비밀번호만 받습니다.
-                    출발지 주소, 좌표, 이동수단은 1차 일정 참여 플로우 이후 장소 조율 참여 API에서 별도로 입력받습니다.
+                    출발지 주소, 좌표, 이동수단은 INV-02 모임 참여 정보 저장 API에서 이어서 입력받습니다.
+                    게스트 재입장/수정 인증은 정책 확정 후 함께 보완할 예정입니다.
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     content = @Content(
@@ -253,5 +260,135 @@ public class RoomController {
             @Valid @RequestBody GuestJoinRequest request
     ) {
         return GuestJoinResponse.from(roomService.joinGuest(inviteCode, request.nickname(), request.password()));
+    }
+
+    @PutMapping("/invitations/{inviteCode}/participants/{participantId}/participation")
+    @Operation(
+            summary = "INV-02 모임 참여 정보 저장",
+            description = """
+                    참여자의 가능한 일정, 출발지, 이동수단을 저장합니다.<br>
+                    일정 조율 모임은 가능한 일정 슬롯이 필수이고, 장소 조율 모임은 출발지와 이동수단이 필수입니다.
+                    일정과 장소를 모두 조율하는 모임은 두 입력이 모두 필요합니다.
+                    이전에 저장한 일정 슬롯은 요청 값으로 전체 교체됩니다.
+                    주소 검색 결과, GPS 현재 위치 찾기, 저장된 출발지 목록은 화면/정책 협의가 더 필요한 영역이라 현재 API는 선택 완료된 출발지 스냅샷만 저장합니다.
+                    일정 교집합 계산, 추천 정렬, 확정 결과 생성은 참여 입력 이후의 결과/확정 플로우에서 별도로 구현할 예정입니다.
+                    """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = {
+                                    @ExampleObject(
+                                            name = "일정과 장소 모두 저장",
+                                            value = """
+                                                    {
+                                                      "scheduleAvailabilities": [
+                                                        {
+                                                          "candidateDate": "2026-07-10",
+                                                          "startTime": "18:00",
+                                                          "endTime": "19:00"
+                                                        },
+                                                        {
+                                                          "candidateDate": "2026-07-10",
+                                                          "startTime": "19:00",
+                                                          "endTime": "20:00"
+                                                        }
+                                                      ],
+                                                      "departure": {
+                                                        "name": "회사",
+                                                        "address": "서울 강남구 테헤란로 123",
+                                                        "latitude": 37.498095,
+                                                        "longitude": 127.027610,
+                                                        "transportationMode": "PUBLIC_TRANSIT"
+                                                      }
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "일정만 저장",
+                                            value = """
+                                                    {
+                                                      "scheduleAvailabilities": [
+                                                        {
+                                                          "candidateDate": "2026-07-10",
+                                                          "startTime": "18:00",
+                                                          "endTime": "19:00"
+                                                        }
+                                                      ]
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "출발지만 저장",
+                                            value = """
+                                                    {
+                                                      "departure": {
+                                                        "name": "집",
+                                                        "address": "서울 마포구 월드컵북로 1",
+                                                        "latitude": 37.566500,
+                                                        "longitude": 126.978000,
+                                                        "transportationMode": "CAR"
+                                                      }
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "모임 참여 정보 저장 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "모임 설정과 맞지 않는 참여 입력",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "INVALID_ROOM_PARTICIPATION_INPUT",
+                              "status": 400
+                            }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "초대 코드 또는 참여자 없음",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "초대 코드 없음",
+                                    value = """
+                                            {
+                                              "code": "ROOM_INVITATION_NOT_FOUND",
+                                              "status": 404
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "참여자 없음",
+                                    value = """
+                                            {
+                                              "code": "ROOM_PARTICIPANT_NOT_FOUND",
+                                              "status": 404
+                                            }
+                                            """
+                            )
+                    })
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "모임 참여 마감",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "ROOM_PARTICIPATION_CLOSED",
+                              "status": 409
+                            }
+                            """))
+            )
+    })
+    public SaveParticipationResponse saveParticipation(
+            @PathVariable String inviteCode,
+            @PathVariable Long participantId,
+            @Valid @RequestBody SaveParticipationRequest request
+    ) {
+        return SaveParticipationResponse.from(
+                roomService.saveParticipation(inviteCode, participantId, request.toCommand())
+        );
     }
 }

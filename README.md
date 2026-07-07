@@ -104,6 +104,7 @@ The current room implementation covers the first milestone base flow.
 - `POST /api/rooms`
 - `GET /api/rooms/invitations/{inviteCode}`
 - `POST /api/rooms/invitations/{inviteCode}/guests`
+- `PUT /api/rooms/invitations/{inviteCode}/participants/{participantId}/participation`
 
 Current room scope:
 
@@ -112,7 +113,7 @@ Current room scope:
 - The server issues an invite code.
 - INV-01 invite entry uses public invite-code lookup and returns room basic information plus participation availability status.
 - A guest can join with nickname and password.
-- Guest join does not accept departure address, coordinates, or transportation mode yet.
+- Guest join does not accept departure address, coordinates, or transportation mode directly.
 - Participant nicknames are unique only inside each room.
 - `deadlineAt` is calculated by the server from request `deadlineMinutes`.
 - `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
@@ -123,16 +124,17 @@ Current room scope:
 - Schedule/place coordination modes are stored, but recommendation calculation is not implemented yet.
 - Middle-point creation stores the host departure name, address, coordinates, and transportation mode as the host participant snapshot.
 - Place recommendation strategy is fixed after room creation in the first MVP.
-- The next participation milestone should collect schedule availability first.
-- Place coordination participation is planned as a later expansion after the schedule-only participation flow is stable.
-- INV-02 schedule participation is not implemented yet.
-- INV-02 departure input and transportation mode are not implemented yet.
+- INV-02 participation input stores schedule availability for schedule-coordination rooms.
+- INV-02 participation input stores departure address, coordinates, and transportation mode for place-coordination rooms.
+- A participation save request replaces the participant's previous schedule availability slots.
+- Schedule result logic, including intersection calculation and sorting by longest meeting time or earliest date, is not implemented yet.
 
 Not included yet:
 
 - Step-by-step room draft save
-- Schedule coordination beyond the first schedule availability participation milestone
-- Place coordination
+- Schedule coordination beyond participant availability input
+- Place coordination beyond participant departure input
+- Current-location lookup and saved departure-list management
 - Tmap/Tmap Transit integration
 - Store-area/place recommendation data
 - Voting/free-poll

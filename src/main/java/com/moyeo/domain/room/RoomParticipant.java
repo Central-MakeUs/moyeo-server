@@ -142,6 +142,20 @@ public class RoomParticipant {
         return new RoomParticipant(room, null, nickname, passwordHash, ParticipantType.GUEST, null, null, null, null, null);
     }
 
+    public void updateDeparture(
+            String departureName,
+            String departureAddress,
+            BigDecimal departureLatitude,
+            BigDecimal departureLongitude,
+            TransportationMode transportationMode
+    ) {
+        this.departureName = departureName;
+        this.departureAddress = departureAddress;
+        this.departureLatitude = departureLatitude;
+        this.departureLongitude = departureLongitude;
+        this.transportationMode = transportationMode;
+    }
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();
