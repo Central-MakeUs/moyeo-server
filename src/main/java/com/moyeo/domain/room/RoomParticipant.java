@@ -25,7 +25,6 @@ import java.time.LocalDateTime;
 @Table(
         name = "room_participants",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_room_participants_room_nickname", columnNames = {"room_id", "nickname"}),
                 @UniqueConstraint(name = "uk_room_participants_room_user", columnNames = {"room_id", "user_id"})
         }
 )
@@ -51,12 +50,12 @@ public class RoomParticipant {
     private String nickname;
 
     @Column(name = "password_hash", length = 100)
-    @Comment("게스트 참여 비밀번호 해시. 회원/방장은 null")
+    @Comment("참여 비밀번호 해시. 방장은 null")
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    @Comment("참여자 타입: HOST/GUEST")
+    @Comment("참여자 타입: HOST/MEMBER/GUEST")
     private ParticipantType participantType;
 
     @Column(name = "departure_name", length = 30)
@@ -140,6 +139,10 @@ public class RoomParticipant {
 
     public static RoomParticipant guest(Room room, String nickname, String passwordHash) {
         return new RoomParticipant(room, null, nickname, passwordHash, ParticipantType.GUEST, null, null, null, null, null);
+    }
+
+    public static RoomParticipant member(Room room, User user, String nickname, String passwordHash) {
+        return new RoomParticipant(room, user, nickname, passwordHash, ParticipantType.MEMBER, null, null, null, null, null);
     }
 
     public void updateDeparture(

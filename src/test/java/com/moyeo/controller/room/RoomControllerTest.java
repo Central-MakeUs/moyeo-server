@@ -53,7 +53,7 @@ class RoomControllerTest {
 
     @Test
     void createRoomReturnsInviteCodeAndHostParticipant() throws Exception {
-        String accessToken = signupAndGetAccessToken("roomhost1", "방장1");
+        String accessToken = signupAndGetAccessToken("roomhost1", "host1");
 
         mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
@@ -62,8 +62,8 @@ class RoomControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.roomId").isNumber())
-                .andExpect(jsonPath("$.name").value("토요일 모임"))
-                .andExpect(jsonPath("$.description").value("같이 저녁 먹어요."))
+                .andExpect(jsonPath("$.name").value("weekend-room"))
+                .andExpect(jsonPath("$.description").value("dinner together"))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.planningType").value("SCHEDULE_AND_PLACE"))
                 .andExpect(jsonPath("$.scheduleMode").value("VOTE"))
@@ -75,7 +75,7 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.inviteCode").isString())
                 .andExpect(jsonPath("$.invitePath").isString())
-                .andExpect(jsonPath("$.hostDepartureName").value("회사"))
+                .andExpect(jsonPath("$.hostDepartureName").value("company"))
                 .andExpect(jsonPath("$.hostDepartureAddress").value("Seoul Gangnam"))
                 .andExpect(jsonPath("$.hostDepartureLatitude").value(37.498095))
                 .andExpect(jsonPath("$.hostDepartureLongitude").value(127.027610))
@@ -88,7 +88,7 @@ class RoomControllerTest {
         mockMvc.perform(post("/api/rooms")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "토요일 모임",
+                                "name", "weekend-room",
                                 "maxParticipants", 6
                         ))))
                 .andExpect(status().isUnauthorized())
@@ -98,7 +98,7 @@ class RoomControllerTest {
 
     @Test
     void createRoomValidatesRequest() throws Exception {
-        String accessToken = signupAndGetAccessToken("roomhost2", "방장2");
+        String accessToken = signupAndGetAccessToken("roomhost2", "host2");
 
         mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
@@ -152,7 +152,7 @@ class RoomControllerTest {
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
                 com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
-                "회사",
+                "company",
                 "Seoul Gangnam",
                 BigDecimal.valueOf(37.498095),
                 BigDecimal.valueOf(127.027610),
@@ -267,13 +267,13 @@ class RoomControllerTest {
 
     @Test
     void getInvitationReturnsRoomInfo() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost3", "방장3", 6);
+        String inviteCode = createRoomAndGetInviteCode("roomhost3", "host3", 6);
 
         mockMvc.perform(get("/api/rooms/invitations/{inviteCode}", inviteCode))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.roomId").isNumber())
-                .andExpect(jsonPath("$.name").value("토요일 모임"))
+                .andExpect(jsonPath("$.name").value("weekend-room"))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.planningType").value("SCHEDULE_AND_PLACE"))
                 .andExpect(jsonPath("$.scheduleMode").value("VOTE"))
@@ -282,7 +282,7 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
                 .andExpect(jsonPath("$.deadlineAt").isString())
                 .andExpect(jsonPath("$.participantCount").value(1))
-                .andExpect(jsonPath("$.hostNickname").value("방장3"))
+                .andExpect(jsonPath("$.hostNickname").value("host3"))
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(true))
                 .andExpect(jsonPath("$.participationStatus.reason").value("AVAILABLE"))
                 .andExpect(jsonPath("$.participationStatus.message").value(org.hamcrest.Matchers.nullValue()));
@@ -306,7 +306,7 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.participantCount").value(2))
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
                 .andExpect(jsonPath("$.participationStatus.reason").value("PARTICIPANT_LIMIT_EXCEEDED"))
-                .andExpect(jsonPath("$.participationStatus.message").value("모인 인원이 모두 찼어요. 아쉽지만 현재는 더 이상 참여할 수 없어요."));
+                .andExpect(jsonPath("$.participationStatus.message").value("\uBAA8\uC778 \uC778\uC6D0\uC774 \uBAA8\uB450 \uCC3C\uC5B4\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694."));
     }
 
     @Test
@@ -320,24 +320,24 @@ class RoomControllerTest {
                 .andExpect(jsonPath("$.participantCount").value(2))
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
                 .andExpect(jsonPath("$.participationStatus.reason").value("DEADLINE_PASSED"))
-                .andExpect(jsonPath("$.participationStatus.message").value("기한이 지난 모임이에요. 아쉽지만 현재는 더 이상 참여할 수 없어요."));
+                .andExpect(jsonPath("$.participationStatus.message").value("\uAE30\uD55C\uC774 \uC9C0\uB09C \uBAA8\uC784\uC774\uC5D0\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694."));
     }
 
     @Test
     void joinGuestCreatesGuestParticipant() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost4", "방장4", 6);
+        String inviteCode = createRoomAndGetInviteCode("roomhost4", "host4", 6);
 
         String response = mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "게스트",
+                                "nickname", "guest",
                                 "password", "guestpass123"
                         ))))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.roomId").isNumber())
                 .andExpect(jsonPath("$.participantId").isNumber())
-                .andExpect(jsonPath("$.nickname").value("게스트"))
+                .andExpect(jsonPath("$.nickname").value("guest"))
                 .andExpect(jsonPath("$.participantType").value("GUEST"))
                 .andReturn()
                 .getResponse()
@@ -351,13 +351,13 @@ class RoomControllerTest {
 
     @Test
     void joinGuestRejectsDuplicatedNicknameInSameRoom() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost5", "방장5", 6);
-        joinGuest(inviteCode, "게스트1");
+        String inviteCode = createRoomAndGetInviteCode("roomhost5", "host5", 6);
+        joinGuest(inviteCode, "duplicated-guest");
 
         mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "게스트1",
+                                "nickname", "duplicated-guest",
                                 "password", "guestpass123"
                         ))))
                 .andExpect(status().isConflict())
@@ -367,10 +367,10 @@ class RoomControllerTest {
 
     @Test
     void joinGuestAllowsMultipleGuestsWithNullUserId() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost9", "방장9", 6);
+        String inviteCode = createRoomAndGetInviteCode("roomhost9", "host9", 6);
 
-        joinGuest(inviteCode, "게스트1");
-        joinGuest(inviteCode, "게스트2");
+        joinGuest(inviteCode, "guest-null-user-1");
+        joinGuest(inviteCode, "guest-null-user-2");
 
         mockMvc.perform(get("/api/rooms/invitations/{inviteCode}", inviteCode))
                 .andExpect(status().isOk())
@@ -378,29 +378,29 @@ class RoomControllerTest {
     }
 
     @Test
-    void joinGuestRejectsHostNicknameInSameRoom() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost6", "현우", 6);
+    void joinGuestAllowsHostNicknameInSameRoom() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost6", "host-nickname", 6);
 
         mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "현우",
+                                "nickname", "host-nickname",
                                 "password", "guestpass123"
                         ))))
-                .andExpect(status().isConflict())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.code").value("DUPLICATE_ROOM_PARTICIPANT_NICKNAME"));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nickname").value("host-nickname"))
+                .andExpect(jsonPath("$.participantType").value("GUEST"));
     }
 
     @Test
     void joinGuestRejectsExceededParticipantLimit() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost7", "방장7", 2);
-        joinGuest(inviteCode, "게스트1");
+        String inviteCode = createRoomAndGetInviteCode("roomhost7", "host7", 2);
+        joinGuest(inviteCode, "guest-limit-existing");
 
         mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "게스트2",
+                                "nickname", "guest-limit-new",
                                 "password", "guestpass123"
                         ))))
                 .andExpect(status().isConflict())
@@ -426,7 +426,7 @@ class RoomControllerTest {
 
     @Test
     void joinGuestValidatesRequest() throws Exception {
-        String inviteCode = createRoomAndGetInviteCode("roomhost8", "방장8", 6);
+        String inviteCode = createRoomAndGetInviteCode("roomhost8", "host8", 6);
 
         mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -437,6 +437,106 @@ class RoomControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void joinMemberCreatesMemberParticipant() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost22", "host22", 6);
+        String memberToken = signupAndGetAccessToken("memberjoin1", "default-member");
+
+        String response = mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "room-member",
+                                "password", "memberpass123"
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.participantId").isNumber())
+                .andExpect(jsonPath("$.nickname").value("room-member"))
+                .andExpect(jsonPath("$.participantType").value("MEMBER"))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long participantId = objectMapper.readTree(response).get("participantId").asLong();
+        var participant = roomParticipantRepository.findById(participantId).orElseThrow();
+        assertThat(participant.getPasswordHash()).isNotEqualTo("memberpass123");
+        assertThat(passwordEncoder.matches("memberpass123", participant.getPasswordHash())).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from room_participants where id = ? and user_id is not null and participant_type = 'MEMBER'",
+                Long.class,
+                participantId
+        )).isEqualTo(1L);
+    }
+
+    @Test
+    void joinMemberRequiresAccessToken() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost23", "host23", 6);
+
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "room-member",
+                                "password", "memberpass123"
+                        ))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void joinMemberRejectsSameMemberInSameRoom() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost24", "host24", 6);
+        String memberToken = signupAndGetAccessToken("memberjoin2", "member2");
+        joinMember(inviteCode, memberToken, "room-member1");
+
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "room-member2",
+                                "password", "memberpass123"
+                        ))))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ROOM_PARTICIPANT_MEMBER"));
+    }
+
+    @Test
+    void joinMemberAllowsGuestNicknameInSameRoom() throws Exception {
+        String inviteCode = createRoomAndGetInviteCode("roomhost25", "host25", 6);
+        String memberToken = signupAndGetAccessToken("memberjoin3", "member3");
+        joinGuest(inviteCode, "duplicated-name");
+
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "duplicated-name",
+                                "password", "memberpass123"
+                        ))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nickname").value("duplicated-name"))
+                .andExpect(jsonPath("$.participantType").value("MEMBER"));
+    }
+
+    @Test
+    void joinMemberRejectsHostUserInSameRoom() throws Exception {
+        String hostToken = signupAndGetAccessToken("roomhost26", "host26");
+        String inviteCode = createRoomAndGetInviteCode(hostToken, defaultCreateRoomRequest(6));
+
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "host-as-member",
+                                "password", "memberpass123"
+                        ))))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("DUPLICATE_ROOM_PARTICIPANT_MEMBER"));
     }
 
     @Test
@@ -583,6 +683,10 @@ class RoomControllerTest {
 
     private String createRoomAndGetInviteCode(String loginId, String nickname, CreateRoomRequest request) throws Exception {
         String accessToken = signupAndGetAccessToken(loginId, nickname);
+        return createRoomAndGetInviteCode(accessToken, request);
+    }
+
+    private String createRoomAndGetInviteCode(String accessToken, CreateRoomRequest request) throws Exception {
         String response = mockMvc.perform(post("/api/rooms")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -598,15 +702,15 @@ class RoomControllerTest {
 
     private CreateRoomRequest defaultCreateRoomRequest(int maxParticipants) {
         return new CreateRoomRequest(
-                "토요일 모임",
-                "같이 저녁 먹어요.",
+                "weekend-room",
+                "dinner together",
                 maxParticipants,
                 com.moyeo.domain.room.PlanningType.SCHEDULE_AND_PLACE,
                 List.of(LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2)),
                 LocalTime.of(9, 0),
                 LocalTime.of(18, 0),
                 com.moyeo.domain.room.PlaceRecommendationStrategy.MIDDLE_POINT,
-                "회사",
+                "company",
                 "Seoul Gangnam",
                 BigDecimal.valueOf(37.498095),
                 BigDecimal.valueOf(127.027610),
@@ -640,6 +744,17 @@ class RoomControllerTest {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "nickname", nickname,
                                 "password", "guestpass123"
+                        ))))
+                .andExpect(status().isCreated());
+    }
+
+    private void joinMember(String inviteCode, String accessToken, String nickname) throws Exception {
+        mockMvc.perform(post("/api/rooms/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", nickname,
+                                "password", "memberpass123"
                         ))))
                 .andExpect(status().isCreated());
     }

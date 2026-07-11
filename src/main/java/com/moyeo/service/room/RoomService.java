@@ -1,6 +1,7 @@
 package com.moyeo.service.room;
 
 import com.moyeo.domain.member.User;
+import com.moyeo.domain.room.ParticipantType;
 import com.moyeo.domain.room.PlaceMode;
 import com.moyeo.domain.room.PlaceRecommendationStrategy;
 import com.moyeo.domain.room.Room;
@@ -114,31 +115,49 @@ public class RoomService {
     }
 
     @Transactional
-    public GuestJoinResult joinGuest(String inviteCode, String nickname, String rawPassword) {
+    public ParticipantJoinResult joinGuest(String inviteCode, String nickname, String rawPassword) {
         String normalizedNickname = normalizeRequired(nickname);
         String passwordHash = passwordEncoder.encode(rawPassword);
 
-        Room room = findRoomByInviteCodeForUpdate(inviteCode);
-
-        if (!room.getDeadlineAt().isAfter(LocalDateTime.now())) {
-            throw new MoyeoException(RoomErrorCode.ROOM_PARTICIPATION_CLOSED);
-        }
-
-        if (roomParticipantRepository.countByRoomId(room.getId()) >= room.getMaxParticipants()) {
-            throw new MoyeoException(RoomErrorCode.ROOM_PARTICIPANT_LIMIT_EXCEEDED);
-        }
-
-        if (roomParticipantRepository.existsByRoomAndNickname(room, normalizedNickname)) {
-            throw new MoyeoException(RoomErrorCode.DUPLICATE_ROOM_PARTICIPANT_NICKNAME);
-        }
+        Room room = prepareGuestJoinableRoom(inviteCode, normalizedNickname);
 
         try {
             RoomParticipant participant = roomParticipantRepository.saveAndFlush(
                     RoomParticipant.guest(room, normalizedNickname, passwordHash)
             );
-            return GuestJoinResult.from(room, participant);
+            return ParticipantJoinResult.from(room, participant);
         } catch (DataIntegrityViolationException exception) {
             throw new MoyeoException(RoomErrorCode.DUPLICATE_ROOM_PARTICIPANT_NICKNAME);
+        }
+    }
+
+    @Transactional
+    public ParticipantJoinResult joinMember(
+            String inviteCode,
+            AuthenticatedMember member,
+            String nickname,
+            String rawPassword
+    ) {
+        User user = userRepository.findById(member.userId())
+                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        String normalizedNickname = normalizeRequired(nickname);
+        String passwordHash = passwordEncoder.encode(rawPassword);
+
+        Room room = prepareMemberJoinableRoom(inviteCode);
+        if (roomParticipantRepository.existsByRoomIdAndUserId(room.getId(), user.getId())) {
+            throw new MoyeoException(RoomErrorCode.DUPLICATE_ROOM_PARTICIPANT_MEMBER);
+        }
+
+        try {
+            RoomParticipant participant = roomParticipantRepository.saveAndFlush(
+                    RoomParticipant.member(room, user, normalizedNickname, passwordHash)
+            );
+            return ParticipantJoinResult.from(room, participant);
+        } catch (DataIntegrityViolationException exception) {
+            if (roomParticipantRepository.existsByRoomIdAndUserId(room.getId(), user.getId())) {
+                throw new MoyeoException(RoomErrorCode.DUPLICATE_ROOM_PARTICIPANT_MEMBER);
+            }
+            throw exception;
         }
     }
 
@@ -186,6 +205,43 @@ public class RoomService {
     private Room findRoomByInviteCodeForUpdate(String inviteCode) {
         return roomRepository.findByInviteCodeForUpdate(inviteCode)
                 .orElseThrow(() -> new MoyeoException(RoomErrorCode.ROOM_INVITATION_NOT_FOUND));
+    }
+
+    private Room prepareGuestJoinableRoom(String inviteCode, String normalizedNickname) {
+        Room room = findRoomByInviteCodeForUpdate(inviteCode);
+        validateJoinOpen(room);
+        validateParticipantLimit(room);
+        validateGuestNicknameAvailable(room, normalizedNickname);
+        return room;
+    }
+
+    private Room prepareMemberJoinableRoom(String inviteCode) {
+        Room room = findRoomByInviteCodeForUpdate(inviteCode);
+        validateJoinOpen(room);
+        validateParticipantLimit(room);
+        return room;
+    }
+
+    private void validateJoinOpen(Room room) {
+        if (!room.getDeadlineAt().isAfter(LocalDateTime.now())) {
+            throw new MoyeoException(RoomErrorCode.ROOM_PARTICIPATION_CLOSED);
+        }
+    }
+
+    private void validateParticipantLimit(Room room) {
+        if (roomParticipantRepository.countByRoomId(room.getId()) >= room.getMaxParticipants()) {
+            throw new MoyeoException(RoomErrorCode.ROOM_PARTICIPANT_LIMIT_EXCEEDED);
+        }
+    }
+
+    private void validateGuestNicknameAvailable(Room room, String normalizedNickname) {
+        if (roomParticipantRepository.existsByRoomAndNicknameAndParticipantType(
+                room,
+                normalizedNickname,
+                ParticipantType.GUEST
+        )) {
+            throw new MoyeoException(RoomErrorCode.DUPLICATE_ROOM_PARTICIPANT_NICKNAME);
+        }
     }
 
     private void saveScheduleCandidates(Room room, CreateRoomCommand command) {

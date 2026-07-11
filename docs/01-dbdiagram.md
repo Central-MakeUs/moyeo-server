@@ -94,8 +94,8 @@ Table room_participants {
   room_id bigint [not null, note: "참여한 모임 ID"]
   user_id bigint [note: "연결된 서비스 사용자 ID. 게스트는 null"]
   nickname varchar(30) [not null, note: "모임 안에서 표시할 닉네임"]
-  password_hash varchar(100) [note: "게스트 참여 비밀번호 해시. 회원/방장은 null"]
-  participant_type varchar(20) [not null, note: "참여자 타입: HOST/GUEST"]
+  password_hash varchar(100) [note: "참여 비밀번호 해시. 방장은 null"]
+  participant_type varchar(20) [not null, note: "참여자 타입: HOST/MEMBER/GUEST"]
   departure_name varchar(30) [note: "방장 또는 참여자 출발지 이름. 중간지점 추천에서 사용"]
   departure_address varchar(255) [note: "방장 또는 참여자 출발지 주소. 중간지점 추천에서 사용"]
   departure_latitude decimal(10,7) [note: "방장 또는 참여자 출발지 위도. 중간지점 추천에서 사용"]
@@ -104,7 +104,6 @@ Table room_participants {
   created_at datetime [not null, note: "참여 생성 일시"]
 
   indexes {
-    (room_id, nickname) [unique, name: "uk_room_participants_room_nickname"]
     (room_id, user_id) [unique, name: "uk_room_participants_room_user"]
   }
 }
@@ -134,8 +133,8 @@ Ref fk_room_participant_schedule_availabilities_candidate: room_participant_sche
 - `rooms.available_start_time` and `rooms.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
 - `room_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `room_participant_schedule_availabilities` stores INV-02 participant-selected availability slots.
-- `room_participants` stores host and guest participants.
+- `room_participants` stores host, logged-in member, and guest participants.
 - `room_participants.departure_name`, `departure_address`, `departure_latitude`, `departure_longitude`, and `transportation_mode` store host and participant departure snapshots for place coordination.
-- `room_participants.nickname` is unique only inside a room.
+- Guest `room_participants.nickname` duplication is rejected only against other guests in the same room by the join application logic; the table does not keep a general nickname unique constraint.
 - `room_participants.user_id` is unique only inside a room when a participant is linked to a service user.
-- Guest participants do not use `users.id` yet; `room_participants.user_id` is nullable for guest participation.
+- Logged-in member participants use `users.id`; guest participants keep `room_participants.user_id` null.

@@ -21,6 +21,13 @@ public enum RoomErrorCode implements ErrorCode {
             "참여자 닉네임 중복",
             "이미 해당 모임에서 사용 중인 닉네임입니다."
     ),
+    DUPLICATE_ROOM_PARTICIPANT_MEMBER(
+            HttpStatus.CONFLICT,
+            "DUPLICATE_ROOM_PARTICIPANT_MEMBER",
+            "duplicate-room-participant-member",
+            "모임 참여 회원 중복",
+            "이미 해당 모임에 참여 중인 회원입니다."
+    ),
     ROOM_PARTICIPANT_LIMIT_EXCEEDED(
             HttpStatus.CONFLICT,
             "ROOM_PARTICIPANT_LIMIT_EXCEEDED",

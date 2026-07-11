@@ -27,6 +27,9 @@ without leaking internal exception information.
 
 ## Swagger/OpenAPI Documentation
 
+- Swagger/OpenAPI의 operation summary, description, DTO 필드 설명, 응답 설명,
+  예시 객체 이름과 설명은 사용자가 명시적으로 다른 언어를 요청하지 않는 한
+  한글로 작성한다.
 - Use Swagger/OpenAPI as the primary API contract reference.
 - When adding or changing APIs, keep Swagger easy to read for frontend
   collaboration.

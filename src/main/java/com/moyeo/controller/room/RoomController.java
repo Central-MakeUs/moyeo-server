@@ -255,11 +255,98 @@ public class RoomController {
                     })
             )
     })
-    public GuestJoinResponse joinGuest(
+    public ParticipantJoinResponse joinGuest(
             @PathVariable String inviteCode,
             @Valid @RequestBody GuestJoinRequest request
     ) {
-        return GuestJoinResponse.from(roomService.joinGuest(inviteCode, request.nickname(), request.password()));
+        return ParticipantJoinResponse.from(roomService.joinGuest(inviteCode, request.nickname(), request.password()));
+    }
+
+    @PostMapping("/invitations/{inviteCode}/members")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            summary = "로그인 회원 모임 참여",
+            description = """
+                    현재 로그인한 서비스 사용자를 모임 참여자로 생성합니다.<br>
+                    회원 기본 닉네임과 다른 모임 안 표시 닉네임을 입력할 수 있습니다.
+                    참여 비밀번호는 추후 참여자 재입장/수정 검증 흐름에서 사용할 수 있도록 해시로 저장합니다.
+                    """
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "로그인 회원 모임 참여 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "요청 값 검증 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "COMMON_VALIDATION_FAILED",
+                              "status": 400
+                            }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token 없음, 만료 또는 유효하지 않음",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "AUTHENTICATION_REQUIRED",
+                              "status": 401
+                            }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "초대 코드에 해당하는 모임 없음",
+                    content = @Content(examples = @ExampleObject(value = """
+                            {
+                              "code": "ROOM_INVITATION_NOT_FOUND",
+                              "status": 404
+                            }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "회원 중복 참여, 모임 인원 초과 또는 참여 마감",
+                    content = @Content(examples = {
+                            @ExampleObject(
+                                    name = "이미 참여한 회원",
+                                    value = """
+                                            {
+                                              "code": "DUPLICATE_ROOM_PARTICIPANT_MEMBER",
+                                              "status": 409
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "모임 인원 초과",
+                                    value = """
+                                            {
+                                              "code": "ROOM_PARTICIPANT_LIMIT_EXCEEDED",
+                                              "status": 409
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "모임 참여 마감",
+                                    value = """
+                                            {
+                                              "code": "ROOM_PARTICIPATION_CLOSED",
+                                              "status": 409
+                                            }
+                                            """
+                            )
+                    })
+            )
+    })
+    public ParticipantJoinResponse joinMember(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @PathVariable String inviteCode,
+            @Valid @RequestBody MemberJoinRequest request
+    ) {
+        return ParticipantJoinResponse.from(
+                roomService.joinMember(inviteCode, member, request.nickname(), request.password())
+        );
     }
 
     @PutMapping("/invitations/{inviteCode}/participants/{participantId}/participation")

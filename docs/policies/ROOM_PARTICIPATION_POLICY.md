@@ -50,12 +50,14 @@ general best practice into domain policy.
 
 ## Room Participant Identity
 
-- Room participant nicknames are unique only inside each room.
+- Room participant nickname duplication is checked only among guest
+  participants inside the same room. Host/member nicknames may overlap with
+  guest nicknames and with each other.
 - A service user should not be linked to the same room more than once; enforce
   this with a room-scoped uniqueness rule such as `unique(room_id, user_id)`.
 - Guest participants currently have nullable `user_id`, so multiple guest
   participants remain allowed.
-- Current participant behavior is defined for `HOST` and `GUEST`.
+- Current participant behavior is defined for `HOST`, `MEMBER`, and `GUEST`.
 
 ## Invite and Guest Join
 
@@ -63,16 +65,32 @@ general best practice into domain policy.
   returns the current participation availability status for the entry screen.
 - If both the deadline and participant limit block joining, the deadline-passed
   status takes priority in the entry response.
+- Web invite-link entry supports both logged-in member join and guest join.
+- App invite-link entry supports logged-in member join only; guest join is not
+  exposed in the app entry flow.
+- The client decides which entry options to expose by platform. The server keeps
+  separate member and guest join APIs.
+- INV-01 member join creates a participant row for the current authenticated
+  service user from `@CurrentMember`.
+- Member join accepts a room-scoped nickname and participant password. The
+  nickname may differ from the user's default nickname.
+- A service user can participate in the same room only once. The host
+  participant row also counts as that user's room participation.
 - INV-01 guest join currently creates only the participant row with nickname and
   password.
 - Guest join currently accepts only nickname and password. Guest departure
   address, coordinates, and transportation mode are saved later through the
   INV-02 participation input API when the room includes place coordination.
-- A repeated guest join attempt with the same nickname should continue to return
-  a duplicate nickname conflict, even if the same password is provided.
-- Guest participation is rejected after the room `deadlineAt`.
-- Guest participation checks the current participant count before saving.
-- To prevent concurrent guest joins from exceeding `maxParticipants`, guest
+- Member and guest join store the participant password as a hash on the
+  `room_participants` row. Password verification for later re-entry or
+  modification remains deferred until its policy is confirmed.
+- A repeated guest join attempt with the same nickname as an existing guest in
+  the same room should continue to return a duplicate nickname conflict, even if
+  the same password is provided.
+- Member and guest participation is rejected after the room `deadlineAt`.
+- Member and guest participation checks the current participant count before
+  saving.
+- To prevent concurrent joins from exceeding `maxParticipants`, participant
   participation may acquire a pessimistic write lock on the target room row
   during the join transaction.
 - Keep this lock limited to the room join path; ordinary invite-code lookup
@@ -108,9 +126,10 @@ general best practice into domain policy.
   selected departure snapshot in this flow.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.
-- Participant password verification remains deferred until its policy is
-  confirmed.
-- Member invitation remains deferred until its policy is confirmed.
+- Participant password verification for re-entry or modification remains
+  deferred until its policy is confirmed.
+- Member invitation beyond direct invite-link join remains deferred until its
+  policy is confirmed.
 - Group invitation remains deferred until its policy is confirmed.
 - Schedule result logic is not implemented yet. Intersection calculation,
   longest-meeting-time sorting, earliest-date sorting, result recommendation,

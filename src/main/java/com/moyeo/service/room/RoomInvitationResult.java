@@ -60,8 +60,8 @@ public record RoomInvitationResult(
         private static final String AVAILABLE = "AVAILABLE";
         private static final String DEADLINE_PASSED = "DEADLINE_PASSED";
         private static final String PARTICIPANT_LIMIT_EXCEEDED = "PARTICIPANT_LIMIT_EXCEEDED";
-        private static final String DEADLINE_PASSED_MESSAGE = "기한이 지난 모임이에요. 아쉽지만 현재는 더 이상 참여할 수 없어요.";
-        private static final String PARTICIPANT_LIMIT_EXCEEDED_MESSAGE = "모인 인원이 모두 찼어요. 아쉽지만 현재는 더 이상 참여할 수 없어요.";
+        private static final String DEADLINE_PASSED_MESSAGE = "\uAE30\uD55C\uC774 \uC9C0\uB09C \uBAA8\uC784\uC774\uC5D0\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694.";
+        private static final String PARTICIPANT_LIMIT_EXCEEDED_MESSAGE = "\uBAA8\uC778 \uC778\uC6D0\uC774 \uBAA8\uB450 \uCC3C\uC5B4\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694.";
 
         private static ParticipationStatus from(Room room, long participantCount) {
             if (!room.getDeadlineAt().isAfter(LocalDateTime.now())) {
