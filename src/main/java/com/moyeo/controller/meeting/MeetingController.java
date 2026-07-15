@@ -64,10 +64,13 @@ public class MeetingController {
                                                       "planningType": "SCHEDULE_AND_PLACE",
                                                       "scheduleCandidateDates": [
                                                         "2026-07-10",
-                                                        "2026-07-11"
+                                                        "2026-07-11",
+                                                        "2026-07-12",
+                                                        "2026-07-13",
+                                                        "2026-07-14"
                                                       ],
-                                                      "availableStartTime": "18:00",
-                                                      "availableEndTime": "22:00",
+                                                      "availableStartTime": "17:00",
+                                                      "availableEndTime": "23:00",
                                                       "placeRecommendationStrategy": "MIDDLE_POINT",
                                                       "hostDepartureName": "회사",
                                                       "hostDepartureAddress": "서울 강남구 테헤란로 123",
@@ -89,10 +92,13 @@ public class MeetingController {
                                                       "planningType": "SCHEDULE_ONLY",
                                                       "scheduleCandidateDates": [
                                                         "2026-07-10",
-                                                        "2026-07-11"
+                                                        "2026-07-11",
+                                                        "2026-07-12",
+                                                        "2026-07-13",
+                                                        "2026-07-14"
                                                       ],
-                                                      "availableStartTime": "18:00",
-                                                      "availableEndTime": "22:00",
+                                                      "availableStartTime": "17:00",
+                                                      "availableEndTime": "23:00",
                                                       "deadlineMinutes": 180
                                                     }
                                                     """
@@ -277,17 +283,27 @@ public class MeetingController {
                             mediaType = "application/json",
                             examples = {
                                     @ExampleObject(
-                                            name = "SCHEDULE_AND_PLACE",
-                                            description = "모임 생성의 SCHEDULE_AND_PLACE 예시와 연결됩니다. 2026-07-10, 18:00~22:00 범위 안의 일정과 출발지를 모두 입력합니다.",
+                                            name = "SCHEDULE_AND_PLACE_1",
+                                            description = "모임 생성의 SCHEDULE_AND_PLACE 예시와 연결됩니다. 5개 후보일과 17:00~23:00 범위 안에서 여러 날짜·시간대를 선택한 첫 번째 게스트 참여 예시입니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구",
+                                              "nickname": "민지 친구 1",
                                               "password": "moyeo2026!",
                                               "scheduleAvailabilities": [
                                                 {
                                                   "candidateDate": "2026-07-10",
                                                   "startTime": "18:00",
                                                   "endTime": "20:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-11",
+                                                  "startTime": "20:00",
+                                                  "endTime": "23:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-12",
+                                                  "startTime": "17:00",
+                                                  "endTime": "19:00"
                                                 }
                                               ],
                                               "departure": {
@@ -296,6 +312,40 @@ public class MeetingController {
                                                 "latitude": 37.498095,
                                                 "longitude": 127.027610,
                                                 "transportationMode": "PUBLIC_TRANSIT"
+                                              }
+                                            }
+                                            """
+                                    ),
+                                    @ExampleObject(
+                                            name = "SCHEDULE_AND_PLACE_2",
+                                            description = "같은 모임에 사용할 두 번째 게스트 참여 예시입니다. 첫 번째 예시와 겹치는 시간과 겹치지 않는 시간을 함께 넣어 추천 결과를 비교할 수 있습니다.",
+                                            value = """
+                                            {
+                                              "nickname": "민지 친구 2",
+                                              "password": "moyeo2026!",
+                                              "scheduleAvailabilities": [
+                                                {
+                                                  "candidateDate": "2026-07-10",
+                                                  "startTime": "19:00",
+                                                  "endTime": "22:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-12",
+                                                  "startTime": "18:00",
+                                                  "endTime": "23:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-13",
+                                                  "startTime": "17:00",
+                                                  "endTime": "20:00"
+                                                }
+                                              ],
+                                              "departure": {
+                                                "name": "집",
+                                                "address": "서울 마포구 월드컵북로 1",
+                                                "latitude": 37.566500,
+                                                "longitude": 126.978000,
+                                                "transportationMode": "CAR"
                                               }
                                             }
                                             """
@@ -312,6 +362,11 @@ public class MeetingController {
                                                   "candidateDate": "2026-07-10",
                                                   "startTime": "18:00",
                                                   "endTime": "20:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-13",
+                                                  "startTime": "20:00",
+                                                  "endTime": "22:00"
                                                 }
                                               ]
                                             }
@@ -422,16 +477,26 @@ public class MeetingController {
                             mediaType = "application/json",
                             examples = {
                                     @ExampleObject(
-                                            name = "SCHEDULE_AND_PLACE",
-                                            description = "모임 생성의 SCHEDULE_AND_PLACE 예시와 연결됩니다. Authorize에서 Bearer Access Token을 설정한 뒤 2026-07-10, 18:00~22:00 범위 안의 일정과 출발지를 모두 입력합니다.",
+                                            name = "SCHEDULE_AND_PLACE_1",
+                                            description = "모임 생성의 SCHEDULE_AND_PLACE 예시와 연결됩니다. Authorize에서 Bearer Access Token을 설정한 뒤 5개 후보일과 17:00~23:00 범위 안에서 여러 날짜·시간대를 선택합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지",
+                                              "nickname": "민지 1",
                                               "scheduleAvailabilities": [
                                                 {
                                                   "candidateDate": "2026-07-10",
-                                                  "startTime": "18:00",
+                                                  "startTime": "19:00",
+                                                  "endTime": "22:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-11",
+                                                  "startTime": "17:00",
                                                   "endTime": "20:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-14",
+                                                  "startTime": "20:00",
+                                                  "endTime": "23:00"
                                                 }
                                               ],
                                               "departure": {
@@ -440,6 +505,39 @@ public class MeetingController {
                                                 "latitude": 37.566500,
                                                 "longitude": 126.978000,
                                                 "transportationMode": "CAR"
+                                              }
+                                            }
+                                            """
+                                    ),
+                                    @ExampleObject(
+                                            name = "SCHEDULE_AND_PLACE_2",
+                                            description = "같은 모임에 사용할 두 번째 로그인 회원 참여 예시입니다. 다른 참여 예시와 일부 시간만 겹치도록 구성되어 추천 후보 순서를 확인할 수 있습니다.",
+                                            value = """
+                                            {
+                                              "nickname": "민지 2",
+                                              "scheduleAvailabilities": [
+                                                {
+                                                  "candidateDate": "2026-07-10",
+                                                  "startTime": "18:00",
+                                                  "endTime": "21:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-12",
+                                                  "startTime": "19:00",
+                                                  "endTime": "22:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-13",
+                                                  "startTime": "17:00",
+                                                  "endTime": "19:00"
+                                                }
+                                              ],
+                                              "departure": {
+                                                "name": "학교",
+                                                "address": "서울 성동구 왕십리로 222",
+                                                "latitude": 37.561000,
+                                                "longitude": 127.036500,
+                                                "transportationMode": "PUBLIC_TRANSIT"
                                               }
                                             }
                                             """
@@ -455,6 +553,11 @@ public class MeetingController {
                                                   "candidateDate": "2026-07-10",
                                                   "startTime": "18:00",
                                                   "endTime": "20:00"
+                                                },
+                                                {
+                                                  "candidateDate": "2026-07-14",
+                                                  "startTime": "21:00",
+                                                  "endTime": "23:00"
                                                 }
                                               ]
                                             }

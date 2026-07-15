@@ -191,6 +191,21 @@ Each finding is later judged by the human developer as one of:
 
 AI does not automatically mark its own findings as ACCEPTED.
 
+## Review Routing and Reporting
+
+Apply this procedure both before a commit and whenever a user requests a
+self-code review.
+
+1. Read `AGENTS.md` and this document before reviewing the diff.
+2. Classify the changed surfaces, then read every applicable canonical policy
+   document named by `AGENTS.md`.
+3. In the review result, state the changed-surface classification and the
+   policy documents reviewed before reporting findings or `No actionable
+   findings.`
+
+Do not claim that a review followed the project harness when these routing and
+reporting steps were not completed.
+
 ## Pre-Commit Self Review
 
 Before creating a commit, run this review against the staged and unstaged diff:
