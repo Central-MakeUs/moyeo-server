@@ -113,6 +113,7 @@ public class MeetingService {
 
         List<MeetingScheduleCandidate> scheduleCandidates = meetingScheduleCandidateRepository
                 .findAllByMeetingIdOrderByCandidateDateAsc(savedMeeting.getId());
+        saveHostScheduleAvailabilities(savedMeeting, hostParticipant, scheduleCandidates);
         return MeetingCreateResult.from(savedMeeting, hostParticipant, scheduleCandidates);
     }
 
@@ -653,6 +654,26 @@ public class MeetingService {
                     .toList();
             meetingScheduleCandidateRepository.saveAll(candidates);
         }
+    }
+
+    private void saveHostScheduleAvailabilities(
+            Meeting meeting,
+            MeetingParticipant hostParticipant,
+            List<MeetingScheduleCandidate> scheduleCandidates
+    ) {
+        if (meeting.getScheduleMode() != ScheduleMode.VOTE) {
+            return;
+        }
+
+        List<MeetingParticipantScheduleAvailability> availabilities = scheduleCandidates.stream()
+                .map(candidate -> new MeetingParticipantScheduleAvailability(
+                        hostParticipant,
+                        candidate,
+                        meeting.getAvailableStartTime(),
+                        meeting.getAvailableEndTime()
+                ))
+                .toList();
+        meetingParticipantScheduleAvailabilityRepository.saveAll(availabilities);
     }
 
     private void validateParticipationInput(

@@ -90,6 +90,23 @@ class MeetingControllerTest {
     }
 
     @Test
+    void createScheduleMeetingSavesHostAvailabilityForEveryCandidateDate() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost35", "host35");
+
+        String response = mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(defaultCreateMeetingRequest(6))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        Long hostParticipantId = objectMapper.readTree(response).get("hostParticipantId").asLong();
+        assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(hostParticipantId)).isEqualTo(2);
+    }
+
+    @Test
     void createMeetingRequiresAccessToken() throws Exception {
         mockMvc.perform(post("/api/meetings")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -686,10 +703,11 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.name").value("weekend-meeting"))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.participantCount").value(2))
-                .andExpect(jsonPath("$.respondedParticipantCount").value(1))
-                .andExpect(jsonPath("$.responseRate").value(0.5))
+                .andExpect(jsonPath("$.respondedParticipantCount").value(2))
+                .andExpect(jsonPath("$.responseRate").value(1.0))
                 .andExpect(jsonPath("$.participants[0].participantType").value("HOST"))
-                .andExpect(jsonPath("$.participants[0].responseCompleted").value(false))
+                .andExpect(jsonPath("$.participants[0].scheduleResponded").value(true))
+                .andExpect(jsonPath("$.participants[0].responseCompleted").value(true))
                 .andExpect(jsonPath("$.participants[1].nickname").value("guest-view"))
                 .andExpect(jsonPath("$.participants[1].responseCompleted").value(true));
     }
@@ -708,10 +726,10 @@ class MeetingControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.sort").value("LONGEST_MEETING"))
                 .andExpect(jsonPath("$.participantCount").value(3))
-                .andExpect(jsonPath("$.respondedParticipantCount").value(2))
+                .andExpect(jsonPath("$.respondedParticipantCount").value(3))
                 .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.candidates[0].startTime").value("09:00:00"))
-                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(2))
+                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3))
                 .andExpect(jsonPath("$.emptyMessage").doesNotExist());
     }
 
@@ -731,7 +749,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.candidates[0].startTime").value("09:00:00"))
                 .andExpect(jsonPath("$.candidates[0].endTime").value("11:00:00"))
-                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(2));
+                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3));
     }
 
     @Test

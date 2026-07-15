@@ -47,6 +47,10 @@ general best practice into domain policy.
 - Schedule voting applies the same available time range to every selected
   candidate date.
 - Schedule voting time ranges are currently accepted in 1-hour units.
+- For schedule-coordination meetings, the candidate dates and common available
+  time range selected by the host at creation are also the host's schedule
+  availability. The server saves one host availability row per candidate date in
+  the same creation transaction.
 
 ## Meeting Participant Identity
 

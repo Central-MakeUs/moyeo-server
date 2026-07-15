@@ -132,7 +132,7 @@ Ref fk_meeting_participant_schedule_availabilities_candidate: meeting_participan
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
-- `meeting_participant_schedule_availabilities` stores INV-02 participant-selected availability slots.
+- `meeting_participant_schedule_availabilities` stores participant-selected availability slots. For schedule-coordination meetings, creation also stores one host availability slot per candidate date using the host-selected common time range.
 - `meeting_participants` stores host, logged-in member, and guest participants.
 - `meeting_participants.departure_name`, `departure_address`, `departure_latitude`, `departure_longitude`, and `transportation_mode` store host and participant departure snapshots for place coordination.
 - Guest `meeting_participants.nickname` duplication is rejected only against other guests in the same meeting by the join application logic; the table does not keep a general nickname unique constraint.
