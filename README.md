@@ -200,7 +200,17 @@ DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
 CORS_ALLOWED_ORIGINS
+JUSO_SEARCH_CONFM_KEY
+MEETING_COVER_S3_BUCKET
 ```
+
+`JUSO_SEARCH_CONFM_KEY` is the Road Name Address Search API confirmation key.
+Keep the real key only in the runtime environment; do not add it to source code,
+configuration files, or GitHub Actions deployment commands.
+
+`MEETING_COVER_S3_BUCKET` is the private S3 bucket used to retain resized meeting
+cover images. The EC2 instance role, not an AWS access key in the environment,
+must have access to this bucket.
 
 Dev CORS origin example:
 
@@ -212,6 +222,14 @@ The EC2 dev server stores runtime values in:
 
 ```text
 /home/ubuntu/moyeo/.env
+```
+
+Add the address-search key to that file before deploying or recreating the app
+container:
+
+```text
+JUSO_SEARCH_CONFM_KEY=your-issued-confirmation-key
+MEETING_COVER_S3_BUCKET=moyeo-meeting-covers-dev-533232489687-ap-northeast-2-an
 ```
 
 Do not commit real secrets to the repository.

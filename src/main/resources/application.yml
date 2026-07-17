@@ -1,6 +1,10 @@
 spring:
   application:
     name: moyeo-server
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   jpa:
     open-in-view: false
 
@@ -46,3 +50,10 @@ moyeo:
   address-search:
     base-url: https://business.juso.go.kr/addrlink/addrLinkApi.do
     confirmation-key: ${JUSO_SEARCH_CONFM_KEY:}
+  meeting-cover:
+    bucket: ${MEETING_COVER_S3_BUCKET:}
+    region: ${AWS_REGION:ap-northeast-2}
+    max-upload-size: 5MB
+    max-width: 1280
+    max-height: 720
+    jpeg-quality: 0.85

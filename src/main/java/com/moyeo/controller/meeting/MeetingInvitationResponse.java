@@ -19,6 +19,9 @@ public record MeetingInvitationResponse(
         @Schema(description = "초대 링크 진입 화면에 표시할 모임 설명. 입력하지 않은 경우 null입니다.", example = "오랜만에 같이 저녁 먹어요.")
         String description,
 
+        @Schema(description = "캐시 버전이 포함된 커버 이미지 조회 경로. 커버가 없으면 null입니다.", example = "/api/meetings/invitations/ABCD234567/cover-image?v=15v9zq")
+        String coverImageUrl,
+
         @Schema(description = "최대 참여 인원. 방장을 포함합니다.", example = "6")
         Integer maxParticipants,
 
@@ -105,6 +108,7 @@ public record MeetingInvitationResponse(
                 result.meetingId(),
                 result.name(),
                 result.description(),
+                result.coverImageUrl(),
                 result.maxParticipants(),
                 result.planningType(),
                 result.scheduleMode(),

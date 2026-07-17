@@ -90,6 +90,10 @@ public class Meeting {
     @Comment("확정 장소 주소. place_mode가 FIXED일 때 사용")
     private String fixedPlaceAddress;
 
+    @Column(length = 500)
+    @Comment("S3에 보관하는 모임 커버 이미지 객체 키")
+    private String coverImageKey;
+
     @Column(nullable = false)
     @Comment("모임 참여/응답 마감 일시")
     private LocalDateTime deadlineAt;
@@ -209,6 +213,18 @@ public class Meeting {
 
     public String getFixedPlaceAddress() {
         return fixedPlaceAddress;
+    }
+
+    public String getCoverImageKey() {
+        return coverImageKey;
+    }
+
+    public void changeCoverImageKey(String coverImageKey) {
+        this.coverImageKey = coverImageKey;
+    }
+
+    public void removeCoverImage() {
+        this.coverImageKey = null;
     }
 
     public LocalDateTime getDeadlineAt() {

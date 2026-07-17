@@ -39,6 +39,37 @@ general best practice into domain policy.
 - `deadlineAt` is calculated from the server processing time of the final meeting
   creation request. Any client-side expected end time is only a preview and may
   differ if the user stays on the screen before submitting.
+- TODO: For CRT-06, keep the current duration-only selection UX until product
+  confirmation. If an absolute deadline preview or second-accurate countdown is
+  later required, decide whether the API should provide a server-time reference;
+  the server-calculated `deadlineAt` remains authoritative after creation.
+- A meeting cover image is optional and is used only as a meeting-home thumbnail.
+  The server stores one resized cover derivative in durable object storage; the
+  uploaded original is not retained. The resized derivative is part of the
+  long-term meeting record.
+- Temporary MVP policy: the client keeps a selected cover file locally until the
+  final meeting-creation request. That request may use multipart form data with
+  the existing meeting JSON and an optional cover file; the response returns the
+  created invite code. The server does not create temporary upload objects.
+- Temporary MVP policy: the host may later replace or delete the cover through a
+  dedicated authenticated API. The invite-link meeting view may read the cover.
+  If the selected cover cannot be stored, the final meeting creation fails and
+  no invite code is returned.
+- The cover-image response URL includes a value derived from the current stored
+  object key only to distinguish browser cache entries. It is not a new database
+  field or object-storage path. When the host replaces the cover, clients use
+  the returned new URL; the former S3 object is deleted only after the database
+  transaction commits successfully.
+- Temporary technical settings: JPEG/PNG input, 5 MB maximum upload size, a
+  1280x720 bounding box, and JPEG quality 0.85. They are configuration values,
+  not final product policy; revisit format, size, crop, compression, visibility,
+  and deletion retention after MVP feedback.
+- TODO: Before broadening cover-image upload use, add a configuration-backed
+  maximum decoded input width/height or pixel count. The current 5 MB encoded
+  file-size limit and 1280x720 output bound do not limit image decode memory.
+- TODO: Add negative-path cover-image tests: non-host modification rejection,
+  invalid/oversized file rejection, storage-unavailable response, and S3 cleanup
+  after a transaction rollback.
 - Schedule voting candidate dates are stored as separate rows and are temporarily
   limited to 21 dates by request validation until the final 3-week policy is
   confirmed. Keep the limit isolated in the meeting creation constraints so it can
@@ -162,6 +193,10 @@ general best practice into domain policy.
 - TODO: Host departure address modification is out of the first MVP creation
   scope and should be handled with the later participation/modification flow.
 - Address search uses the road-name address search API through the server. The API key remains server-side, and the search response intentionally contains no coordinates until the separately requested coordinate API key is approved.
+- TODO: Evaluate adding a server-side POI/place-name search provider for departure
+  input (for example, Kakao Local keyword search). Do not expose a provider key
+  to the client or alter the current road-name address API contract before the
+  provider, quota/cost policy, and unified result contract are confirmed.
 - GPS/current-location lookup, saved departure lists, and member departure CRUD are P1 or later client/domain work.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.

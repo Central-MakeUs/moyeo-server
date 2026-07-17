@@ -5,22 +5,32 @@ import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.meeting.MeetingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Encoding;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/meetings")
@@ -33,8 +43,9 @@ public class MeetingController {
         this.meetingService = meetingService;
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
+    @Hidden
     @Operation(
             summary = "모임 생성",
             description = """
@@ -150,6 +161,114 @@ public class MeetingController {
             @Valid @RequestBody CreateMeetingRequest request
     ) {
         return CreateMeetingResponse.from(meetingService.createMeeting(member, request.toCommand()));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(
+            summary = "커버 사진을 포함한 모임 생성",
+            description = """
+                    커버 사진은 선택 사항입니다. 사진이 없어도 이 multipart API로 모임을 생성할 수 있습니다.
+                    이때 `coverImage` 파트만 생략합니다. `request`는 문자열이 아니라
+                    `application/json` 타입의 Blob 파트여야 합니다.
+
+                    `FormData` 요청에서 `Content-Type` 헤더는 직접 설정하지 마세요. 브라우저 또는 curl이
+                    multipart boundary를 자동으로 추가합니다.
+
+                    ```javascript
+                    const formData = new FormData();
+                    formData.append(
+                      "request",
+                      new Blob([JSON.stringify(requestBody)], { type: "application/json" })
+                    );
+                    if (coverImageFile) {
+                      formData.append("coverImage", coverImageFile);
+                    }
+
+                    await fetch("/api/meetings", {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${accessToken}` },
+                      body: formData
+                    });
+                    ```
+                    """
+            , requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(
+                            mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
+                            encoding = @Encoding(name = "request", contentType = MediaType.APPLICATION_JSON_VALUE)
+                    )
+            )
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "모임 생성 성공"),
+            @ApiResponse(responseCode = "400", description = "request JSON 검증 실패"),
+            @ApiResponse(responseCode = "413", description = "커버 파일 크기 초과"),
+            @ApiResponse(responseCode = "415", description = "JPEG 또는 PNG가 아닌 커버 파일"),
+            @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
+    })
+    public CreateMeetingResponse createMeetingWithCover(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @Parameter(
+                    description = "필수 JSON 파트. FormData 문자열이 아닌 application/json Blob으로 전송합니다.",
+                    required = true,
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = CreateMeetingRequest.class))
+            )
+            @Valid @RequestPart("request") CreateMeetingRequest request,
+            @Parameter(description = "선택 JPEG 또는 PNG 파일. 사진이 없으면 이 파트를 생략합니다.")
+            @RequestPart(value = "coverImage", required = false) MultipartFile coverImage
+    ) {
+        return CreateMeetingResponse.from(meetingService.createMeeting(member, request.toCommand(), coverImage));
+    }
+
+    @PutMapping(value = "/{meetingId}/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "모임 커버 사진 교체", description = "임시 MVP 정책상 방장만 커버 사진을 교체할 수 있습니다. 응답의 coverImageUrl로 화면 이미지를 갱신합니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "커버 사진 교체 성공"),
+            @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+            @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
+    })
+    public MeetingCoverResponse replaceCoverImage(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @RequestPart("coverImage") MultipartFile coverImage
+    ) {
+        return MeetingCoverResponse.from(meetingService.replaceCoverImage(meetingId, member, coverImage));
+    }
+
+    @DeleteMapping("/{meetingId}/cover-image")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "모임 커버 사진 삭제", description = "임시 MVP 정책상 방장만 모임 커버 사진을 삭제할 수 있습니다.")
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "커버 사진 삭제 성공"),
+            @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "삭제할 커버 사진 없음")
+    })
+    public void deleteCoverImage(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        meetingService.deleteCoverImage(meetingId, member);
+    }
+
+    @GetMapping("/invitations/{inviteCode}/cover-image")
+    @Operation(summary = "초대 링크 모임 커버 사진 조회", description = "응답 DTO의 coverImageUrl을 사용합니다. v 쿼리는 브라우저 캐시 갱신 전용이며 서버는 현재 커버 이미지를 반환합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "커버 사진 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "모임 또는 커버 사진 없음"),
+            @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
+    })
+    public ResponseEntity<byte[]> getCoverImage(
+            @PathVariable String inviteCode,
+            @Parameter(description = "브라우저 캐시를 구분하는 응답 전용 버전값", example = "15v9zq") @RequestParam(required = false) String v
+    ) {
+        var cover = meetingService.getCoverImage(inviteCode);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(cover.contentType()))
+                .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable())
+                .body(cover.content());
     }
 
     @GetMapping("/invitations/{inviteCode}")

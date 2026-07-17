@@ -97,6 +97,9 @@ public record CreateMeetingResponse(
         @Schema(description = "프론트에서 초대 링크를 만들 때 사용할 수 있는 경로", example = "/meetings/invitations/ABCD234567")
         String invitePath,
 
+        @Schema(description = "캐시 버전이 포함된 커버 이미지 조회 경로. 커버가 없으면 null입니다.", example = "/api/meetings/invitations/ABCD234567/cover-image?v=15v9zq")
+        String coverImageUrl,
+
         @Schema(description = "방장 출발지 이름. 중간지점 추천을 선택한 생성 요청에서만 값이 있습니다.", example = "회사")
         String hostDepartureName,
 
@@ -142,6 +145,7 @@ public record CreateMeetingResponse(
                 result.deadlineAt(),
                 result.inviteCode(),
                 result.invitePath(),
+                result.coverImageUrl(),
                 result.hostDepartureName(),
                 result.hostDepartureAddress(),
                 result.hostDepartureLatitude(),

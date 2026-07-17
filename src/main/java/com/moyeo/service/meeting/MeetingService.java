@@ -21,6 +21,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,6 +38,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -50,6 +54,8 @@ public class MeetingService {
     private final CommercialAreaCatalog commercialAreaCatalog;
     private final InviteCodeGenerator inviteCodeGenerator;
     private final PasswordEncoder passwordEncoder;
+    private final MeetingCoverStorage meetingCoverStorage;
+    private final MeetingCoverProcessor meetingCoverProcessor;
 
     public MeetingService(
             MeetingRepository meetingRepository,
@@ -59,7 +65,9 @@ public class MeetingService {
             UserRepository userRepository,
             CommercialAreaCatalog commercialAreaCatalog,
             InviteCodeGenerator inviteCodeGenerator,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            MeetingCoverStorage meetingCoverStorage,
+            MeetingCoverProcessor meetingCoverProcessor
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
@@ -69,12 +77,23 @@ public class MeetingService {
         this.commercialAreaCatalog = commercialAreaCatalog;
         this.inviteCodeGenerator = inviteCodeGenerator;
         this.passwordEncoder = passwordEncoder;
+        this.meetingCoverStorage = meetingCoverStorage;
+        this.meetingCoverProcessor = meetingCoverProcessor;
     }
 
     @Transactional
     public MeetingCreateResult createMeeting(
             AuthenticatedMember hostMember,
             CreateMeetingCommand command
+    ) {
+        return createMeeting(hostMember, command, null);
+    }
+
+    @Transactional
+    public MeetingCreateResult createMeeting(
+            AuthenticatedMember hostMember,
+            CreateMeetingCommand command,
+            MultipartFile coverImage
     ) {
         User hostUser = userRepository.findById(hostMember.userId())
                 .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
@@ -114,7 +133,87 @@ public class MeetingService {
         List<MeetingScheduleCandidate> scheduleCandidates = meetingScheduleCandidateRepository
                 .findAllByMeetingIdOrderByCandidateDateAsc(savedMeeting.getId());
         saveHostScheduleAvailabilities(savedMeeting, hostParticipant, scheduleCandidates);
+        if (coverImage != null && !coverImage.isEmpty()) {
+            saveCoverImage(savedMeeting, coverImage);
+        }
         return MeetingCreateResult.from(savedMeeting, hostParticipant, scheduleCandidates);
+    }
+
+    @Transactional
+    public MeetingCoverResult replaceCoverImage(Long meetingId, AuthenticatedMember member, MultipartFile coverImage) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        validateCoverModificationAuthority(meeting, member);
+        String previousKey = meeting.getCoverImageKey();
+        saveCoverImage(meeting, coverImage);
+        deleteAfterCommit(previousKey);
+        return new MeetingCoverResult(MeetingCoverUrl.from(meeting));
+    }
+
+    @Transactional
+    public void deleteCoverImage(Long meetingId, AuthenticatedMember member) {
+        Meeting meeting = meetingRepository.findById(meetingId)
+                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        validateCoverModificationAuthority(meeting, member);
+        String previousKey = meeting.getCoverImageKey();
+        if (previousKey == null) {
+            throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_NOT_FOUND);
+        }
+        meeting.removeCoverImage();
+        deleteAfterCommit(previousKey);
+    }
+
+    public MeetingCoverStorage.CoverObject getCoverImage(String inviteCode) {
+        Meeting meeting = findMeetingByInviteCode(inviteCode);
+        if (meeting.getCoverImageKey() == null) {
+            throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_NOT_FOUND);
+        }
+        return meetingCoverStorage.get(meeting.getCoverImageKey());
+    }
+
+    private void saveCoverImage(Meeting meeting, MultipartFile coverImage) {
+        byte[] resized = meetingCoverProcessor.resizeToJpeg(coverImage);
+        String objectKey = "meeting-covers/" + UUID.randomUUID() + ".jpg";
+        meetingCoverStorage.put(objectKey, resized);
+        meeting.changeCoverImageKey(objectKey);
+        deleteUploadedObjectOnRollback(objectKey);
+    }
+
+    private void validateCoverModificationAuthority(Meeting meeting, AuthenticatedMember member) {
+        if (!meeting.getHostUser().getId().equals(member.userId())) {
+            throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_MODIFICATION_FORBIDDEN);
+        }
+    }
+
+    private void deleteUploadedObjectOnRollback(String objectKey) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == STATUS_ROLLED_BACK) {
+                    deleteQuietly(objectKey);
+                }
+            }
+        });
+    }
+
+    private void deleteAfterCommit(String objectKey) {
+        if (objectKey == null) {
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                deleteQuietly(objectKey);
+            }
+        });
+    }
+
+    private void deleteQuietly(String objectKey) {
+        try {
+            meetingCoverStorage.delete(objectKey);
+        } catch (RuntimeException ignored) {
+            // 이전 이미지 정리 실패는 확정된 DB 변경을 되돌리지 않는다.
+        }
     }
 
     public MeetingInvitationResult getInvitation(String inviteCode) {
@@ -161,6 +260,7 @@ public class MeetingService {
                 meeting.getId(),
                 meeting.getName(),
                 meeting.getDescription(),
+                MeetingCoverUrl.from(meeting),
                 meeting.getPlanningType().name(),
                 meeting.getScheduleMode().name(),
                 meeting.getPlaceMode().name(),

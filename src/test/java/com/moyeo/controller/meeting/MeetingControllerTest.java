@@ -5,28 +5,39 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.service.meeting.MeetingService;
+import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.SaveParticipationCommand;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import javax.imageio.ImageIO;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -56,6 +67,9 @@ class MeetingControllerTest {
 
     @Autowired
     private MeetingService meetingService;
+
+    @MockitoBean
+    private MeetingCoverStorage meetingCoverStorage;
 
     @Test
     void createMeetingReturnsInviteCodeAndHostParticipant() throws Exception {
@@ -87,6 +101,77 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.hostDepartureLongitude").value(127.027610))
                 .andExpect(jsonPath("$.hostTransportationMode").value("PUBLIC_TRANSIT"))
                 .andExpect(jsonPath("$.hostParticipantId").isNumber());
+    }
+
+    @Test
+    void createMeetingWithOptionalCoverReturnsVersionedCoverUrl() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-cover", "host-cover");
+        MockMultipartFile request = new MockMultipartFile(
+                "request",
+                "request.json",
+                MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(defaultCreateMeetingRequest(6))
+        );
+        MockMultipartFile coverImage = new MockMultipartFile(
+                "coverImage",
+                "cover.png",
+                MediaType.IMAGE_PNG_VALUE,
+                pngImage()
+        );
+
+        mockMvc.perform(multipart("/api/meetings")
+                        .file(request)
+                        .file(coverImage)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.coverImageUrl").value(org.hamcrest.Matchers.startsWith(
+                        "/api/meetings/invitations/")))
+                .andExpect(jsonPath("$.coverImageUrl").value(org.hamcrest.Matchers.containsString("/cover-image?v=")));
+
+        verify(meetingCoverStorage).put(any(String.class), any(byte[].class));
+    }
+
+    @Test
+    void createMeetingWithMultipartRequestAndNoCoverSucceeds() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-no-cover", "host-no-cover");
+        MockMultipartFile request = new MockMultipartFile(
+                "request",
+                "request.json",
+                MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(defaultCreateMeetingRequest(6))
+        );
+
+        mockMvc.perform(multipart("/api/meetings")
+                        .file(request)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.coverImageUrl").doesNotExist());
+    }
+
+    @Test
+    void hostCanReplaceAndDeleteCoverImage() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-cover-edit", "host-cover-edit");
+        String created = mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(defaultCreateMeetingRequest(6))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long meetingId = objectMapper.readTree(created).get("meetingId").asLong();
+        MockMultipartFile coverImage = new MockMultipartFile(
+                "coverImage", "cover.png", MediaType.IMAGE_PNG_VALUE, pngImage());
+
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/meetings/{meetingId}/cover-image", meetingId)
+                        .file(coverImage)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.coverImageUrl").value(org.hamcrest.Matchers.containsString("/cover-image?v=")));
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}/cover-image", meetingId)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isNoContent());
     }
 
     @Test
@@ -974,6 +1059,14 @@ class MeetingControllerTest {
 
     private void saveDefaultParticipation(String inviteCode, Long participantId, String startTime, String endTime) throws Exception {
         saveDefaultParticipation(inviteCode, participantId, List.of(scheduleAvailability(startTime, endTime)));
+    }
+
+    private byte[] pngImage() throws Exception {
+        BufferedImage image = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
+        image.setRGB(0, 0, 0xFF0000);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", output);
+        return output.toByteArray();
     }
 
     private void saveDefaultParticipation(

@@ -194,6 +194,17 @@ current RFC 9457-based error response policy, and documented working rules.
 - ECR repository: `moyeo-server`
 - Deployment workflow: `.github/workflows/deploy-dev.yml`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
+- Address search API key: store `JUSO_SEARCH_CONFM_KEY` only in the EC2 runtime
+  `.env`; Docker Compose passes the value into the application container through
+  its `env_file` configuration.
+- Meeting cover storage: use the private Seoul S3 bucket
+  `moyeo-meeting-covers-dev-533232489687-ap-northeast-2-an`. Store its name as
+  `MEETING_COVER_S3_BUCKET` in the EC2 runtime `.env`; grant the EC2 instance
+  role S3 object access instead of storing AWS access keys. The application
+  returns a cache-versioned backend image URL, while the object key remains
+  private and is never sent to the client. Docker Compose passes
+  `MEETING_COVER_S3_BUCKET` and `AWS_REGION` from that runtime `.env` into the
+  application container.
 - Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager
   Run Command -> EC2 Docker Compose
 - Runtime `DB_URL` on the EC2 app container should point to the Compose service

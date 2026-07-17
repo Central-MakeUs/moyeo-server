@@ -7,6 +7,7 @@ public record MeetingViewResult(
         Long meetingId,
         String name,
         String description,
+        String coverImageUrl,
         String planningType,
         String scheduleMode,
         String placeMode,
