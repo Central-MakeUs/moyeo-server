@@ -44,5 +44,7 @@ not run in the `prod` profile.
 
 - Configure CORS with explicit frontend origins and update them when frontend
   deployment URLs are decided.
+- Expose the `X-Trace-Id` response header so browser clients can correlate an
+  API response with server logs.
 - If `CORS_ALLOWED_ORIGINS` exists in the EC2 runtime `.env`, it overrides the
   default origins in `application-dev.yml`.

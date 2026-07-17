@@ -9,6 +9,7 @@ public record CorsProperties(
         List<String> allowedOrigins,
         List<String> allowedMethods,
         List<String> allowedHeaders,
+        List<String> exposedHeaders,
         long maxAgeSeconds
 ) {
 }

@@ -11,6 +11,17 @@ wrapper.
 - Keep `/health`, Actuator, and Swagger/OpenAPI responses in their native
   formats.
 
+## Request Trace ID
+
+API-002: The server generates a new trace ID for every HTTP request and returns
+it in the `X-Trace-Id` response header.
+
+- The same value is written to application and exception logs for that request.
+- Clients may provide the header when reporting an issue, but the server does
+  not trust or reuse a client-supplied trace ID.
+- The error response body remains unchanged; use the response header to
+  correlate it with logs.
+
 ## API Errors
 
 ERR-001: API errors follow RFC 9457 Problem Details and expose a stable `code`

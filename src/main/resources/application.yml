@@ -17,6 +17,10 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId}]"
+
 moyeo:
   jwt:
     access-token-validity-seconds: 86400
@@ -36,6 +40,8 @@ moyeo:
     allowed-headers:
       - Authorization
       - Content-Type
+    exposed-headers:
+      - X-Trace-Id
     max-age-seconds: 3600
   address-search:
     base-url: https://business.juso.go.kr/addrlink/addrLinkApi.do

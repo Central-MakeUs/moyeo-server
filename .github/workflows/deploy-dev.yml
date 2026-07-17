@@ -83,6 +83,7 @@ jobs:
           commands = [
               "set -e",
               f"mkdir -p '{app_dir}'",
+              f"mkdir -p '{app_dir}/logs'",
               f"test -f '{app_dir}/.env'",
               f"cat > '{app_dir}/docker-compose.yml' <<'COMPOSE_EOF'",
               "services:",
@@ -92,6 +93,8 @@ jobs:
               "    restart: unless-stopped",
               "    ports:",
               "      - \"${APP_PORT:-8080}:8080\"",
+              "    volumes:",
+              "      - ${LOG_DIR:-./logs}:/app/logs",
               "    env_file:",
               "      - .env",
               "    depends_on:",

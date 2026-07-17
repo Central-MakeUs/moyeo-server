@@ -216,6 +216,18 @@ The EC2 dev server stores runtime values in:
 
 Do not commit real secrets to the repository.
 
+## Logging
+
+The `dev` and `prod` profiles write application logs to `/app/logs/moyeo.log`
+and `ERROR`-level exception logs to `/app/logs/moyeo-error.log`. Logs roll over
+daily and again at 25 MB per file. They are kept for up to 30 days with a
+combined size cap of 256 MB (general 192 MB, exception 64 MB). The local
+profile keeps console-only logging. Each HTTP response contains an
+`X-Trace-Id` header, and the same ID is included in request logs.
+
+For Docker Compose, logs are persisted to `./logs` by default. Set `LOG_DIR` in
+the runtime environment to use a different host directory.
+
 ## Documentation
 
 - Codex working rules: `AGENTS.md`

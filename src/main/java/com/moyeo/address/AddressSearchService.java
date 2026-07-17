@@ -63,7 +63,7 @@ public class AddressSearchService {
                     .toList();
             return new AddressSearchResult(response.results().common().parsedTotalCount(), addresses);
         } catch (RestClientException exception) {
-            log.warn("Juso address search request failed.", exception);
+            log.warn("Juso address search request failed: {}", exception.getClass().getSimpleName());
             throw unavailable();
         }
     }

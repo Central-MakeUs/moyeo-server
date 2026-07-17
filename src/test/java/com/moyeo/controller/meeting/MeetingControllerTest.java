@@ -810,6 +810,35 @@ class MeetingControllerTest {
     }
 
     @Test
+    void getPlaceViewReturnsCoordinatesPendingWhenNoDepartureCoordinatesExist() throws Exception {
+        CreateMeetingRequest request = new CreateMeetingRequest(
+                "coord-pending",
+                null,
+                6,
+                com.moyeo.domain.meeting.PlanningType.PLACE_ONLY,
+                List.of(),
+                null,
+                null,
+                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
+                "company",
+                "Seoul Gangnam",
+                null,
+                null,
+                com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT,
+                1440
+        );
+        String inviteCode = createMeetingAndGetInviteCode("meetinghost-coordinate-pending", "host-coordinate-pending", request);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
+                .andExpect(jsonPath("$.recommendationBasis").value("COORDINATES_PENDING"))
+                .andExpect(jsonPath("$.center").doesNotExist())
+                .andExpect(jsonPath("$.departureRespondedParticipantCount").value(1))
+                .andExpect(jsonPath("$.recommendations").isEmpty());
+    }
+
+    @Test
     void getPlaceViewReturnsRandomCatalogPreviewForRandomStrategy() throws Exception {
         CreateMeetingRequest request = new CreateMeetingRequest(
                 "random-meeting",

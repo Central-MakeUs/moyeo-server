@@ -33,6 +33,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOrigins(corsProperties.allowedOrigins().toArray(String[]::new))
                 .allowedMethods(corsProperties.allowedMethods().toArray(String[]::new))
                 .allowedHeaders(corsProperties.allowedHeaders().toArray(String[]::new))
+                .exposedHeaders(corsProperties.exposedHeaders().toArray(String[]::new))
                 .maxAge(corsProperties.maxAgeSeconds());
     }
 }

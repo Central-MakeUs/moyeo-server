@@ -166,6 +166,13 @@ current RFC 9457-based error response policy, and documented working rules.
   runners.
 - Keep EC2 runtime secrets in a server-side `.env` file or managed secret
   storage instead of passing them through deployment commands.
+- Write `dev` and `prod` application logs to `/app/logs/moyeo.log` and
+  `moyeo-error.log`; roll them over daily and at 25 MB per file, retaining up
+  to 30 days and 256 MB total (192 MB general, 64 MB exception logs).
+- Docker Compose persists the container log directory through its `LOG_DIR`
+  host-directory mount, which defaults to `./logs`.
+- Generate a server-owned trace ID for each HTTP request, return it through
+  `X-Trace-Id`, and include it in application and exception logs.
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in
   repository files.
 - Keep dev API port `8080` public for frontend collaboration.
@@ -237,7 +244,6 @@ After MVP completion, review these items in sequence as needs become clear:
 - Nginx or Caddy reverse proxy
 - Database migration
 - Refresh Token and token rotation
-- traceId-based logging
 - Error monitoring
 - Deployment rollback strategy
 - Blue/Green or rolling deployment
