@@ -233,6 +233,36 @@ class MeetingControllerTest {
     }
 
     @Test
+    void createMeetingAllowsMoreThanTwentyOneScheduleCandidateDates() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-many-dates", "host-many-dates");
+        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 22)
+                .mapToObj(dayOffset -> LocalDate.of(2026, 7, 1).plusDays(dayOffset))
+                .toList();
+        CreateMeetingRequest request = new CreateMeetingRequest(
+                "weekend",
+                "dinner",
+                6,
+                com.moyeo.domain.meeting.PlanningType.SCHEDULE_ONLY,
+                candidateDates,
+                LocalTime.of(18, 0),
+                LocalTime.of(22, 0),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                1440
+        );
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void createMeetingRejectsNonHourUnitScheduleTime() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost10", "host10");
 

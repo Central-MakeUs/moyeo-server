@@ -74,10 +74,9 @@ general best practice into domain policy.
 - TODO: Add negative-path cover-image tests: non-host modification rejection,
   invalid/oversized file rejection, storage-unavailable response, and S3 cleanup
   after a transaction rollback.
-- Schedule voting candidate dates are stored as separate rows and are temporarily
-  limited to 21 dates by request validation until the final 3-week policy is
-  confirmed. Keep the limit isolated in the meeting creation constraints so it can
-  be changed without reshaping the API.
+- Schedule voting candidate dates are stored as separate rows. The candidate date
+  range and count limit are deferred until product policy is confirmed; the
+  current creation request does not impose a date-count limit.
 - Schedule voting applies the same available time range to every selected
   candidate date.
 - Schedule voting time ranges are currently accepted in 1-hour units.

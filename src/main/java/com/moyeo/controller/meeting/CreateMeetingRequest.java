@@ -62,8 +62,7 @@ public record CreateMeetingRequest(
         @NotNull
         PlanningType planningType,
 
-        @Schema(description = "일정 후보 날짜 목록입니다. planningType이 일정 정하기를 포함할 때 필수입니다. 최신 3주 정책 확정 전까지 임시로 최대 21개를 허용합니다.", example = "[\"2026-07-04\", \"2026-07-05\"]")
-        @Size(max = MeetingCreateConstraints.MAX_SCHEDULE_CANDIDATE_DATES)
+        @Schema(description = "일정 후보 날짜 목록입니다. planningType이 일정 정하기를 포함할 때 필수입니다. 후보 날짜 수 제한은 추후 제품 정책 논의에서 결정합니다.", example = "[\"2026-07-04\", \"2026-07-05\"]")
         List<LocalDate> scheduleCandidateDates,
 
         @Schema(description = "모든 일정 후보 날짜에 공통으로 적용할 시작 시간입니다. planningType이 일정 정하기를 포함할 때 필수이며 1시간 단위로 입력합니다.", example = "18:00")
