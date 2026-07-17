@@ -98,6 +98,11 @@ general best practice into domain policy.
 
 ## Invite and Guest Join
 
+- TODO (invite-code collision): The current 10-character invite code uses a
+  large random space and the database unique constraint remains the final
+  safeguard. Before collision probability becomes operationally relevant,
+  define a bounded retry policy for meeting creation when that constraint is
+  violated, so a rare collision does not fail the user-visible creation flow.
 - INV-01 invite entry is currently implemented through invite-code lookup. It
   returns the current participation availability status for the entry screen.
 - If both the deadline and participant limit block joining, the deadline-passed
@@ -123,6 +128,14 @@ general best practice into domain policy.
 - Guest join stores the participant password as a hash on the
   `meeting_participants` row. Guest password verification for later re-entry or
   modification remains deferred until its policy is confirmed.
+- TODO (guest re-entry and modification): If this flow is confirmed, issue a
+  guest token scoped to exactly one `meetingId` and `participantId` after guest
+  join. The frontend must store guest tokens by invite code, not in the single
+  member Access Token slot, and send only the token for the invite link being
+  opened. The server must verify that the token's meeting matches the requested
+  invite code before exposing an already-joined or modification flow. Define
+  token lifetime, loss/recovery, invalidation, and when the guest password must
+  be re-entered before implementation.
 - A repeated guest join attempt with the same nickname as an existing guest in
   the same meeting should continue to return a duplicate nickname conflict, even if
   the same password is provided.
