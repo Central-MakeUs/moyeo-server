@@ -1,9 +1,9 @@
 package com.moyeo.controller.departure;
 
-import com.moyeo.departure.DeparturePlaceSearchService;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.CurrentMember;
+import com.moyeo.service.departure.DeparturePlaceSearchApplicationService;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.meeting.MeetingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,11 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Departure place", description = "출발지 통합 검색 API")
 public class DeparturePlaceSearchController {
 
-    private final DeparturePlaceSearchService departurePlaceSearchService;
+    private final DeparturePlaceSearchApplicationService departurePlaceSearchService;
     private final MeetingService meetingService;
 
     public DeparturePlaceSearchController(
-            DeparturePlaceSearchService departurePlaceSearchService,
+            DeparturePlaceSearchApplicationService departurePlaceSearchService,
             MeetingService meetingService
     ) {
         this.departurePlaceSearchService = departurePlaceSearchService;
@@ -93,15 +93,15 @@ public class DeparturePlaceSearchController {
     ) {
         if (member != null) {
             return DeparturePlaceSearchResponse.from(
-                    departurePlaceSearchService.search(request.keyword())
+                    departurePlaceSearchService.searchForMember(member.userId(), request.keyword())
             );
         }
         if (inviteCode == null || inviteCode.isBlank()) {
             throw new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED);
         }
-        meetingService.validateInvitationExists(inviteCode.strip());
+        Long meetingId = meetingService.validateInvitationExists(inviteCode.strip());
         return DeparturePlaceSearchResponse.from(
-                departurePlaceSearchService.search(request.keyword())
+                departurePlaceSearchService.searchForGuest(meetingId, request.keyword())
         );
     }
 }

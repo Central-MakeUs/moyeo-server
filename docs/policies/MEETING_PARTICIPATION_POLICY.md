@@ -237,6 +237,28 @@ general best practice into domain policy.
   values as `latitude` and `longitude`. The client passes the selected pair into
   the existing departure snapshot fields and must not geocode the address again
   when saving. The existing coordinate-pair validation remains unchanged.
+- Persist a search only after the provider search completes successfully. Do not
+  create search-history rows for request validation, authentication, invitation
+  validation, provider configuration, authorization, quota, network, or response
+  failures.
+- A persisted search stores the normalized keyword sent to Kakao Local, the
+  provider, the actual primary/fallback execution path, and only the final unified
+  candidates returned to the client. Do not retain discarded primary documents,
+  raw provider response JSON, provider credentials, request URIs, or
+  provider-specific result IDs.
+- A successful final search with no candidates stores the search execution with
+  an empty candidate collection. Candidate positions preserve the client response
+  order starting at 1.
+- Search-history persistence is supplementary to the user-facing search. If the
+  provider search succeeds but history persistence fails, return the successful
+  search response and write an internal error log without exposing persistence
+  details to the client.
+- Member searches are linked to the authenticated service user. Invite-code guest
+  searches are linked to the validated meeting because a guest participant may
+  not exist yet; do not store the invite code as search history.
+- TODO: Confirm the search-history retention/deletion period and Kakao Local data
+  retention requirements before retaining real-user search history beyond MVP
+  development.
 
 ## Deferred Policies
 
