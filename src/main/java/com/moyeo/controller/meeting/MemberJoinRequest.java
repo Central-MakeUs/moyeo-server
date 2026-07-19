@@ -6,8 +6,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
-
 @Schema(description = "로그인 회원 참여자 생성과 참여 상세 정보 저장 요청")
 public record MemberJoinRequest(
         @Schema(
@@ -20,8 +18,8 @@ public record MemberJoinRequest(
         @Size(min = 1, max = 30)
         String nickname,
 
-        @Schema(description = "참여자가 선택한 가능한 일정 슬롯 목록입니다. 일정 조율 모임에서 필수입니다.")
-        @Valid List<SaveParticipationRequest.ScheduleAvailabilityRequest> scheduleAvailabilities,
+        @Schema(description = "참여자의 일정 응답입니다. 일정 조율 모임에서 필수입니다.")
+        @Valid SaveParticipationRequest.ScheduleResponseRequest scheduleResponse,
 
         @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수입니다.")
         @Valid
@@ -29,6 +27,6 @@ public record MemberJoinRequest(
 ) {
 
     public SaveParticipationCommand toParticipationCommand() {
-        return SaveParticipationRequest.toCommand(scheduleAvailabilities, departure);
+        return SaveParticipationRequest.toCommand(scheduleResponse, departure);
     }
 }

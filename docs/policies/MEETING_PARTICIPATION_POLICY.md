@@ -30,14 +30,23 @@ general best practice into domain policy.
   keeps the meeting creation strategy fixed after creation; later place
   recommendation/finalization flow may revisit switching between middle-point and
   random recommendations.
-- Middle-point meeting creation stores the host departure name, address, latitude, longitude, and transportation mode snapshot on the host `meeting_participants` row. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. Latitude and longitude must be sent together; legacy requests may still omit both, and fabricated coordinates must not be stored.
+- Meeting creation creates the host `meeting_participants` row to preserve host
+  identity and participant-count semantics, but leaves its schedule availability
+  and departure snapshot empty until the host participation flow is completed.
+- Meeting creation does not receive schedule candidate dates or host departure
+  fields. `SCHEDULE_ONLY` and `SCHEDULE_AND_PLACE` receive the explicit
+  `scheduleInputType` selected in CRT rather than inferring it from nullable time
+  fields.
+- `PLACE_ONLY` omits `scheduleInputType` and the common time range.
+  `SCHEDULE_ONLY` and `SCHEDULE_AND_PLACE` require either `DATE_ONLY` or
+  `DATE_AND_TIME`. `DATE_ONLY` omits the common time range; `DATE_AND_TIME`
+  requires both `availableStartTime` and `availableEndTime`.
 - A participant whose coordinate pair is omitted counts as having submitted a departure snapshot, but is excluded from the straight-line middle-point preview. If no submitted departure has coordinates, the place view returns `COORDINATES_PENDING` with no recommendations.
-- Meeting creation receives `deadlineMinutes`; the server calculates and returns
+- Meeting creation receives `deadlineMinutes`; the server calculates and stores
   `deadlineAt`.
-- The meeting-creation success response is intentionally minimal for the CRT-08
-  link-sharing flow: it returns only `meetingId`, `inviteCode`, and the existing
-  `invitePath`. Meeting details, cover URL, and derived planning data are read
-  through the invite-code lookup API after creation when needed.
+- The meeting-creation success response returns only `meetingId`. The client uses
+  it to enter the authenticated host participation flow; invite information is
+  not returned before the host completes participation.
 - The `meetup.app` domain shown in the CRT-08 design is an illustration only;
   it is not a configured Moyeo domain or an API contract. The frontend composes
   the final share URL from its deployed domain and `invitePath`.
@@ -56,12 +65,11 @@ general best practice into domain policy.
   long-term meeting record.
 - Temporary MVP policy: the client keeps a selected cover file locally until the
   final meeting-creation request. That request may use multipart form data with
-  the existing meeting JSON and an optional cover file; the response returns the
-  created invite code. The server does not create temporary upload objects.
+  the existing meeting JSON and an optional cover file; the response returns only
+  the created `meetingId`. The server does not create temporary upload objects.
 - Temporary MVP policy: the host may later replace or delete the cover through a
   dedicated authenticated API. The invite-link meeting view may read the cover.
-  If the selected cover cannot be stored, the final meeting creation fails and
-  no invite code is returned.
+  If the selected cover cannot be stored, the final meeting creation fails.
 - The cover-image response URL includes a value derived from the current stored
   object key only to distinguish browser cache entries. It is not a new database
   field or object-storage path. When the host replaces the cover, clients use
@@ -77,16 +85,45 @@ general best practice into domain policy.
 - TODO: Add negative-path cover-image tests: non-host modification rejection,
   invalid/oversized file rejection, storage-unavailable response, and S3 cleanup
   after a transaction rollback.
-- Schedule voting candidate dates are stored as separate rows. The candidate date
-  range and count limit are deferred until product policy is confirmed; the
-  current creation request does not impose a date-count limit.
-- Schedule voting applies the same available time range to every selected
-  candidate date.
-- Schedule voting time ranges are currently accepted in 1-hour units.
-- For schedule-coordination meetings, the candidate dates and common available
-  time range selected by the host at creation are also the host's schedule
-  availability. The server saves one host availability row per candidate date in
-  the same creation transaction.
+- Schedule voting candidate dates are stored as separate rows when the host
+  completes participation. The candidate date range and count limit are deferred
+  until product policy is confirmed; the current host participation request does
+  not impose a date-count limit.
+- `DATE_AND_TIME` applies the same available time range to every selected
+  candidate date. Its common range and participant ranges are currently accepted
+  in 1-hour units.
+- `DATE_ONLY` stores participant selections in
+  `meeting_participant_schedule_date_availabilities`; it does not create artificial
+  start/end times.
+- For schedule-coordination meetings, only the host selects the meeting's candidate
+  dates. For `DATE_ONLY`, those candidate dates are also the host's available dates.
+  For `DATE_AND_TIME`, the host selects their own available ranges within those
+  dates and the common time range established during creation. Ordinary
+  participants cannot add or replace candidate dates.
+
+## Host Participation After Creation
+
+- After CRT meeting creation, the authenticated creator enters the INV personal
+  input flow using the returned `meetingId`.
+- The server determines host authority from the authenticated user and
+  `meetings.host_user_id`; frontend state is not an authorization decision.
+- Schedule-coordination host participation always receives
+  `scheduleCandidateDates`. `DATE_ONLY` omits `scheduleResponse`, because the
+  candidate dates are stored as the host's available dates.
+  `DATE_AND_TIME` additionally receives
+  `scheduleResponse.availableTimeRanges`. Place-coordination host participation
+  receives the same departure snapshot shape used by other participants.
+- Candidate dates, host schedule availability, and host departure are saved in one
+  transaction. Invalid participation input must not leave candidate-date rows or
+  partial host response data.
+- Host participation is rejected after `deadlineAt` and is forbidden for a user
+  other than the meeting creator.
+- Host participation with an unknown `meetingId` returns `404` with
+  `MEETING_NOT_FOUND`.
+- A successfully completed host participation returns `meetingId`, `inviteCode`,
+  and `invitePath` for the link-sharing screen.
+- A retry after host participation has already completed returns the same invite
+  information without modifying the saved host participation.
 
 ## Meeting Participant Identity
 
@@ -125,9 +162,11 @@ general best practice into domain policy.
   participant row also counts as that user's meeting participation.
 - INV-01 guest join creates the participant row and saves the required
   participation details in the same request and transaction.
-- Member and guest join requests include schedule availability for
-  `SCHEDULE_ONLY` and `SCHEDULE_AND_PLACE`, and include the departure snapshot
-  and transportation mode for `PLACE_ONLY` and `SCHEDULE_AND_PLACE`.
+- Member and guest join requests include a nested `scheduleResponse` for
+  `SCHEDULE_ONLY` and `SCHEDULE_AND_PLACE`. It contains `availableDates` for
+  `DATE_ONLY` or `availableTimeRanges` for `DATE_AND_TIME`, never both. They also
+  include the departure snapshot and transportation mode for `PLACE_ONLY` and
+  `SCHEDULE_AND_PLACE`.
 - Guest join stores the participant password as a hash on the
   `meeting_participants` row. Guest password verification for later re-entry or
   modification remains deferred until its policy is confirmed.
@@ -151,13 +190,14 @@ general best practice into domain policy.
 - The first meeting participation expansion covers the 2026-07-06 P0 INV-02 data:
   schedule availability for schedule-coordination meetings and participant
   departure snapshots for place-coordination meetings. These details are submitted
-  together with INV-01 member or guest join; there is no separate P0
-  participation-save API.
+  together with INV-01 member or guest join. The host uses the separate
+  post-creation participation completion described above.
 - Join requests save schedule availability for `SCHEDULE_ONLY` and
   `SCHEDULE_AND_PLACE` meetings.
-- Schedule participation stores selected availability ranges within the meeting
-  host's candidate dates and common available time range. Each range start and
-  end time must be in 1-hour units, and multiple ranges may be saved.
+- `DATE_ONLY` participation stores one selection per available host candidate date.
+  `DATE_AND_TIME` participation stores selected availability ranges within the
+  host's candidate dates and common available time range. Each range start and end
+  time must be in 1-hour units, and multiple ranges may be saved.
 - A join request creates the participant and their initial availability slots
   atomically.
 - Join requests save departure and transportation mode for
@@ -177,10 +217,11 @@ general best practice into domain policy.
 - A participant is counted as response-complete only when all inputs required by
   the meeting mode are present. Schedule coordination requires at least one saved
   schedule availability. Place coordination requires a saved departure snapshot.
-- VIEW-01-A expands saved availability ranges into 1-hour units before
-  calculating availability. Consecutive units with the same available
-  participant set are merged into one candidate. The first P0 implementation
-  returns up to five candidates sorted by longest-meeting preference or
+- For `DATE_ONLY`, VIEW-01-A aggregates availability by date and returns null
+  `startTime`/`endTime`. For `DATE_AND_TIME`, it expands saved ranges into 1-hour
+  units before calculating availability, then merges consecutive units with the
+  same available participant set. The first P0 implementation returns up to five
+  candidates sorted by availability count/longest-meeting preference or
   earliest-date preference.
 - VIEW-01-A accepts only `LONGEST_MEETING` and `EARLIEST_DATE` as the schedule
   sorting value. Unsupported values return the common invalid-request error.
@@ -265,8 +306,8 @@ general best practice into domain policy.
 - TODO: After the MVP creation flow is stable, decide whether to remove the
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.
-- TODO: Host departure address modification is out of the first MVP creation
-  scope and should be handled with the later participation/modification flow.
+- TODO: Host departure modification after the initial post-creation participation
+  completion remains deferred until the modification policy is confirmed.
 - GPS/current-location lookup, saved departure lists, and member departure CRUD are P1 or later client/domain work.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.

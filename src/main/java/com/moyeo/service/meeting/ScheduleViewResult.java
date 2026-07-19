@@ -6,6 +6,7 @@ import java.util.List;
 
 public record ScheduleViewResult(
         Long meetingId,
+        String scheduleInputType,
         String sort,
         long participantCount,
         long respondedParticipantCount,

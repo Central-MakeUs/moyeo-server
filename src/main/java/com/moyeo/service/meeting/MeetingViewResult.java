@@ -10,6 +10,7 @@ public record MeetingViewResult(
         String coverImageUrl,
         String planningType,
         String scheduleMode,
+        String scheduleInputType,
         String placeMode,
         String placeRecommendationStrategy,
         int maxParticipants,

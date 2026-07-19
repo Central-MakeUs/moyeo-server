@@ -60,20 +60,21 @@ When a request has multiple valid enum-driven flows, provide one named Swagger
 example for each supported flow. Keep the JSON itself executable: do not insert
 `//` or block comments into the example body.
 
-Put the following information in each `@ExampleObject` description using
-Markdown headings and bullets for readability:
+Describe only the information a client needs to send a valid request. Use
+Markdown headings and bullets when the explanation is long enough to benefit
+from them:
 
 - All allowed values of the flow-selecting enum, and which value the example
   represents.
 - Fields required by that flow.
 - Fields that must be omitted or are not used by that flow.
 - Allowed values and conditional requirements of related enums.
-- Values derived by the server that clients must not send.
+- Avoid server-internal derivation details unless they directly change what the
+  client sends or receives.
 
-Example names should use the actual enum value, such as `SCHEDULE_ONLY`, so a
-consumer can select a valid flow without translating a display label. This
-format is especially useful when Swagger must serve as a copy-ready reference
-for frontend collaboration.
+Example names should use the actual enum value, such as `SCHEDULE_ONLY`, or an
+unambiguous combination such as `SCHEDULE_AND_PLACE_DATE_ONLY`, so a consumer
+can select a valid flow without translating a display label.
 - Until authentication/authorization is hardened or replaced by a different
   framework-level approach, controller parameters that inject the current user
   through `@CurrentMember AuthenticatedMember` must be hidden from Swagger with

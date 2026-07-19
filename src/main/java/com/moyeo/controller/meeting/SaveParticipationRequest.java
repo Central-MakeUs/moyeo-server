@@ -23,8 +23,8 @@ import java.util.List;
         클라이언트에서 선택이 완료된 출발지 스냅샷만 전달합니다.
         """)
 public record SaveParticipationRequest(
-        @Schema(description = "참여자가 선택한 가능한 일정 슬롯 목록입니다. 일정 조율 모임에서 필수입니다.")
-        List<@Valid ScheduleAvailabilityRequest> scheduleAvailabilities,
+        @Schema(description = "참여자의 일정 응답입니다. 일정 입력 유형에 맞는 필드 하나만 사용합니다.")
+        @Valid ScheduleResponseRequest scheduleResponse,
 
         @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수입니다. 현재 위치 찾기나 저장된 출발지 선택은 협의 후 확장 예정입니다.")
         @Valid
@@ -32,19 +32,32 @@ public record SaveParticipationRequest(
 ) {
 
     public SaveParticipationCommand toCommand() {
-        return toCommand(scheduleAvailabilities, departure);
+        return toCommand(scheduleResponse, departure);
     }
 
     public static SaveParticipationCommand toCommand(
-            List<ScheduleAvailabilityRequest> scheduleAvailabilities,
+            ScheduleResponseRequest scheduleResponse,
             DepartureRequest departure
     ) {
         return new SaveParticipationCommand(
-                scheduleAvailabilities != null
-                        ? scheduleAvailabilities.stream().map(ScheduleAvailabilityRequest::toCommand).toList()
+                scheduleResponse != null && scheduleResponse.availableDates() != null
+                        ? scheduleResponse.availableDates()
+                        : List.of(),
+                scheduleResponse != null && scheduleResponse.availableTimeRanges() != null
+                        ? scheduleResponse.availableTimeRanges().stream().map(ScheduleAvailabilityRequest::toCommand).toList()
                         : List.of(),
                 departure != null ? departure.toCommand() : null
         );
+    }
+
+    @Schema(description = "일정 참여 응답")
+    public record ScheduleResponseRequest(
+            @Schema(description = "날짜만 조율할 때 선택한 가능한 날짜 목록입니다.", example = "[\"2026-07-10\", \"2026-07-11\"]")
+            List<@NotNull LocalDate> availableDates,
+
+            @Schema(description = "날짜와 시간을 조율할 때 선택한 가능한 시간 범위 목록입니다.")
+            List<@Valid ScheduleAvailabilityRequest> availableTimeRanges
+    ) {
     }
 
     @Schema(description = "가능한 일정 슬롯")

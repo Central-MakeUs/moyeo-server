@@ -7,6 +7,13 @@ import java.net.URI;
 
 public enum MeetingErrorCode implements ErrorCode {
 
+    MEETING_NOT_FOUND(
+            HttpStatus.NOT_FOUND,
+            "MEETING_NOT_FOUND",
+            "meeting-not-found",
+            "모임 없음",
+            "해당 모임을 찾을 수 없습니다."
+    ),
     MEETING_INVITATION_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "MEETING_INVITATION_NOT_FOUND",
@@ -48,6 +55,13 @@ public enum MeetingErrorCode implements ErrorCode {
             "meeting-participant-not-found",
             "모임 참여자 없음",
             "해당 모임의 참여자를 찾을 수 없습니다."
+    ),
+    MEETING_HOST_PARTICIPATION_FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "MEETING_HOST_PARTICIPATION_FORBIDDEN",
+            "meeting-host-participation-forbidden",
+            "방장 참여 권한 없음",
+            "모임을 생성한 방장만 방장 참여를 완료할 수 있습니다."
     ),
     INVALID_MEETING_PARTICIPATION_INPUT(
             HttpStatus.BAD_REQUEST,

@@ -49,6 +49,7 @@ Table meetings {
   max_participants int [not null, note: "최대 참여 인원. 방장 포함"]
   planning_type varchar(30) [not null, note: "모임 생성 유형: SCHEDULE_ONLY/PLACE_ONLY/SCHEDULE_AND_PLACE"]
   schedule_mode varchar(20) [not null, note: "일정 설정 방식: VOTE/FIXED/NONE"]
+  schedule_input_type varchar(20) [not null, note: "일정 참여 입력 유형: DATE_ONLY/DATE_AND_TIME/NONE"]
   fixed_schedule_at datetime [note: "확정 일정. schedule_mode가 FIXED일 때 사용"]
   available_start_time time [note: "일정 투표 공통 시작 시간. schedule_mode가 VOTE일 때 사용"]
   available_end_time time [note: "일정 투표 공통 종료 시간. schedule_mode가 VOTE일 때 사용"]
@@ -87,6 +88,17 @@ Table meeting_participant_schedule_availabilities {
 
   indexes {
     (participant_id, schedule_candidate_id, start_time, end_time) [unique, name: "uk_meeting_participant_schedule_availabilities_slot"]
+  }
+}
+
+Table meeting_participant_schedule_date_availabilities {
+  id bigint [pk, increment, note: "참여자 일정 가능 날짜 ID"]
+  participant_id bigint [not null, note: "가능 날짜를 입력한 참여자 ID"]
+  schedule_candidate_id bigint [not null, note: "선택한 일정 후보 날짜 ID"]
+  created_at datetime [not null, note: "가능 날짜 생성 일시"]
+
+  indexes {
+    (participant_id, schedule_candidate_id) [unique, name: "uk_meeting_participant_schedule_date_availabilities_date"]
   }
 }
 
@@ -144,6 +156,8 @@ Ref fk_meeting_participants_meeting: meeting_participants.meeting_id > meetings.
 Ref fk_meeting_participants_user: meeting_participants.user_id > users.id
 Ref fk_meeting_participant_schedule_availabilities_participant: meeting_participant_schedule_availabilities.participant_id > meeting_participants.id
 Ref fk_meeting_participant_schedule_availabilities_candidate: meeting_participant_schedule_availabilities.schedule_candidate_id > meeting_schedule_candidates.id
+Ref fk_meeting_participant_schedule_date_availabilities_participant: meeting_participant_schedule_date_availabilities.participant_id > meeting_participants.id
+Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_participant_schedule_date_availabilities.schedule_candidate_id > meeting_schedule_candidates.id
 Ref fk_departure_place_searches_user: departure_place_searches.user_id > users.id
 Ref fk_departure_place_searches_meeting: departure_place_searches.meeting_id > meetings.id
 Ref fk_departure_place_search_candidates_search: departure_place_search_candidates.search_id > departure_place_searches.id
@@ -158,14 +172,16 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings` stores the first milestone meeting creation and invite code base.
 - `meetings.planning_type` stores the FAB-selected creation type: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
 - `meetings.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.
+- `meetings.schedule_input_type` explicitly stores whether schedule participation selects dates only (`DATE_ONLY`), date/time ranges (`DATE_AND_TIME`), or no schedule (`NONE`); clients and the server do not infer this from nullable time columns.
 - `meetings.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
 - `meetings.place_recommendation_strategy` stores the selected recommendation strategy when `place_mode` is `RECOMMEND`; the first MVP does not change it after creation.
 - `meetings.cover_image_key` stores the S3 object key for the resized optional meeting cover image; the original upload is not retained.
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
-- `meetings.available_start_time` and `meetings.available_end_time` are shared by all schedule voting candidate dates and are currently accepted in 1-hour units.
+- `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
-- `meeting_participant_schedule_availabilities` stores participant-selected availability slots. For schedule-coordination meetings, creation also stores one host availability slot per candidate date using the host-selected common time range.
-- `meeting_participants` stores host, logged-in member, and guest participants.
+- `meeting_participant_schedule_availabilities` stores participant-selected availability slots. The host row remains empty at creation and receives the host-selected ranges when the post-creation host participation flow completes.
+- `meeting_participant_schedule_date_availabilities` stores the selected dates for `DATE_ONLY`. The host's candidate dates are also saved as the host's available dates when host participation completes.
+- `meeting_participants` stores host, logged-in member, and guest participants. Creation inserts the host row without response details; the host participation flow later fills its schedule availability and departure snapshot.
 - `meeting_participants.departure_name`, `departure_address`, `departure_latitude`, `departure_longitude`, and `transportation_mode` store host and participant departure snapshots for place coordination.
 - Guest `meeting_participants.nickname` duplication is rejected only against other guests in the same meeting by the join application logic; the table does not keep a general nickname unique constraint.
 - `meeting_participants.user_id` is unique only inside a meeting when a participant is linked to a service user.

@@ -6,13 +6,16 @@ import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
 import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingParticipant;
+import com.moyeo.domain.meeting.MeetingParticipantScheduleDateAvailability;
 import com.moyeo.domain.meeting.MeetingParticipantScheduleAvailability;
 import com.moyeo.domain.meeting.MeetingScheduleCandidate;
 import com.moyeo.domain.meeting.ScheduleMode;
+import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
+import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
@@ -48,6 +51,7 @@ public class MeetingService {
 
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
+    private final MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository;
     private final MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
     private final UserRepository userRepository;
@@ -60,6 +64,7 @@ public class MeetingService {
     public MeetingService(
             MeetingRepository meetingRepository,
             MeetingParticipantRepository meetingParticipantRepository,
+            MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository,
             MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
             UserRepository userRepository,
@@ -71,6 +76,7 @@ public class MeetingService {
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
+        this.meetingParticipantScheduleDateAvailabilityRepository = meetingParticipantScheduleDateAvailabilityRepository;
         this.meetingParticipantScheduleAvailabilityRepository = meetingParticipantScheduleAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
         this.userRepository = userRepository;
@@ -105,6 +111,7 @@ public class MeetingService {
                 command.maxParticipants(),
                 command.planningType(),
                 command.scheduleMode(),
+                command.scheduleInputType(),
                 resolveFixedScheduleAt(command),
                 resolveAvailableStartTime(command),
                 resolveAvailableEndTime(command),
@@ -116,27 +123,46 @@ public class MeetingService {
                 inviteCodeGenerator.generate()
         );
         Meeting savedMeeting = meetingRepository.saveAndFlush(meeting);
-        saveScheduleCandidates(savedMeeting, command);
-
-        MeetingParticipant hostParticipant = meetingParticipantRepository.saveAndFlush(
-                MeetingParticipant.host(
-                        savedMeeting,
-                        hostUser,
-                        normalizeOptional(command.hostDepartureName()),
-                        normalizeOptional(command.hostDepartureAddress()),
-                        command.hostDepartureLatitude(),
-                        command.hostDepartureLongitude(),
-                        command.hostTransportationMode()
-                )
+        meetingParticipantRepository.saveAndFlush(
+                MeetingParticipant.host(savedMeeting, hostUser)
         );
 
-        List<MeetingScheduleCandidate> scheduleCandidates = meetingScheduleCandidateRepository
-                .findAllByMeetingIdOrderByCandidateDateAsc(savedMeeting.getId());
-        saveHostScheduleAvailabilities(savedMeeting, hostParticipant, scheduleCandidates);
         if (coverImage != null && !coverImage.isEmpty()) {
             saveCoverImage(savedMeeting, coverImage);
         }
-        return MeetingCreateResult.from(savedMeeting, hostParticipant, scheduleCandidates);
+        return MeetingCreateResult.from(savedMeeting);
+    }
+
+    @Transactional
+    public HostParticipationResult completeHostParticipation(
+            Long meetingId,
+            AuthenticatedMember member,
+            List<LocalDate> scheduleCandidateDates,
+        SaveParticipationCommand participationCommand
+    ) {
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getHostUser().getId().equals(member.userId())) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_HOST_PARTICIPATION_FORBIDDEN);
+        }
+
+        MeetingParticipant hostParticipant = meetingParticipantRepository
+                .findByMeetingIdAndUserId(meetingId, member.userId())
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+
+        if (isParticipationComplete(meeting, hostParticipant)) {
+            return HostParticipationResult.from(meeting);
+        }
+
+        validateJoinOpen(meeting);
+        saveHostScheduleCandidates(meeting, scheduleCandidateDates);
+        SaveParticipationCommand resolvedCommand = resolveHostParticipationCommand(
+                meeting,
+                scheduleCandidateDates,
+                participationCommand
+        );
+        saveParticipation(meeting, hostParticipant, resolvedCommand);
+        return HostParticipationResult.from(meeting);
     }
 
     @Transactional
@@ -231,11 +257,19 @@ public class MeetingService {
     public MeetingViewResult getMeetingView(String inviteCode) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         List<MeetingParticipant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meeting.getId());
-        Set<Long> scheduleRespondedParticipantIds = meetingParticipantScheduleAvailabilityRepository
-                .findAllByParticipantMeetingId(meeting.getId())
-                .stream()
-                .map(availability -> availability.getParticipant().getId())
-                .collect(Collectors.toSet());
+        Set<Long> scheduleRespondedParticipantIds = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> meetingParticipantScheduleDateAvailabilityRepository
+                    .findAllByParticipantMeetingId(meeting.getId())
+                    .stream()
+                    .map(availability -> availability.getParticipant().getId())
+                    .collect(Collectors.toSet());
+            case DATE_AND_TIME -> meetingParticipantScheduleAvailabilityRepository
+                    .findAllByParticipantMeetingId(meeting.getId())
+                    .stream()
+                    .map(availability -> availability.getParticipant().getId())
+                    .collect(Collectors.toSet());
+            case NONE -> Set.of();
+        };
 
         boolean requiresSchedule = meeting.getScheduleMode() == ScheduleMode.VOTE;
         boolean requiresPlace = meeting.getPlaceMode() == PlaceMode.RECOMMEND;
@@ -267,6 +301,7 @@ public class MeetingService {
                 MeetingCoverUrl.from(meeting),
                 meeting.getPlanningType().name(),
                 meeting.getScheduleMode().name(),
+                meeting.getScheduleInputType().name(),
                 meeting.getPlaceMode().name(),
                 meeting.getPlaceRecommendationStrategy() != null ? meeting.getPlaceRecommendationStrategy().name() : null,
                 meeting.getMaxParticipants(),
@@ -283,6 +318,10 @@ public class MeetingService {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
         String resolvedSort = resolveScheduleSort(sort);
+
+        if (meeting.getScheduleInputType() == ScheduleInputType.DATE_ONLY) {
+            return getDateOnlyScheduleView(meeting, participantCount, resolvedSort);
+        }
 
         List<MeetingParticipantScheduleAvailability> availabilities = meetingParticipantScheduleAvailabilityRepository
                 .findAllByParticipantMeetingId(meeting.getId());
@@ -307,11 +346,60 @@ public class MeetingService {
 
         return new ScheduleViewResult(
                 meeting.getId(),
+                meeting.getScheduleInputType().name(),
                 resolvedSort,
                 participantCount,
                 respondedParticipantCount,
                 candidates,
                 candidates.isEmpty() ? "겹치는 시간이 없어요." : null
+        );
+    }
+
+    private ScheduleViewResult getDateOnlyScheduleView(
+            Meeting meeting,
+            long participantCount,
+            String resolvedSort
+    ) {
+        List<MeetingParticipantScheduleDateAvailability> availabilities =
+                meetingParticipantScheduleDateAvailabilityRepository.findAllByParticipantMeetingId(meeting.getId());
+        Map<LocalDate, Set<Long>> participantsByDate = availabilities.stream()
+                .collect(Collectors.groupingBy(
+                        availability -> availability.getScheduleCandidate().getCandidateDate(),
+                        Collectors.mapping(
+                                availability -> availability.getParticipant().getId(),
+                                Collectors.toSet()
+                        )
+                ));
+
+        Comparator<Map.Entry<LocalDate, Set<Long>>> comparator = "EARLIEST_DATE".equals(resolvedSort)
+                ? Map.Entry.comparingByKey()
+                : Comparator.<Map.Entry<LocalDate, Set<Long>>>comparingInt(entry -> entry.getValue().size())
+                        .reversed()
+                        .thenComparing(Map.Entry::getKey);
+        List<ScheduleViewResult.Candidate> candidates = participantsByDate.entrySet().stream()
+                .sorted(comparator)
+                .limit(5)
+                .map(entry -> new ScheduleViewResult.Candidate(
+                        entry.getKey(),
+                        null,
+                        null,
+                        entry.getValue().size(),
+                        participantCount
+                ))
+                .toList();
+        long respondedParticipantCount = availabilities.stream()
+                .map(availability -> availability.getParticipant().getId())
+                .distinct()
+                .count();
+
+        return new ScheduleViewResult(
+                meeting.getId(),
+                meeting.getScheduleInputType().name(),
+                resolvedSort,
+                participantCount,
+                respondedParticipantCount,
+                candidates,
+                candidates.isEmpty() ? "가능한 날짜가 없어요." : null
         );
     }
 
@@ -473,11 +561,10 @@ public class MeetingService {
             MeetingParticipant participant,
             SaveParticipationCommand command
     ) {
-        boolean requiresSchedule = meeting.getScheduleMode() == ScheduleMode.VOTE;
         boolean requiresPlace = meeting.getPlaceMode() == PlaceMode.RECOMMEND;
-        validateParticipationInput(command, requiresSchedule, requiresPlace);
+        validateParticipationInput(meeting, command, requiresPlace);
 
-        int scheduleAvailabilityCount = saveScheduleAvailabilities(meeting, participant, command);
+        int scheduleAvailabilityCount = saveScheduleResponse(meeting, participant, command);
         boolean hasDeparture = false;
 
         if (requiresPlace) {
@@ -760,67 +847,94 @@ public class MeetingService {
         return earthRadiusMeters * c;
     }
 
-    private void saveScheduleCandidates(Meeting meeting, CreateMeetingCommand command) {
-        if (command.scheduleMode() == ScheduleMode.VOTE) {
-            List<MeetingScheduleCandidate> candidates = command.scheduleCandidateDates().stream()
-                    .distinct()
-                    .sorted()
-                    .map(candidateDate -> new MeetingScheduleCandidate(meeting, candidateDate))
-                    .toList();
-            meetingScheduleCandidateRepository.saveAll(candidates);
+    private void saveHostScheduleCandidates(Meeting meeting, List<LocalDate> scheduleCandidateDates) {
+        boolean requiresSchedule = meeting.getScheduleMode() == ScheduleMode.VOTE;
+        boolean hasScheduleCandidateDates = scheduleCandidateDates != null && !scheduleCandidateDates.isEmpty();
+        if (requiresSchedule != hasScheduleCandidateDates) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
         }
-    }
-
-    private void saveHostScheduleAvailabilities(
-            Meeting meeting,
-            MeetingParticipant hostParticipant,
-            List<MeetingScheduleCandidate> scheduleCandidates
-    ) {
-        if (meeting.getScheduleMode() != ScheduleMode.VOTE) {
+        if (!requiresSchedule) {
             return;
         }
 
-        List<MeetingParticipantScheduleAvailability> availabilities = scheduleCandidates.stream()
-                .map(candidate -> new MeetingParticipantScheduleAvailability(
-                        hostParticipant,
-                        candidate,
-                        meeting.getAvailableStartTime(),
-                        meeting.getAvailableEndTime()
-                ))
+        List<MeetingScheduleCandidate> candidates = scheduleCandidateDates.stream()
+                .distinct()
+                .sorted()
+                .map(candidateDate -> new MeetingScheduleCandidate(meeting, candidateDate))
                 .toList();
-        meetingParticipantScheduleAvailabilityRepository.saveAll(availabilities);
+        meetingScheduleCandidateRepository.saveAllAndFlush(candidates);
+    }
+
+    private boolean isParticipationComplete(Meeting meeting, MeetingParticipant participant) {
+        boolean scheduleComplete = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> meetingParticipantScheduleDateAvailabilityRepository.countByParticipantId(participant.getId()) > 0;
+            case DATE_AND_TIME -> meetingParticipantScheduleAvailabilityRepository.countByParticipantId(participant.getId()) > 0;
+            case NONE -> true;
+        };
+        boolean placeComplete = meeting.getPlaceMode() != PlaceMode.RECOMMEND || hasDeparture(participant);
+        return scheduleComplete && placeComplete;
+    }
+
+    private SaveParticipationCommand resolveHostParticipationCommand(
+            Meeting meeting,
+            List<LocalDate> scheduleCandidateDates,
+            SaveParticipationCommand command
+    ) {
+        if (meeting.getScheduleInputType() != ScheduleInputType.DATE_ONLY) {
+            return command;
+        }
+        if (!command.scheduleAvailableDates().isEmpty() || !command.scheduleAvailabilities().isEmpty()) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        }
+        return new SaveParticipationCommand(
+                scheduleCandidateDates != null ? scheduleCandidateDates : List.of(),
+                List.of(),
+                command.departure()
+        );
     }
 
     private void validateParticipationInput(
+            Meeting meeting,
             SaveParticipationCommand command,
-            boolean requiresSchedule,
             boolean requiresPlace
     ) {
+        boolean hasAvailableDates = command.scheduleAvailableDates() != null
+                && !command.scheduleAvailableDates().isEmpty();
         boolean hasScheduleAvailabilities = command.scheduleAvailabilities() != null
                 && !command.scheduleAvailabilities().isEmpty();
         boolean hasDeparture = command.departure() != null;
 
-        if (requiresSchedule != hasScheduleAvailabilities || requiresPlace != hasDeparture) {
+        boolean validScheduleInput = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> hasAvailableDates && !hasScheduleAvailabilities;
+            case DATE_AND_TIME -> !hasAvailableDates && hasScheduleAvailabilities;
+            case NONE -> !hasAvailableDates && !hasScheduleAvailabilities;
+        };
+        if (!validScheduleInput || requiresPlace != hasDeparture) {
             throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
         }
     }
 
-    private int saveScheduleAvailabilities(
+    private int saveScheduleResponse(
             Meeting meeting,
             MeetingParticipant participant,
             SaveParticipationCommand command
     ) {
+        meetingParticipantScheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+        meetingParticipantScheduleDateAvailabilityRepository.flush();
         meetingParticipantScheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
         meetingParticipantScheduleAvailabilityRepository.flush();
-
-        if (meeting.getScheduleMode() != ScheduleMode.VOTE) {
-            return 0;
-        }
 
         Map<LocalDate, MeetingScheduleCandidate> candidatesByDate = meetingScheduleCandidateRepository
                 .findAllByMeetingIdOrderByCandidateDateAsc(meeting.getId())
                 .stream()
                 .collect(Collectors.toMap(MeetingScheduleCandidate::getCandidateDate, Function.identity()));
+
+        if (meeting.getScheduleInputType() == ScheduleInputType.DATE_ONLY) {
+            return saveScheduleDateAvailabilities(participant, command, candidatesByDate);
+        }
+        if (meeting.getScheduleInputType() == ScheduleInputType.NONE) {
+            return 0;
+        }
 
         LinkedHashSet<ScheduleSlot> slots = new LinkedHashSet<>();
         for (SaveParticipationCommand.ScheduleAvailability availability : command.scheduleAvailabilities()) {
@@ -841,6 +955,25 @@ public class MeetingService {
                 ))
                 .toList();
         meetingParticipantScheduleAvailabilityRepository.saveAll(entities);
+        return entities.size();
+    }
+
+    private int saveScheduleDateAvailabilities(
+            MeetingParticipant participant,
+            SaveParticipationCommand command,
+            Map<LocalDate, MeetingScheduleCandidate> candidatesByDate
+    ) {
+        LinkedHashSet<LocalDate> availableDates = new LinkedHashSet<>(command.scheduleAvailableDates());
+        if (!candidatesByDate.keySet().containsAll(availableDates)) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        }
+        List<MeetingParticipantScheduleDateAvailability> entities = availableDates.stream()
+                .map(candidateDate -> new MeetingParticipantScheduleDateAvailability(
+                        participant,
+                        candidatesByDate.get(candidateDate)
+                ))
+                .toList();
+        meetingParticipantScheduleDateAvailabilityRepository.saveAll(entities);
         return entities.size();
     }
 
@@ -866,11 +999,11 @@ public class MeetingService {
     }
 
     private LocalTime resolveAvailableStartTime(CreateMeetingCommand command) {
-        return command.scheduleMode() == ScheduleMode.VOTE ? command.availableStartTime() : null;
+        return command.scheduleInputType() == ScheduleInputType.DATE_AND_TIME ? command.availableStartTime() : null;
     }
 
     private LocalTime resolveAvailableEndTime(CreateMeetingCommand command) {
-        return command.scheduleMode() == ScheduleMode.VOTE ? command.availableEndTime() : null;
+        return command.scheduleInputType() == ScheduleInputType.DATE_AND_TIME ? command.availableEndTime() : null;
     }
 
     private PlaceRecommendationStrategy resolvePlaceRecommendationStrategy(CreateMeetingCommand command) {

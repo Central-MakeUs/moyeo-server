@@ -53,13 +53,16 @@ public record MeetingInvitationResponse(
         )
         String scheduleMode,
 
+        @Schema(description = "일정 참여 입력 유형입니다.", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
+        String scheduleInputType,
+
         @Schema(description = "일정 후보 날짜 목록. scheduleMode=VOTE일 때 사용하며, scheduleMode=NONE이면 빈 배열입니다.")
         List<LocalDate> scheduleCandidateDates,
 
-        @Schema(description = "일정 조율 시작 시간. scheduleMode=VOTE일 때만 값이 있습니다.", example = "18:00")
+        @Schema(description = "일정 조율 시작 시간. scheduleInputType=DATE_AND_TIME일 때만 값이 있습니다.", example = "18:00")
         LocalTime availableStartTime,
 
-        @Schema(description = "일정 조율 종료 시간. scheduleMode=VOTE일 때만 값이 있습니다.", example = "22:00")
+        @Schema(description = "일정 조율 종료 시간. scheduleInputType=DATE_AND_TIME일 때만 값이 있습니다.", example = "22:00")
         LocalTime availableEndTime,
 
         @Schema(
@@ -112,6 +115,7 @@ public record MeetingInvitationResponse(
                 result.maxParticipants(),
                 result.planningType(),
                 result.scheduleMode(),
+                result.scheduleInputType(),
                 result.scheduleCandidateDates(),
                 result.availableStartTime(),
                 result.availableEndTime(),

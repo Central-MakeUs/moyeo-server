@@ -19,4 +19,6 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
     List<MeetingParticipant> findAllByMeetingIdOrderByIdAsc(Long meetingId);
 
     Optional<MeetingParticipant> findByIdAndMeetingId(Long id, Long meetingId);
+
+    Optional<MeetingParticipant> findByMeetingIdAndUserId(Long meetingId, Long userId);
 }

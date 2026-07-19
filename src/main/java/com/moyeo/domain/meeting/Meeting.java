@@ -63,6 +63,11 @@ public class Meeting {
     @Comment("일정 설정 방식: VOTE/FIXED/NONE")
     private ScheduleMode scheduleMode;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "schedule_input_type", nullable = false, length = 20)
+    @Comment("일정 참여 입력 유형: DATE_ONLY/DATE_AND_TIME/NONE")
+    private ScheduleInputType scheduleInputType;
+
     @Comment("확정 일정. schedule_mode가 FIXED일 때 사용")
     private LocalDateTime fixedScheduleAt;
 
@@ -120,6 +125,7 @@ public class Meeting {
             Integer maxParticipants,
             PlanningType planningType,
             ScheduleMode scheduleMode,
+            ScheduleInputType scheduleInputType,
             LocalDateTime fixedScheduleAt,
             LocalTime availableStartTime,
             LocalTime availableEndTime,
@@ -136,6 +142,7 @@ public class Meeting {
         this.maxParticipants = maxParticipants;
         this.planningType = planningType;
         this.scheduleMode = scheduleMode;
+        this.scheduleInputType = scheduleInputType;
         this.fixedScheduleAt = fixedScheduleAt;
         this.availableStartTime = availableStartTime;
         this.availableEndTime = availableEndTime;
@@ -185,6 +192,10 @@ public class Meeting {
 
     public ScheduleMode getScheduleMode() {
         return scheduleMode;
+    }
+
+    public ScheduleInputType getScheduleInputType() {
+        return scheduleInputType;
     }
 
     public LocalDateTime getFixedScheduleAt() {

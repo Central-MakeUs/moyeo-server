@@ -8,6 +8,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 public record SaveParticipationCommand(
+        List<LocalDate> scheduleAvailableDates,
         List<ScheduleAvailability> scheduleAvailabilities,
         Departure departure
 ) {

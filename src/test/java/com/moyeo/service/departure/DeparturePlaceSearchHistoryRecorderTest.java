@@ -10,6 +10,7 @@ import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
 import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleMode;
+import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.member.User;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
@@ -80,6 +81,7 @@ class DeparturePlaceSearchHistoryRecorderTest {
                 4,
                 PlanningType.PLACE_ONLY,
                 ScheduleMode.NONE,
+                ScheduleInputType.NONE,
                 null,
                 null,
                 null,

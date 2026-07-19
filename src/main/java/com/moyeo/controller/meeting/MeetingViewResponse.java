@@ -26,6 +26,9 @@ public record MeetingViewResponse(
         @Schema(description = "일정 설정 방식입니다. 현재 MVP에서는 일정 조율 모임이면 VOTE, 일정 조율이 없으면 NONE을 반환합니다.", example = "VOTE", allowableValues = {"VOTE", "NONE"})
         String scheduleMode,
 
+        @Schema(description = "일정 참여 입력 유형입니다.", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
+        String scheduleInputType,
+
         @Schema(description = "장소 설정 방식입니다. 현재 MVP에서는 장소 조율 모임이면 RECOMMEND, 장소 조율이 없으면 NONE을 반환합니다.", example = "RECOMMEND", allowableValues = {"RECOMMEND", "NONE"})
         String placeMode,
 
@@ -62,6 +65,7 @@ public record MeetingViewResponse(
                 result.coverImageUrl(),
                 result.planningType(),
                 result.scheduleMode(),
+                result.scheduleInputType(),
                 result.placeMode(),
                 result.placeRecommendationStrategy(),
                 result.maxParticipants(),
