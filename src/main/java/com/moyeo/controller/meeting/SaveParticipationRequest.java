@@ -79,12 +79,12 @@ public record SaveParticipationRequest(
             @Size(max = 255)
             String address,
 
-            @Schema(description = "출발지 위도입니다.", example = "37.498095")
+            @Schema(description = "출발지 위도입니다. 검색 후보를 선택한 경우 응답 좌표를 경도와 함께 보냅니다.", example = "37.498095")
             @DecimalMin("-90.0")
             @DecimalMax("90.0")
             BigDecimal latitude,
 
-            @Schema(description = "출발지 경도입니다.", example = "127.027610")
+            @Schema(description = "출발지 경도입니다. 검색 후보를 선택한 경우 응답 좌표를 위도와 함께 보냅니다.", example = "127.027610")
             @DecimalMin("-180.0")
             @DecimalMax("180.0")
             BigDecimal longitude,

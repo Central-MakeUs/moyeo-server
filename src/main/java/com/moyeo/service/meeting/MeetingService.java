@@ -224,6 +224,10 @@ public class MeetingService {
         return MeetingInvitationResult.from(meeting, participantCount, scheduleCandidates);
     }
 
+    public Long validateInvitationExists(String inviteCode) {
+        return findMeetingByInviteCode(inviteCode).getId();
+    }
+
     public MeetingViewResult getMeetingView(String inviteCode) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         List<MeetingParticipant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meeting.getId());
@@ -365,7 +369,7 @@ public class MeetingService {
             return new PlaceViewResult(
                     meeting.getId(), strategy, "COORDINATES_PENDING", null, participants.size(),
                     departureParticipants.size(), participantStatuses, List.of(),
-                    "Address coordinates are temporarily unavailable."
+                    "No submitted departure coordinates are available."
             );
         }
 

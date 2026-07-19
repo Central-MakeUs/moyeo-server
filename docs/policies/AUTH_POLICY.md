@@ -27,6 +27,14 @@ identity remain separated through `User`, `LoginAccount`, and `SocialAccount`.
   token rotation.
 - Guest meeting participation does not issue an Access JWT or a guest JWT.
 - Store real JWT secrets through environment variables in dev/prod.
+- The unified departure place search API accepts either a valid Access JWT or,
+  only when the `Authorization` header is absent, a valid meeting invite code.
+- A present but invalid `Authorization` header returns
+  `AUTHENTICATION_REQUIRED` and must not fall back to invite-code access.
+- When a valid Access JWT and invite code are both present, member authentication
+  takes precedence and the invite code is ignored.
+- Invite-code access rejects an unknown invite code before calling the external
+  search provider. It does not create or authenticate a guest participant.
 
 ## Development Test Accounts
 

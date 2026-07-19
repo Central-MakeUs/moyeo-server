@@ -110,7 +110,7 @@ Not included yet:
 The current meeting implementation covers the first milestone base flow.
 
 - `POST /api/meetings`
-- `POST /api/addresses/searches`
+- `POST /api/departure-places/searches`
 - `GET /api/meetings/invitations/{inviteCode}`
 - `GET /api/meetings/invitations/{inviteCode}/view`
 - `GET /api/meetings/invitations/{inviteCode}/view/schedules`
@@ -135,8 +135,9 @@ Current meeting scope:
 - Guest participation is rejected after `deadlineAt`.
 - Invite-code lookup returns whether the current meeting can still be joined and the reason/message when joining is blocked.
 - Middle-point creation stores the host departure name, address, coordinates, and transportation mode as the host participant snapshot.
-- `POST /api/addresses/searches` searches road-name addresses through the server and returns address-identification fields needed for later coordinate lookup.
-- Temporary coordinate policy: until the coordinate API key is approved, latitude and longitude may both be omitted from a departure snapshot. The place view returns `COORDINATES_PENDING` instead of fabricating a middle-point preview when no coordinates are available.
+- `POST /api/departure-places/searches` searches subway stations, road-name or lot-number addresses, and general places through Kakao Local. Exact `~역` queries use subway-station results first; successful zero-result primary searches fall back to a general place keyword search.
+- Web guests use the same departure search path with an `inviteCode` query parameter and no Access JWT. The server validates the invite code before calling Kakao Local; a present invalid token never falls back to invite-code access.
+- Departure-place search candidates include WGS84 latitude and longitude. A client using this search sends the selected coordinate pair with the existing meeting creation or participation request; it must not geocode the address again when saving. The existing request rule still requires latitude and longitude to be sent together, and a legacy request that omits both remains a coordinate-less snapshot handled as `COORDINATES_PENDING`.
 - Place recommendation strategy is fixed after meeting creation in the first MVP.
 - INV-02 participation input stores schedule availability for schedule-coordination meetings.
 - INV-02 participation input stores departure address, coordinates, and transportation mode for place-coordination meetings.
@@ -200,11 +201,12 @@ DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
 CORS_ALLOWED_ORIGINS
-JUSO_SEARCH_CONFM_KEY
+KAKAO_LOCAL_REST_API_KEY
 MEETING_COVER_S3_BUCKET
 ```
 
-`JUSO_SEARCH_CONFM_KEY` is the Road Name Address Search API confirmation key.
+`KAKAO_LOCAL_REST_API_KEY` is the Kakao Local REST API key used only by the
+server for departure place search.
 Keep the real key only in the runtime environment; do not add it to source code,
 configuration files, or GitHub Actions deployment commands.
 
@@ -224,11 +226,11 @@ The EC2 dev server stores runtime values in:
 /home/ubuntu/moyeo/.env
 ```
 
-Add the address-search key to that file before deploying or recreating the app
+Add the departure place-search key to that file before deploying or recreating the app
 container:
 
 ```text
-JUSO_SEARCH_CONFM_KEY=your-issued-confirmation-key
+KAKAO_LOCAL_REST_API_KEY=your-kakao-local-rest-api-key
 MEETING_COVER_S3_BUCKET=moyeo-meeting-covers-dev-533232489687-ap-northeast-2-an
 ```
 

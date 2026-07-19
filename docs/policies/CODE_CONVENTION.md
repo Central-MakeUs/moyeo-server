@@ -13,7 +13,7 @@
 - Use PascalCase for classes, records, and enums; use camelCase for methods,
   fields, and request/response JSON properties.
 - Name request and response DTOs with the operation and role, such as
-  `AddressSearchRequest` and `AddressSearchResponse`.
+  `DeparturePlaceSearchRequest` and `DeparturePlaceSearchResponse`.
 - Keep provider-specific DTOs private to the service that calls the provider.
 
 ## Swagger/OpenAPI

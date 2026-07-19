@@ -94,12 +94,12 @@ public record CreateMeetingRequest(
         @Size(max = 255)
         String hostDepartureAddress,
 
-        @Schema(description = "방장 출발지 위도입니다. 좌표 제공 API 승인 전까지 경도와 함께 생략할 수 있으며, 둘 중 하나만 보내면 안 됩니다.", example = "37.498095")
+        @Schema(description = "방장 출발지 위도입니다. 검색 후보를 선택한 경우 응답 좌표를 경도와 함께 보내며, 둘 중 하나만 보내면 안 됩니다.", example = "37.498095")
         @DecimalMin("-90.0")
         @DecimalMax("90.0")
         BigDecimal hostDepartureLatitude,
 
-        @Schema(description = "방장 출발지 경도입니다. 좌표 제공 API 승인 전까지 위도와 함께 생략할 수 있으며, 둘 중 하나만 보내면 안 됩니다.", example = "127.027610")
+        @Schema(description = "방장 출발지 경도입니다. 검색 후보를 선택한 경우 응답 좌표를 위도와 함께 보내며, 둘 중 하나만 보내면 안 됩니다.", example = "127.027610")
         @DecimalMin("-180.0")
         @DecimalMax("180.0")
         BigDecimal hostDepartureLongitude,

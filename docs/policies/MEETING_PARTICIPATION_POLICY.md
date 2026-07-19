@@ -30,7 +30,7 @@ general best practice into domain policy.
   keeps the meeting creation strategy fixed after creation; later place
   recommendation/finalization flow may revisit switching between middle-point and
   random recommendations.
-- Middle-point meeting creation stores the host departure name, address, and transportation mode snapshot on the host `meeting_participants` row. Until the coordinate API key is approved, latitude and longitude may both be omitted as a temporary development policy; fabricated coordinates must not be stored.
+- Middle-point meeting creation stores the host departure name, address, latitude, longitude, and transportation mode snapshot on the host `meeting_participants` row. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. Latitude and longitude must be sent together; legacy requests may still omit both, and fabricated coordinates must not be stored.
 - A participant whose coordinate pair is omitted counts as having submitted a departure snapshot, but is excluded from the straight-line middle-point preview. If no submitted departure has coordinates, the place view returns `COORDINATES_PENDING` with no recommendations.
 - Meeting creation receives `deadlineMinutes`; the server calculates and returns
   `deadlineAt`.
@@ -162,7 +162,7 @@ general best practice into domain policy.
   atomically.
 - Join requests save departure and transportation mode for
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
-- Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Until the coordinate API key is approved, latitude and longitude may both be omitted; one without the other is invalid.
+- Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
 - Join rejects mismatched input, such as departure input for schedule-only
   meetings or schedule availability input for place-only meetings.
 
@@ -199,6 +199,45 @@ general best practice into domain policy.
   handled in the later final-confirmation flow, not on every pre-confirmation
   status view request.
 
+## Departure Place Search
+
+- Departure input uses server-side integrated search APIs backed by Kakao Local.
+  The Kakao REST API key remains server-side.
+- Logged-in members and web guests use the same search endpoint. A valid Access
+  JWT authorizes member access. Only when the `Authorization` header is absent,
+  a valid invite code authorizes guest access; the server validates that the
+  invite code belongs to an existing meeting before calling Kakao Local. A
+  present invalid token never falls back to invite-code access, and a valid
+  token takes precedence when both credentials are supplied.
+- The integrated search API accepts a single keyword and returns unified
+  `STATION`, `ADDRESS`, or `PLACE` candidates with a display name, representative
+  address, road-name address, and lot-number address. It does not expose provider
+  response shapes or provider-specific result IDs.
+- The candidate `displayName` is only for the search list. The final departure
+  snapshot `name` remains a client-provided user label subject to its existing
+  30-character limit.
+- A keyword ending exactly in `역` first uses Kakao keyword search with the
+  `SW8` subway-station category. Keep only results whose place name is the
+  requested station name or starts with it followed by whitespace or an opening
+  parenthesis. If that filtered list is empty, use unfiltered Kakao keyword
+  search as a fallback.
+- A conservative road-name or lot-number address pattern first uses Kakao address
+  search with similar matching. Strong lot-number input recognizes `동`, `리`, or
+  numbered `가` followed by a lot number, with optional `산`, sub-number, and
+  `번지`. Region-only terms, road names without a building number, underground
+  road addresses, and incomplete `읍` or `면` input use Kakao keyword search.
+  Address search keeps only complete `REGION_ADDR` or `ROAD_ADDR` documents;
+  partial `REGION` or `ROAD` documents do not count as final candidates. If a
+  successful address search returns no complete candidates, use Kakao keyword
+  search as a fallback. All other keywords use Kakao keyword search directly.
+- A fallback is allowed only after a successful search with no final candidates.
+  Provider configuration, authorization, quota, network, or response failures
+  return `DEPARTURE_PLACE_SEARCH_UNAVAILABLE` and do not trigger a fallback.
+- Search candidates include the provider document's top-level WGS84 `y` and `x`
+  values as `latitude` and `longitude`. The client passes the selected pair into
+  the existing departure snapshot fields and must not geocode the address again
+  when saving. The existing coordinate-pair validation remains unchanged.
+
 ## Deferred Policies
 
 - TODO: After the MVP creation flow is stable, decide whether to remove the
@@ -206,11 +245,6 @@ general best practice into domain policy.
   direct-input flow.
 - TODO: Host departure address modification is out of the first MVP creation
   scope and should be handled with the later participation/modification flow.
-- Address search uses the road-name address search API through the server. The API key remains server-side, and the search response intentionally contains no coordinates until the separately requested coordinate API key is approved.
-- TODO: Evaluate adding a server-side POI/place-name search provider for departure
-  input (for example, Kakao Local keyword search). Do not expose a provider key
-  to the client or alter the current road-name address API contract before the
-  provider, quota/cost policy, and unified result contract are confirmed.
 - GPS/current-location lookup, saved departure lists, and member departure CRUD are P1 or later client/domain work.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.

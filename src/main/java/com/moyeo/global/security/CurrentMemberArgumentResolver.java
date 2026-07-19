@@ -44,6 +44,10 @@ public class CurrentMemberArgumentResolver implements HandlerMethodArgumentResol
         }
 
         String authorization = request.getHeader(AUTHORIZATION_HEADER);
+        CurrentMember currentMember = parameter.getParameterAnnotation(CurrentMember.class);
+        if (authorization == null && currentMember != null && !currentMember.required()) {
+            return null;
+        }
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
             throw authenticationRequired();
         }

@@ -5,13 +5,18 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.headers.Header;
 import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 
+import java.util.List;
+
 @Configuration
 public class OpenApiConfig {
+
+    private static final String DEPARTURE_PLACE_SEARCH_PATH = "/api/departure-places/searches";
 
     @Bean
     public OpenAPI moyeoOpenApi() {
@@ -36,5 +41,18 @@ public class OpenApiConfig {
                                 .description("요청 추적 ID입니다. 서버 로그 조회 시 사용합니다.")
                                 .schema(new StringSchema().format("uuid"))
                 ))));
+    }
+
+    @Bean
+    public OpenApiCustomizer departurePlaceSearchSecurityCustomizer() {
+        return openApi -> {
+            if (openApi.getPaths() == null || openApi.getPaths().get(DEPARTURE_PLACE_SEARCH_PATH) == null) {
+                return;
+            }
+            openApi.getPaths().get(DEPARTURE_PLACE_SEARCH_PATH).getPost().setSecurity(List.of(
+                    new SecurityRequirement().addList("bearerAuth"),
+                    new SecurityRequirement()
+            ));
+        };
     }
 }

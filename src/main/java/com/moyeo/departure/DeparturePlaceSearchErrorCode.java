@@ -1,18 +1,18 @@
-package com.moyeo.address;
+package com.moyeo.departure;
 
 import com.moyeo.global.error.ErrorCode;
 import org.springframework.http.HttpStatus;
 
 import java.net.URI;
 
-public enum AddressSearchErrorCode implements ErrorCode {
+public enum DeparturePlaceSearchErrorCode implements ErrorCode {
 
-    ADDRESS_SEARCH_UNAVAILABLE(
+    DEPARTURE_PLACE_SEARCH_UNAVAILABLE(
             HttpStatus.SERVICE_UNAVAILABLE,
-            "ADDRESS_SEARCH_UNAVAILABLE",
-            "address-search-unavailable",
-            "Address search unavailable",
-            "The address search service is temporarily unavailable."
+            "DEPARTURE_PLACE_SEARCH_UNAVAILABLE",
+            "departure-place-search-unavailable",
+            "Departure place search unavailable",
+            "The departure place search service is temporarily unavailable."
     );
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";
@@ -23,7 +23,7 @@ public enum AddressSearchErrorCode implements ErrorCode {
     private final String title;
     private final String detail;
 
-    AddressSearchErrorCode(HttpStatus status, String code, String type, String title, String detail) {
+    DeparturePlaceSearchErrorCode(HttpStatus status, String code, String type, String title, String detail) {
         this.status = status;
         this.code = code;
         this.type = URI.create(TYPE_PREFIX + type);

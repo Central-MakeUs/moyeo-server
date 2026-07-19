@@ -47,9 +47,11 @@ moyeo:
     exposed-headers:
       - X-Trace-Id
     max-age-seconds: 3600
-  address-search:
-    base-url: https://business.juso.go.kr/addrlink/addrLinkApi.do
-    confirmation-key: ${JUSO_SEARCH_CONFM_KEY:}
+  departure-place-search:
+    base-url: https://dapi.kakao.com
+    rest-api-key: ${KAKAO_LOCAL_REST_API_KEY:}
+    connect-timeout: 2s
+    read-timeout: 3s
   meeting-cover:
     bucket: ${MEETING_COVER_S3_BUCKET:}
     region: ${AWS_REGION:ap-northeast-2}

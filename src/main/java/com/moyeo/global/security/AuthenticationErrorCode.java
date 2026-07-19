@@ -12,7 +12,7 @@ public enum AuthenticationErrorCode implements ErrorCode {
             "AUTHENTICATION_REQUIRED",
             "authentication-required",
             "Authentication required",
-            "A valid access token is required."
+            "Authentication is required."
     ),
     INVALID_LOGIN_CREDENTIALS(
             HttpStatus.UNAUTHORIZED,

@@ -194,9 +194,9 @@ current RFC 9457-based error response policy, and documented working rules.
 - ECR repository: `moyeo-server`
 - Deployment workflow: `.github/workflows/deploy-dev.yml`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
-- Address search API key: store `JUSO_SEARCH_CONFM_KEY` only in the EC2 runtime
-  `.env`; Docker Compose passes the value into the application container through
-  its `env_file` configuration.
+- Departure place search API key: store `KAKAO_LOCAL_REST_API_KEY` only in the
+  EC2 runtime `.env`; Docker Compose passes the value into the application
+  container.
 - Meeting cover storage: use the private Seoul S3 bucket
   `moyeo-meeting-covers-dev-533232489687-ap-northeast-2-an`. Store its name as
   `MEETING_COVER_S3_BUCKET` in the EC2 runtime `.env`; grant the EC2 instance
