@@ -116,7 +116,7 @@ public class MeetingService {
                 resolveAvailableStartTime(command),
                 resolveAvailableEndTime(command),
                 command.placeMode(),
-                resolvePlaceRecommendationStrategy(command),
+                resolvePlaceRecommendationStrategy(command.placeMode()),
                 resolveFixedPlaceName(command),
                 resolveFixedPlaceAddress(command),
                 LocalDateTime.now().plusMinutes(command.deadlineMinutes()),
@@ -1006,8 +1006,8 @@ public class MeetingService {
         return command.scheduleInputType() == ScheduleInputType.DATE_AND_TIME ? command.availableEndTime() : null;
     }
 
-    private PlaceRecommendationStrategy resolvePlaceRecommendationStrategy(CreateMeetingCommand command) {
-        return command.placeMode() == PlaceMode.RECOMMEND ? command.placeRecommendationStrategy() : null;
+    private PlaceRecommendationStrategy resolvePlaceRecommendationStrategy(PlaceMode placeMode) {
+        return placeMode == PlaceMode.RECOMMEND ? PlaceRecommendationStrategy.MIDDLE_POINT : null;
     }
 
     private String resolveFixedPlaceName(CreateMeetingCommand command) {

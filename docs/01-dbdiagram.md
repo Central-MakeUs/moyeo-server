@@ -54,7 +54,7 @@ Table meetings {
   available_start_time time [note: "일정 투표 공통 시작 시간. schedule_mode가 VOTE일 때 사용"]
   available_end_time time [note: "일정 투표 공통 종료 시간. schedule_mode가 VOTE일 때 사용"]
   place_mode varchar(20) [not null, note: "장소 설정 방식: FIXED/RECOMMEND/NONE"]
-  place_recommendation_strategy varchar(30) [note: "생성 시 선택한 장소 추천 방식. place_mode가 RECOMMEND일 때 사용하며 1차 MVP에서는 생성 후 변경하지 않음"]
+  place_recommendation_strategy varchar(30) [note: "장소 추천 방식. place_mode가 RECOMMEND이면 현재 MVP 생성 플로우에서 서버가 MIDDLE_POINT로 저장"]
   fixed_place_name varchar(100) [note: "확정 장소 이름. place_mode가 FIXED일 때 사용"]
   fixed_place_address varchar(255) [note: "확정 장소 주소. place_mode가 FIXED일 때 사용"]
   cover_image_key varchar(500) [note: "S3에 저장하는 모임 커버 이미지 객체 키"]
@@ -174,7 +174,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.
 - `meetings.schedule_input_type` explicitly stores whether schedule participation selects dates only (`DATE_ONLY`), date/time ranges (`DATE_AND_TIME`), or no schedule (`NONE`); clients and the server do not infer this from nullable time columns.
 - `meetings.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
-- `meetings.place_recommendation_strategy` stores the selected recommendation strategy when `place_mode` is `RECOMMEND`; the first MVP does not change it after creation.
+- `meetings.place_recommendation_strategy` stores the recommendation strategy when `place_mode` is `RECOMMEND`; the current MVP creation flow stores `MIDDLE_POINT` server-side, while retaining the column for a later product-approved strategy change.
 - `meetings.cover_image_key` stores the S3 object key for the resized optional meeting cover image; the original upload is not retained.
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.

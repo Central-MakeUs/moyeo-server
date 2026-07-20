@@ -134,7 +134,6 @@ class MeetingControllerTest {
                                 "maxParticipants", 6,
                                 "planningType", "PLACE_ONLY",
                                 "scheduleInputType", "DATE_ONLY",
-                                "placeRecommendationStrategy", "RANDOM",
                                 "deadlineMinutes", 1440
                         ))))
                 .andExpect(status().isBadRequest())
@@ -152,7 +151,6 @@ class MeetingControllerTest {
                                 "name", "place-simple",
                                 "maxParticipants", 6,
                                 "planningType", "PLACE_ONLY",
-                                "placeRecommendationStrategy", "RANDOM",
                                 "deadlineMinutes", 1440
                         ))))
                 .andExpect(status().isCreated())
@@ -167,6 +165,11 @@ class MeetingControllerTest {
                 String.class,
                 meetingId
         )).isEqualTo("NONE");
+        assertThat(jdbcTemplate.queryForObject(
+                "select place_recommendation_strategy from meetings where id = ?",
+                String.class,
+                meetingId
+        )).isEqualTo("MIDDLE_POINT");
     }
 
     @Test
@@ -367,7 +370,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(9, 0),
                 LocalTime.of(18, 0),
-                null,
                 1440
         );
         Long meetingId = createMeetingAndGetMeetingId(accessToken, request);
@@ -478,7 +480,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
-                null,
                 1440
         );
         Long meetingId = createMeetingAndGetMeetingId(accessToken, request);
@@ -507,7 +508,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(18, 30),
                 LocalTime.of(22, 0),
-                null,
                 1440
         );
 
@@ -532,7 +532,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
                 15
         );
 
@@ -557,7 +556,6 @@ class MeetingControllerTest {
                 null,
                 null,
                 null,
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
                 1440
         );
         Long meetingId = createMeetingAndGetMeetingId(accessToken, request);
@@ -583,7 +581,6 @@ class MeetingControllerTest {
                 null,
                 null,
                 null,
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.RANDOM,
                 1440
         );
 
@@ -597,7 +594,7 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.availableStartTime").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.availableEndTime").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
-                .andExpect(jsonPath("$.placeRecommendationStrategy").value("RANDOM"));
+                .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"));
     }
 
     @Test
@@ -612,7 +609,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(18, 0),
                 LocalTime.of(22, 0),
-                null,
                 1440
         );
         Long meetingId = createMeetingAndGetMeetingId(accessToken, request);
@@ -1015,7 +1011,6 @@ class MeetingControllerTest {
                         ScheduleInputType.DATE_AND_TIME,
                         LocalTime.of(9, 0),
                         LocalTime.of(18, 0),
-                        null,
                         1440
                 )
         );
@@ -1193,7 +1188,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_ONLY,
                 null,
                 null,
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
                 1440
         );
         Long meetingId = createMeetingAndGetMeetingId(hostToken, request);
@@ -1346,7 +1340,6 @@ class MeetingControllerTest {
                 null,
                 null,
                 null,
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
                 1440
         );
         String accessToken = signupAndGetAccessToken("meetinghost-coordinate-pending", "host-coordinate-pending");
@@ -1368,31 +1361,6 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.center").doesNotExist())
                 .andExpect(jsonPath("$.departureRespondedParticipantCount").value(1))
                 .andExpect(jsonPath("$.recommendations").isEmpty());
-    }
-
-    @Test
-    void getPlaceViewReturnsRandomCatalogPreviewForRandomStrategy() throws Exception {
-        CreateMeetingRequest request = new CreateMeetingRequest(
-                "random-meeting",
-                null,
-                6,
-                com.moyeo.domain.meeting.PlanningType.PLACE_ONLY,
-                null,
-                null,
-                null,
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.RANDOM,
-                1440
-        );
-        String inviteCode = createMeetingAndGetInviteCode("meetinghost34", "host34", request);
-
-        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.placeRecommendationStrategy").value("RANDOM"))
-                .andExpect(jsonPath("$.recommendationBasis").value("RANDOM_CATALOG_PREVIEW"))
-                .andExpect(jsonPath("$.center").doesNotExist())
-                .andExpect(jsonPath("$.recommendations.length()").value(5))
-                .andExpect(jsonPath("$.recommendations[0].rank").value(1))
-                .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").doesNotExist());
     }
 
     private String signupAndGetAccessToken(String loginId, String nickname) throws Exception {
@@ -1467,7 +1435,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(9, 0),
                 LocalTime.of(18, 0),
-                com.moyeo.domain.meeting.PlaceRecommendationStrategy.MIDDLE_POINT,
                 1440
         );
     }
@@ -1481,7 +1448,6 @@ class MeetingControllerTest {
                 ScheduleInputType.DATE_AND_TIME,
                 LocalTime.of(18, 0),
                 LocalTime.of(9, 0),
-                null,
                 0
         );
     }
@@ -1493,7 +1459,6 @@ class MeetingControllerTest {
                 6,
                 com.moyeo.domain.meeting.PlanningType.SCHEDULE_ONLY,
                 ScheduleInputType.DATE_ONLY,
-                null,
                 null,
                 null,
                 1440

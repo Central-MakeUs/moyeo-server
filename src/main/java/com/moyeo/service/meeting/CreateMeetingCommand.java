@@ -1,7 +1,6 @@
 package com.moyeo.service.meeting;
 
 import com.moyeo.domain.meeting.PlaceMode;
-import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
 import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleMode;
 import com.moyeo.domain.meeting.ScheduleInputType;
@@ -19,7 +18,6 @@ public record CreateMeetingCommand(
         LocalTime availableStartTime,
         LocalTime availableEndTime,
         PlaceMode placeMode,
-        PlaceRecommendationStrategy placeRecommendationStrategy,
         String fixedPlaceName,
         String fixedPlaceAddress,
         int deadlineMinutes

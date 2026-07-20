@@ -54,10 +54,10 @@ public class MeetingController {
                     후보 날짜와 방장 가능 시간·출발지는 생성 후 방장 참여 API에서 저장합니다.
                     <ul>
                       <li>SCHEDULE_ONLY: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)만 사용합니다.</li>
-                      <li>PLACE_ONLY: SCR-06 기본 정보 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 장소 추천 방식으로 MIDDLE_POINT 또는 RANDOM을 선택합니다.</li>
-                      <li>SCHEDULE_AND_PLACE: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)과 장소 추천 방식(RECOMMEND)을 함께 저장합니다.</li>
+                      <li>PLACE_ONLY: SCR-06 기본 정보 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 서버가 중간지점 장소 추천(RECOMMEND)으로 생성합니다.</li>
+                      <li>SCHEDULE_AND_PLACE: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)과 중간지점 장소 추천(RECOMMEND)으로 생성합니다.</li>
                     </ul>
-                    placeRecommendationStrategy는 1차 MVP에서 생성 후 변경하지 않으며, 추후 전환 기능을 검토할 수 있습니다.
+                    장소 추천 전략은 생성 요청에서 받지 않으며, 서버가 결정합니다.
                     확정 일정/확정 장소 직접 입력 플로우는 이번 MVP 생성 범위에서 제외하며, 추후 회의에서 재검토합니다.
                     """,
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -76,7 +76,6 @@ public class MeetingController {
                                                       "scheduleInputType": "DATE_AND_TIME",
                                                       "availableStartTime": "17:00",
                                                       "availableEndTime": "23:00",
-                                                      "placeRecommendationStrategy": "MIDDLE_POINT",
                                                       "deadlineMinutes": 1440
                                                     }
                                                     """
@@ -97,14 +96,13 @@ public class MeetingController {
                                     ),
                                     @ExampleObject(
                                             name = "PLACE_ONLY",
-                                            description = "장소만 정하는 생성 요청입니다. 현재는 장소 추천 방식(RECOMMEND)으로 MIDDLE_POINT 또는 RANDOM 중 하나를 선택합니다. 1차 MVP에서는 생성 후 변경하지 않으며, 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. 일정 후보와 시간대는 받지 않습니다.",
+                                            description = "장소만 정하는 생성 요청입니다. 서버가 중간지점 장소 추천(RECOMMEND)으로 저장하며, 생성 시점에는 추천 결과나 확정 장소를 만들지 않습니다. 일정 후보와 시간대는 받지 않습니다.",
                                             value = """
                                                     {
                                                       "name": "카페 장소 정하기",
                                                       "description": "먼저 갈 장소를 정해요.",
                                                       "maxParticipants": 8,
                                                       "planningType": "PLACE_ONLY",
-                                                      "placeRecommendationStrategy": "RANDOM",
                                                       "deadlineMinutes": 720
                                                     }
                                                     """
@@ -188,7 +186,7 @@ public class MeetingController {
 
                                                             **필수 입력**
                                                             - 일정 입력 유형: `scheduleInputType` (`DATE_ONLY` 또는 `DATE_AND_TIME`)
-                                                            - 장소 전략: `placeRecommendationStrategy` (`MIDDLE_POINT` 또는 `RANDOM`)
+                                                            - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
 
                                                             **조건부 입력**
                                                             - `scheduleInputType=DATE_AND_TIME`: `availableStartTime`, `availableEndTime` 필수
@@ -204,7 +202,6 @@ public class MeetingController {
                                                       "scheduleInputType": "DATE_AND_TIME",
                                                       "availableStartTime": "17:00",
                                                       "availableEndTime": "23:00",
-                                                      "placeRecommendationStrategy": "MIDDLE_POINT",
                                                       "deadlineMinutes": 1440
                                                     }
                                                     """
@@ -219,7 +216,6 @@ public class MeetingController {
                                                       "maxParticipants": 6,
                                                       "planningType": "SCHEDULE_AND_PLACE",
                                                       "scheduleInputType": "DATE_ONLY",
-                                                      "placeRecommendationStrategy": "MIDDLE_POINT",
                                                       "deadlineMinutes": 1440
                                                     }
                                                     """
@@ -251,7 +247,7 @@ public class MeetingController {
                                                             **필수 입력**
                                                             - `scheduleInputType`: 이 예시는 `DATE_ONLY`
 
-                                                            `placeRecommendationStrategy`와 출발지 필드는 보내지 않습니다.
+                                                            장소 추천 전략과 출발지 필드는 보내지 않습니다.
                                                             """,
                                                     value = """
                                                     {
@@ -273,7 +269,7 @@ public class MeetingController {
                                                             - `SCHEDULE_AND_PLACE`
 
                                                             **필수 입력**
-                                                            - `placeRecommendationStrategy`: `MIDDLE_POINT` 또는 `RANDOM`
+                                                            - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
                                                             일정 필드는 보내지 않습니다.
                                                             방장 출발지는 생성 후 방장 참여 API에서 입력합니다.
                                                             """,
@@ -283,7 +279,6 @@ public class MeetingController {
                                                       "description": "만날 장소를 정해요.",
                                                       "maxParticipants": 8,
                                                       "planningType": "PLACE_ONLY",
-                                                      "placeRecommendationStrategy": "RANDOM",
                                                       "deadlineMinutes": 720
                                                     }
                                                     """
@@ -304,7 +299,7 @@ public class MeetingController {
 
                                                     **필수 `request` JSON 입력**
                                                     - 일정 입력 유형: `scheduleInputType` (`DATE_ONLY` 또는 `DATE_AND_TIME`)
-                                                    - 장소 전략: `placeRecommendationStrategy` (`MIDDLE_POINT` 또는 `RANDOM`)
+                                                    - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
 
                                                     **조건부 `request` JSON 입력**
                                                     - `scheduleInputType=DATE_AND_TIME`: `availableStartTime`, `availableEndTime` 필수
@@ -322,7 +317,6 @@ public class MeetingController {
                                                         "scheduleInputType": "DATE_AND_TIME",
                                                         "availableStartTime": "17:00",
                                                         "availableEndTime": "23:00",
-                                                        "placeRecommendationStrategy": "MIDDLE_POINT",
                                                         "deadlineMinutes": 1440
                                                       }
                                                     }
@@ -339,7 +333,6 @@ public class MeetingController {
                                                         "maxParticipants": 6,
                                                         "planningType": "SCHEDULE_AND_PLACE",
                                                         "scheduleInputType": "DATE_ONLY",
-                                                        "placeRecommendationStrategy": "MIDDLE_POINT",
                                                         "deadlineMinutes": 1440
                                                       }
                                                     }
@@ -374,7 +367,7 @@ public class MeetingController {
                                                     **필수 `request` JSON 입력**
                                                     - `scheduleInputType`: 이 예시는 `DATE_ONLY`
 
-                                                    `placeRecommendationStrategy`와 출발지 필드는 보내지 않습니다.
+                                                    장소 추천 전략과 출발지 필드는 보내지 않습니다.
                                                     `coverImage`는 선택 파일 파트이며, 사진이 없으면 생략합니다.
                                                     """,
                                             value = """
@@ -399,7 +392,7 @@ public class MeetingController {
                                                     - `SCHEDULE_AND_PLACE`
 
                                                     **필수 `request` JSON 입력**
-                                                    - `placeRecommendationStrategy`: `MIDDLE_POINT` 또는 `RANDOM`
+                                                    - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
                                                     일정 필드는 보내지 않습니다.
                                                     방장 출발지는 생성 후 방장 참여 API에서 입력합니다.
                                                     `coverImage`는 선택 파일 파트이며, 사진이 없으면 생략합니다.
@@ -411,7 +404,6 @@ public class MeetingController {
                                                         "description": "만날 장소를 정해요.",
                                                         "maxParticipants": 8,
                                                         "planningType": "PLACE_ONLY",
-                                                        "placeRecommendationStrategy": "RANDOM",
                                                         "deadlineMinutes": 720
                                                       }
                                                     }

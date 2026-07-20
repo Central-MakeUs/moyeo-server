@@ -5,7 +5,6 @@ import com.moyeo.controller.meeting.CreateMeetingRequest;
 import com.moyeo.departure.DeparturePlaceSearchService;
 import com.moyeo.departure.DeparturePlaceType;
 import com.moyeo.domain.departure.DeparturePlaceSearchExecutionPath;
-import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
 import com.moyeo.domain.meeting.PlanningType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -205,7 +204,6 @@ class DeparturePlaceSearchControllerTest {
                 null,
                 null,
                 null,
-                PlaceRecommendationStrategy.MIDDLE_POINT,
                 1440
         );
         String createResponse = mockMvc.perform(post("/api/meetings")

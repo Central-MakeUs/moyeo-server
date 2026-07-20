@@ -26,10 +26,11 @@ general best practice into domain policy.
   input.
 - Fixed schedule/place direct input is excluded from the current MVP creation
   flow and may be reconsidered in a later product discussion.
-- Place recommendation strategy is separated from place mode. The first MVP
-  keeps the meeting creation strategy fixed after creation; later place
-  recommendation/finalization flow may revisit switching between middle-point and
-  random recommendations.
+- Place recommendation strategy is separated from place mode. For the current
+  MVP creation flow, the server always stores `MIDDLE_POINT` when place mode is
+  `RECOMMEND`; clients do not send a strategy. The stored strategy and enum are
+  retained so a later product decision can add another strategy without changing
+  the meeting schema.
 - Meeting creation creates the host `meeting_participants` row to preserve host
   identity and participant-count semantics, but leaves its schedule availability
   and departure snapshot empty until the host participation flow is completed.
