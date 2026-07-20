@@ -184,9 +184,9 @@ public class MeetingController {
                                                             - `PLACE_ONLY`
                                                             - `SCHEDULE_AND_PLACE` ← 이 예시
 
-                                                            **필수 입력**
-                                                            - 일정 입력 유형: `scheduleInputType` (`DATE_ONLY` 또는 `DATE_AND_TIME`)
-                                                            - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
+                                                            **허용 `scheduleInputType`**
+                                                            - `DATE_ONLY`
+                                                            - `DATE_AND_TIME` ← 이 예시
 
                                                             **조건부 입력**
                                                             - `scheduleInputType=DATE_AND_TIME`: `availableStartTime`, `availableEndTime` 필수
@@ -208,7 +208,18 @@ public class MeetingController {
                                             ),
                                             @ExampleObject(
                                                     name = "SCHEDULE_AND_PLACE_DATE_ONLY",
-                                                    description = "일정과 장소를 정하면서 가능한 날짜만 입력받는 모임입니다. 공통 시간대는 보내지 않습니다.",
+                                                    description = """
+                                                            **허용 `planningType`**
+                                                            - `SCHEDULE_ONLY`
+                                                            - `PLACE_ONLY`
+                                                            - `SCHEDULE_AND_PLACE` ← 이 예시
+
+                                                            **허용 `scheduleInputType`**
+                                                            - `DATE_ONLY` ← 이 예시
+                                                            - `DATE_AND_TIME`
+
+                                                            공통 시간대는 보내지 않습니다.
+                                                            """,
                                                     value = """
                                                     {
                                                       "name": "주말 모임 정하기",
@@ -222,7 +233,18 @@ public class MeetingController {
                                             ),
                                             @ExampleObject(
                                                     name = "SCHEDULE_ONLY_DATE_AND_TIME",
-                                                    description = "일정만 정하면서 가능한 날짜와 시간대를 입력받는 모임입니다. 장소 관련 필드는 보내지 않습니다.",
+                                                    description = """
+                                                            **허용 `planningType`**
+                                                            - `SCHEDULE_ONLY` ← 이 예시
+                                                            - `PLACE_ONLY`
+                                                            - `SCHEDULE_AND_PLACE`
+
+                                                            **허용 `scheduleInputType`**
+                                                            - `DATE_ONLY`
+                                                            - `DATE_AND_TIME` ← 이 예시
+
+                                                            장소 관련 필드는 보내지 않습니다.
+                                                            """,
                                                     value = """
                                                     {
                                                       "name": "저녁 일정 정하기",
@@ -244,8 +266,9 @@ public class MeetingController {
                                                             - `PLACE_ONLY`
                                                             - `SCHEDULE_AND_PLACE`
 
-                                                            **필수 입력**
-                                                            - `scheduleInputType`: 이 예시는 `DATE_ONLY`
+                                                            **허용 `scheduleInputType`**
+                                                            - `DATE_ONLY` ← 이 예시
+                                                            - `DATE_AND_TIME`
 
                                                             장소 추천 전략과 출발지 필드는 보내지 않습니다.
                                                             """,
@@ -268,10 +291,9 @@ public class MeetingController {
                                                             - `PLACE_ONLY` ← 이 예시
                                                             - `SCHEDULE_AND_PLACE`
 
-                                                            **필수 입력**
-                                                            - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
-                                                            일정 필드는 보내지 않습니다.
-                                                            방장 출발지는 생성 후 방장 참여 API에서 입력합니다.
+                                                            **`scheduleInputType`**
+                                                            - `PLACE_ONLY`에서는 보내지 않습니다.
+
                                                             """,
                                                     value = """
                                                     {
@@ -297,9 +319,9 @@ public class MeetingController {
                                                     - `PLACE_ONLY`
                                                     - `SCHEDULE_AND_PLACE` ← 이 예시
 
-                                                    **필수 `request` JSON 입력**
-                                                    - 일정 입력 유형: `scheduleInputType` (`DATE_ONLY` 또는 `DATE_AND_TIME`)
-                                                    - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
+                                                    **허용 `scheduleInputType`**
+                                                    - `DATE_ONLY`
+                                                    - `DATE_AND_TIME` ← 이 예시
 
                                                     **조건부 `request` JSON 입력**
                                                     - `scheduleInputType=DATE_AND_TIME`: `availableStartTime`, `availableEndTime` 필수
@@ -324,7 +346,18 @@ public class MeetingController {
                                     ),
                                     @ExampleObject(
                                             name = "SCHEDULE_AND_PLACE_DATE_ONLY",
-                                            description = "일정과 장소를 정하면서 가능한 날짜만 입력받는 모임입니다. 공통 시간대는 보내지 않고 coverImage는 선택 사항입니다.",
+                                            description = """
+                                                    **허용 `planningType`**
+                                                    - `SCHEDULE_ONLY`
+                                                    - `PLACE_ONLY`
+                                                    - `SCHEDULE_AND_PLACE` ← 이 예시
+
+                                                    **허용 `scheduleInputType`**
+                                                    - `DATE_ONLY` ← 이 예시
+                                                    - `DATE_AND_TIME`
+
+                                                    공통 시간대는 보내지 않고 `coverImage`는 선택 사항입니다.
+                                                    """,
                                             value = """
                                                     {
                                                       "request": {
@@ -340,7 +373,18 @@ public class MeetingController {
                                     ),
                                     @ExampleObject(
                                             name = "SCHEDULE_ONLY_DATE_AND_TIME",
-                                            description = "일정만 정하면서 가능한 날짜와 시간대를 입력받는 모임입니다. 장소 관련 필드는 보내지 않고 coverImage는 선택 사항입니다.",
+                                            description = """
+                                                    **허용 `planningType`**
+                                                    - `SCHEDULE_ONLY` ← 이 예시
+                                                    - `PLACE_ONLY`
+                                                    - `SCHEDULE_AND_PLACE`
+
+                                                    **허용 `scheduleInputType`**
+                                                    - `DATE_ONLY`
+                                                    - `DATE_AND_TIME` ← 이 예시
+
+                                                    장소 관련 필드는 보내지 않고 `coverImage`는 선택 사항입니다.
+                                                    """,
                                             value = """
                                                     {
                                                       "request": {
@@ -364,8 +408,9 @@ public class MeetingController {
                                                     - `PLACE_ONLY`
                                                     - `SCHEDULE_AND_PLACE`
 
-                                                    **필수 `request` JSON 입력**
-                                                    - `scheduleInputType`: 이 예시는 `DATE_ONLY`
+                                                    **허용 `scheduleInputType`**
+                                                    - `DATE_ONLY` ← 이 예시
+                                                    - `DATE_AND_TIME`
 
                                                     장소 추천 전략과 출발지 필드는 보내지 않습니다.
                                                     `coverImage`는 선택 파일 파트이며, 사진이 없으면 생략합니다.
@@ -391,10 +436,9 @@ public class MeetingController {
                                                     - `PLACE_ONLY` ← 이 예시
                                                     - `SCHEDULE_AND_PLACE`
 
-                                                    **필수 `request` JSON 입력**
-                                                    - 장소 추천 전략은 서버가 결정하며 요청에서 받지 않음
-                                                    일정 필드는 보내지 않습니다.
-                                                    방장 출발지는 생성 후 방장 참여 API에서 입력합니다.
+                                                    **`scheduleInputType`**
+                                                    - `PLACE_ONLY`에서는 보내지 않습니다.
+
                                                     `coverImage`는 선택 파일 파트이며, 사진이 없으면 생략합니다.
                                                     """,
                                             value = """
