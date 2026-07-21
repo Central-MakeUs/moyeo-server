@@ -195,7 +195,7 @@ general best practice into domain policy.
   atomically.
 - Join requests save departure and transportation mode for
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
-- Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
+- Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Departure `name` is optional; when omitted, the place-view response uses the saved departure address as its display name. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
 - Join rejects mismatched input, such as departure input for schedule-only
   meetings or schedule availability input for place-only meetings.
 
@@ -248,9 +248,10 @@ general best practice into domain policy.
   `STATION`, `ADDRESS`, or `PLACE` candidates with a display name, representative
   address, road-name address, and lot-number address. It does not expose provider
   response shapes or provider-specific result IDs.
-- The candidate `displayName` is only for the search list. The final departure
-  snapshot `name` remains a client-provided user label subject to its existing
-  30-character limit.
+- The candidate `displayName` is only for the search list. The client may send
+  it as the final departure snapshot `name`, subject to its 30-character limit,
+  but `name` is optional. When it is omitted, the place-view response uses the
+  saved departure address as the display name.
 - A keyword ending exactly in `역` first uses Kakao keyword search with the
   `SW8` subway-station category. Keep only results whose place name is the
   requested station name or starts with it followed by whitespace or an opening

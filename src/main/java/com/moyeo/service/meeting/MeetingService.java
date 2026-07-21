@@ -351,7 +351,9 @@ public class MeetingService {
                         participant.getId(),
                         participant.getNickname(),
                         participant.getParticipantType().name(),
-                        participant.getDepartureName(),
+                        participant.getDepartureName() != null
+                                ? participant.getDepartureName()
+                                : participant.getDepartureAddress(),
                         participant.getDepartureAddress(),
                         participant.getTransportationMode() != null ? participant.getTransportationMode().name() : null
                 ))
@@ -497,9 +499,10 @@ public class MeetingService {
 
         if (requiresPlace) {
             SaveParticipationCommand.Departure departure = command.departure();
+            String departureAddress = normalizeRequired(departure.address());
             participant.updateDeparture(
-                    normalizeRequired(departure.name()),
-                    normalizeRequired(departure.address()),
+                    normalizeOptional(departure.name()),
+                    departureAddress,
                     departure.latitude(),
                     departure.longitude(),
                     departure.transportationMode()
@@ -558,8 +561,7 @@ public class MeetingService {
     }
 
     private boolean hasDeparture(MeetingParticipant participant) {
-        return participant.getDepartureName() != null
-                && participant.getDepartureAddress() != null
+        return participant.getDepartureAddress() != null
                 && participant.getTransportationMode() != null;
     }
 

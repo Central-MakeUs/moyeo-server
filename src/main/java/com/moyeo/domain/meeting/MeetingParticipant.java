@@ -59,7 +59,7 @@ public class MeetingParticipant {
     private ParticipantType participantType;
 
     @Column(name = "departure_name", length = 30)
-    @Comment("방장 또는 참여자의 출발지 이름. 중간지점 추천에서 사용")
+    @Comment("방장 또는 참여자의 선택 출발지 표시 이름. 생략 가능")
     private String departureName;
 
     @Column(name = "departure_address", length = 255)

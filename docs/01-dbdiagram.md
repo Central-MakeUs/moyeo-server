@@ -109,7 +109,7 @@ Table meeting_participants {
   nickname varchar(30) [not null, note: "모임 안에서 표시할 닉네임"]
   password_hash varchar(100) [note: "참여 비밀번호 해시. 방장은 null"]
   participant_type varchar(20) [not null, note: "참여자 타입: HOST/MEMBER/GUEST"]
-  departure_name varchar(30) [note: "방장 또는 참여자 출발지 이름. 중간지점 추천에서 사용"]
+  departure_name varchar(30) [note: "방장 또는 참여자 출발지 선택 표시 이름. 요청에서 생략 가능"]
   departure_address varchar(255) [note: "방장 또는 참여자 출발지 주소. 중간지점 추천에서 사용"]
   departure_latitude decimal(10,7) [note: "방장 또는 참여자 출발지 위도. 중간지점 추천에서 사용"]
   departure_longitude decimal(10,7) [note: "방장 또는 참여자 출발지 경도. 중간지점 추천에서 사용"]

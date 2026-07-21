@@ -501,6 +501,38 @@ class MeetingControllerTest {
     }
 
     @Test
+    void placeViewUsesDepartureAddressWhenDepartureNameIsOmitted() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-departure-address", "host-departure-address");
+        String response = mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "주소 출발지",
+                                "maxParticipants", 6,
+                                "planningType", "PLACE_ONLY",
+                                "departure", Map.of(
+                                        "address", "서울 강남구 테헤란로 123",
+                                        "latitude", 37.498095,
+                                        "longitude", 127.027610,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                ),
+                                "deadlineMinutes", 1440
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String inviteCode = objectMapper.readTree(response).get("inviteCode").asText();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("STRAIGHT_LINE_PREVIEW"))
+                .andExpect(jsonPath("$.participants[0].departureName").value("서울 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.participants[0].departureAddress").value("서울 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.recommendations[0].areaName").isString());
+    }
+
+    @Test
     void createMeetingRemovesDuplicatedScheduleCandidateDatesAndSortsThem() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost14", "host14");
 

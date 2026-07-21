@@ -67,7 +67,7 @@ public record PlaceViewResponse(
             @Schema(description = "참여자 유형", example = "HOST", allowableValues = {"HOST", "MEMBER", "GUEST"})
             String participantType,
 
-            @Schema(description = "출발지 라벨. 입력하지 않았으면 null입니다.", example = "회사")
+            @Schema(description = "출발지 표시 이름입니다. 요청에서 name을 생략하면 출발지 주소를 반환합니다.", example = "회사")
             String departureName,
 
             @Schema(description = "출발지 주소. 입력하지 않았으면 null입니다.", example = "서울 강남구 테헤란로 123")
