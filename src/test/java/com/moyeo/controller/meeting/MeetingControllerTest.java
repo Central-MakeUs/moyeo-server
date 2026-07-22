@@ -1130,10 +1130,12 @@ class MeetingControllerTest {
                 .path(MediaType.APPLICATION_JSON_VALUE).path("examples");
         assertThat(paths.path("/api/meetings/invitations/{inviteCode}/guests").path("post").path("description").asText())
                 .contains("출발지 이름 공통 안내")
-                .contains("departure.name");
+                .doesNotContain("departure.name")
+                .doesNotContain("departure.address");
         assertThat(paths.path("/api/meetings/invitations/{inviteCode}/members").path("post").path("description").asText())
                 .contains("출발지 이름 공통 안내")
-                .contains("departure.name");
+                .doesNotContain("departure.name")
+                .doesNotContain("departure.address");
         assertThat(guestExamples.size()).isEqualTo(exampleNames.size());
         assertThat(memberExamples.size()).isEqualTo(exampleNames.size());
         assertThat(exampleNames).allSatisfy(exampleName -> {

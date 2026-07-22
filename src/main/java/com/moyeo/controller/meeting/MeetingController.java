@@ -757,7 +757,6 @@ public class MeetingController {
             description = """
                     **출발지 이름 공통 안내**
                     장소 조율이 포함된 `SCHEDULE_AND_PLACE` 또는 `PLACE_ONLY` 모임에서는 `departure`를 입력합니다.
-                    이때 `departure.name`은 선택 입력(nullable)이며, 생략하면 장소 현황 응답에서 `departure.address`를 표시합니다.
 
                     모임 생성 응답의 inviteCode를 경로 변수에 넣어, 해당 모임에 게스트 참여자를 생성합니다.<br>
                     닉네임, 비밀번호와 모임 유형에 맞는 일정 또는 출발지 정보를 한 번에 저장합니다.
@@ -959,7 +958,6 @@ public class MeetingController {
             description = """
                     **출발지 이름 공통 안내**
                     장소 조율이 포함된 `SCHEDULE_AND_PLACE` 또는 `PLACE_ONLY` 모임에서는 `departure`를 입력합니다.
-                    이때 `departure.name`은 선택 입력(nullable)이며, 생략하면 장소 현황 응답에서 `departure.address`를 표시합니다.
 
                     모임 생성 응답의 inviteCode를 경로 변수에 넣어 현재 로그인한 서비스 사용자를 모임 참여자로 생성합니다.<br>
                     회원 기본 닉네임과 다른 모임 안 표시 닉네임을 입력할 수 있습니다.
