@@ -111,6 +111,10 @@ The current meeting implementation covers the first milestone base flow.
 
 - `POST /api/meetings`
 - `POST /api/departure-places/searches`
+- `GET /api/me/places`
+- `POST /api/me/places`
+- `PATCH /api/me/places/{savedPlaceId}`
+- `DELETE /api/me/places/{savedPlaceId}`
 - `GET /api/meetings/invitations/{inviteCode}`
 - `GET /api/meetings/invitations/{inviteCode}/view`
 - `GET /api/meetings/invitations/{inviteCode}/view/schedules`
@@ -151,7 +155,7 @@ Not included yet:
 
 - Step-by-step meeting draft save
 - Actual travel-time-based place ranking and final place confirmation
-- Current-location lookup and saved departure-list management
+- Current-location lookup
 - Tmap/Tmap Transit integration
 - Persistent commercial-area data import and management
 - Voting/free-poll

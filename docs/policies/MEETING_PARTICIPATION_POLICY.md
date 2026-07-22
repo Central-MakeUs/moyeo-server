@@ -296,6 +296,25 @@ general best practice into domain policy.
   retention requirements before retaining real-user search history beyond MVP
   development.
 
+## Saved Member Places
+
+- An authenticated member may save a selected departure-place search candidate
+  as a personal place. Guests cannot use member saved-place APIs.
+- A saved place is a durable member-owned snapshot that is independent from
+  supplementary search history. It stores the member-entered alias and the
+  selected candidate's type, display name, addresses, and WGS84 coordinates.
+- The alias is required, contains 1 to 30 characters after trimming, and is the
+  only mutable place field. To replace the selected location snapshot, delete
+  the saved place and create a new one from a search result.
+- Saved places are returned newest first, with the ID as the stable tie-breaker.
+- Duplicate places are allowed. Do not add a uniqueness constraint for member,
+  address, coordinates, display name, or alias.
+- The current saved-place count is unlimited. A later confirmed limit must be
+  enforced in the application service and API error contract without requiring
+  a saved-place schema redesign.
+- Members may create, list, rename, and delete only their own saved places.
+  Access to another member's saved-place ID is returned as not found.
+
 ## Deferred Policies
 
 - TODO: After the MVP creation flow is stable, decide whether to remove the
@@ -303,7 +322,7 @@ general best practice into domain policy.
   direct-input flow.
 - TODO: Host departure modification after initial meeting creation remains
   deferred until the modification policy is confirmed.
-- GPS/current-location lookup, saved departure lists, and member departure CRUD are P1 or later client/domain work.
+- GPS/current-location lookup remains P1 or later client/domain work.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.
 - Participant password verification for re-entry or modification remains

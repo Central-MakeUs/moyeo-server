@@ -41,6 +41,25 @@ Table social_accounts {
   }
 }
 
+Table saved_places {
+  id bigint [pk, increment, note: "회원 저장 장소 ID"]
+  user_id bigint [not null, note: "장소를 저장한 서비스 사용자 ID"]
+  alias varchar(30) [not null, note: "회원이 입력한 장소 별칭"]
+  type varchar(20) [not null, note: "검색 결과 유형: STATION/ADDRESS/PLACE"]
+  display_name varchar(255) [not null, note: "검색 결과의 원본 표시명"]
+  address varchar(255) [not null, note: "대표 주소"]
+  road_address varchar(255) [note: "도로명주소"]
+  jibun_address varchar(255) [note: "지번주소"]
+  latitude decimal(18,15) [not null, note: "WGS84 위도"]
+  longitude decimal(18,15) [not null, note: "WGS84 경도"]
+  created_at datetime [not null, note: "장소 저장 일시"]
+  updated_at datetime [not null, note: "저장 장소 수정 일시"]
+
+  indexes {
+    (user_id, created_at, id) [name: "idx_saved_places_user_created"]
+  }
+}
+
 Table meetings {
   id bigint [pk, increment, note: "모임 ID"]
   host_user_id bigint [not null, note: "모임을 만든 방장 사용자 ID"]
@@ -150,6 +169,7 @@ Table departure_place_search_candidates {
 
 Ref fk_login_accounts_user: login_accounts.user_id - users.id
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
+Ref fk_saved_places_user: saved_places.user_id > users.id
 Ref fk_meetings_host_user: meetings.host_user_id > users.id
 Ref fk_meeting_schedule_candidates_meeting: meeting_schedule_candidates.meeting_id > meetings.id
 Ref fk_meeting_participants_meeting: meeting_participants.meeting_id > meetings.id
@@ -169,6 +189,8 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `login_accounts` stores local login credentials separately from the user profile.
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
+- `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
+- `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
 - `meetings` stores the first milestone meeting creation and invite code base.
 - `meetings.planning_type` stores the FAB-selected creation type: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
 - `meetings.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.

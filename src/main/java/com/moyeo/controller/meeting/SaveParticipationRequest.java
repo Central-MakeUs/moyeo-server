@@ -19,14 +19,14 @@ import java.util.List;
         INV-02 모임 참여 정보 저장 요청입니다.
         일정 조율 모임은 가능한 일정 슬롯을, 장소 조율 모임은 출발지와 이동수단을 저장합니다.
         이전에 저장한 일정 슬롯은 요청 값으로 전체 교체됩니다.
-        주소 검색, GPS 현재 위치 찾기, 저장된 출발지 목록은 정책과 화면 협의가 더 필요한 영역이라 이 요청에는 포함하지 않고,
-        클라이언트에서 선택이 완료된 출발지 스냅샷만 전달합니다.
+        주소 검색 또는 내 장소 목록에서 선택을 완료한 출발지 스냅샷을 클라이언트가 전달합니다.
+        GPS 현재 위치 찾기는 아직 지원하지 않습니다.
         """)
 public record SaveParticipationRequest(
         @Schema(description = "참여자의 일정 응답입니다. 일정 입력 유형에 맞는 필드 하나만 사용합니다.")
         @Valid ScheduleResponseRequest scheduleResponse,
 
-        @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수입니다. 현재 위치 찾기나 저장된 출발지 선택은 협의 후 확장 예정입니다.")
+        @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수이며, 주소 검색 또는 내 장소에서 선택한 값을 사용할 수 있습니다.")
         @Valid
         DepartureRequest departure
 ) {

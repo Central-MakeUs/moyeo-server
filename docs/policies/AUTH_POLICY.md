@@ -35,6 +35,8 @@ identity remain separated through `User`, `LoginAccount`, and `SocialAccount`.
   takes precedence and the invite code is ignored.
 - Invite-code access rejects an unknown invite code before calling the external
   search provider. It does not create or authenticate a guest participant.
+- Member saved-place create, list, rename, and delete APIs require a valid Access
+  JWT and do not accept meeting invite-code access.
 
 ## Development Test Accounts
 
