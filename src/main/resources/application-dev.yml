@@ -17,3 +17,6 @@ moyeo:
     secret: ${JWT_SECRET}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://moyeo-web.vercel.app,https://moyeo-dev.vercel.app,http://localhost:3000,http://localhost:5173}
+  oauth:
+    apple:
+      redirect-uri: ${APPLE_REDIRECT_URI:https://moyeo-dev.vercel.app/auth/callback/apple}

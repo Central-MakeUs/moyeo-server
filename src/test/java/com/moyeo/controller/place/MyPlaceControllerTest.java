@@ -2,6 +2,7 @@ package com.moyeo.controller.place;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.departure.DeparturePlaceType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +35,9 @@ class MyPlaceControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private TestMemberFactory testMemberFactory;
 
     @Test
     void savedPlaceApisRequireMemberAuthentication() throws Exception {
@@ -182,18 +186,7 @@ class MyPlaceControllerTest {
     }
 
     private String signupAndGetAccessToken(String loginId) throws Exception {
-        String response = mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "loginId", loginId,
-                                "password", "password123!",
-                                "nickname", loginId
-                        ))))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        return objectMapper.readTree(response).get("accessToken").asText();
+        return testMemberFactory.createAccessToken(loginId);
     }
 
     private String bearer(String accessToken) {

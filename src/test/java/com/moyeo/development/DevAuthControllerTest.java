@@ -47,6 +47,7 @@ class DevAuthControllerTest {
                 .getContentAsString();
 
         AuthResponse authResponse = objectMapper.readValue(response, DevAuthTokensResponse.class).userOne();
-        assertThat(jwtTokenProvider.parse(authResponse.accessToken()).nickname()).isEqualTo("개발 사용자 1");
+        assertThat(jwtTokenProvider.parse(authResponse.accessToken()).userId())
+                .isEqualTo(authResponse.user().id());
     }
 }

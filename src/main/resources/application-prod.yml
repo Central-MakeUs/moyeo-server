@@ -15,3 +15,6 @@ logging:
 moyeo:
   jwt:
     secret: ${JWT_SECRET}
+  oauth:
+    apple:
+      redirect-uri: ${APPLE_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/apple}

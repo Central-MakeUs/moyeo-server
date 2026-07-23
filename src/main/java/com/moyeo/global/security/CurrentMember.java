@@ -9,4 +9,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CurrentMember {
     boolean required() default true;
+
+    boolean onboardingRequired() default true;
 }

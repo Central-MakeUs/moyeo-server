@@ -11,4 +11,8 @@ public record AuthenticatedMember(
     public static AuthenticatedMember from(User user, boolean registered) {
         return new AuthenticatedMember(user.getId(), user.getNickname(), registered);
     }
+
+    public boolean onboardingCompleted() {
+        return nickname != null;
+    }
 }

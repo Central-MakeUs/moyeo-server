@@ -1,6 +1,7 @@
 package com.moyeo.controller.departure;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.controller.meeting.CreateMeetingRequest;
 import com.moyeo.controller.meeting.SaveParticipationRequest;
 import com.moyeo.departure.DeparturePlaceSearchService;
@@ -39,6 +40,9 @@ class DeparturePlaceSearchControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private TestMemberFactory testMemberFactory;
 
     @Test
     void searchResponseIncludesSelectedCandidateCoordinates() {
@@ -182,18 +186,7 @@ class DeparturePlaceSearchControllerTest {
     }
 
     private String signupAndGetAccessToken(String loginId) throws Exception {
-        String response = mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "loginId", loginId,
-                                "password", "password123!",
-                                "nickname", "departure-search"
-                        ))))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        return objectMapper.readTree(response).get("accessToken").asText();
+        return testMemberFactory.createAccessToken(loginId);
     }
 
     private String createMeetingAndGetInviteCode(String accessToken) throws Exception {

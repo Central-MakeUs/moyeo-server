@@ -50,7 +50,6 @@ public class JwtTokenProvider {
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", String.valueOf(member.userId()));
-        payload.put("nickname", member.nickname());
         payload.put("role", ROLE_USER);
         payload.put("iat", now.getEpochSecond());
         payload.put("exp", expiresAt.getEpochSecond());
@@ -95,7 +94,6 @@ public class JwtTokenProvider {
 
         return new JwtClaims(
                 parseUserId(requireString(payload, "sub")),
-                requireString(payload, "nickname"),
                 role
         );
     }

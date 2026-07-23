@@ -1,9 +1,9 @@
 package com.moyeo.controller.auth;
 
+import com.moyeo.auth.apple.AppleLoginService;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
-import com.moyeo.service.member.MemberAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,101 +13,60 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Auth", description = "회원가입, 로그인, 현재 사용자 조회 API")
+@Tag(name = "Auth", description = "소셜 로그인 및 현재 사용자 조회 API")
 public class AuthController {
 
-    private final MemberAuthService memberAuthService;
+    private final AppleLoginService appleLoginService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthController(MemberAuthService memberAuthService, JwtTokenProvider jwtTokenProvider) {
-        this.memberAuthService = memberAuthService;
+    public AuthController(AppleLoginService appleLoginService, JwtTokenProvider jwtTokenProvider) {
+        this.appleLoginService = appleLoginService;
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    @PostMapping("/signup")
-    @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping("/apple")
     @Operation(
-            summary = "일반 회원가입",
+            summary = "Apple 로그인",
             description = """
-                    로그인 ID, 비밀번호, 닉네임으로 회원가입하고 Access Token을 발급합니다.<br>
-                    <ul>
-                      <li>현재 MVP에서는 회원가입 성공 시 즉시 로그인된 것으로 보고 Access Token을 함께 반환합니다.</li>
-                      <li>회원 기본 닉네임은 전역 고유값이 아니며, 모임 안 표시 닉네임은 참여자 기준으로 별도 관리합니다.</li>
-                    </ul>
+                    프론트가 Apple GET 콜백에서 받은 일회용 code와 로그인 요청 전에 만든 nonce를 전달합니다.
+                    서버가 Apple과 code를 교환하고 사용자 정보를 검증한 뒤 Moyeo Access Token을 발급합니다.
+                    최초 로그인도 즉시 가입 처리되며 nickname은 null, onboardingCompleted는 false로 반환됩니다.
                     """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "회원가입 성공"),
+            @ApiResponse(responseCode = "200", description = "Apple 로그인 및 Access Token 발급 성공"),
             @ApiResponse(
                     responseCode = "400",
-                    description = "요청값 검증 실패",
+                    description = "code 또는 nonce 요청값 검증 실패",
                     content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "code": "COMMON_VALIDATION_FAILED",
-                              "status": 400
-                            }
-                            """))
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "이미 사용 중인 로그인 ID",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "code": "DUPLICATE_LOGIN_ID",
-                              "status": 409
-                            }
-                            """))
-            )
-    })
-    public AuthResponse signup(@Valid @RequestBody SignupRequest request) {
-        AuthenticatedMember member = memberAuthService.registerLocal(
-                request.loginId(),
-                request.password(),
-                request.nickname()
-        );
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
-    }
-
-    @PostMapping("/login")
-    @Operation(
-            summary = "일반 로그인",
-            description = "로그인 ID와 비밀번호로 로그인하고 Access Token을 발급합니다. 이후 보호된 API는 `Authorization: Bearer {accessToken}` 헤더를 사용합니다."
-    )
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "로그인 성공"),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "요청값 검증 실패",
-                    content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "code": "COMMON_VALIDATION_FAILED",
-                              "status": 400
-                            }
+                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
                             """))
             ),
             @ApiResponse(
                     responseCode = "401",
-                    description = "로그인 ID 또는 비밀번호 불일치",
+                    description = "code가 유효하지 않거나 만료·재사용됐거나 Apple 응답 검증 실패",
                     content = @Content(examples = @ExampleObject(value = """
-                            {
-                              "code": "INVALID_LOGIN_CREDENTIALS",
-                              "status": 401
-                            }
+                            { "code": "SOCIAL_LOGIN_FAILED", "status": 401 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Apple 로그인 서비스의 일시적 장애 또는 서버 설정 미완료",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
                             """))
             )
     })
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        AuthenticatedMember member = memberAuthService.loginLocal(request.loginId(), request.password());
+    public AuthResponse loginApple(@Valid @RequestBody AppleLoginRequest request) {
+        AuthenticatedMember member = appleLoginService.login(request.code(), request.nonce());
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 
@@ -130,7 +89,10 @@ public class AuthController {
                             """))
             )
     })
-    public AuthUserResponse me(@Parameter(hidden = true) @CurrentMember AuthenticatedMember member) {
+    public AuthUserResponse me(
+            @Parameter(hidden = true)
+            @CurrentMember(onboardingRequired = false) AuthenticatedMember member
+    ) {
         return AuthUserResponse.from(member);
     }
 }

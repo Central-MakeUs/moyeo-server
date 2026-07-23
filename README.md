@@ -2,7 +2,7 @@
 
 CMC 모여(Moyeo) 프로젝트의 Spring Boot 기반 MVP 백엔드 서버입니다.
 
-현재 서버는 기본 실행 환경, health check, Swagger/OpenAPI, 공통 오류 응답, 회원/로그인 기반 구조, dev 배포 환경을 포함합니다.
+현재 서버는 기본 실행 환경, health check, Swagger/OpenAPI, 공통 오류 응답, 소셜 로그인 기반 구조, dev 배포 환경을 포함합니다.
 
 ## Tech Stack
 
@@ -81,11 +81,14 @@ Dev Server:
 
 ## Current Auth APIs
 
-The current auth implementation is a temporary MVP base.
-
-- `POST /api/auth/signup`
-- `POST /api/auth/login`
+- `POST /api/auth/apple`
 - `GET /api/auth/me`
+- `PUT /api/users/me/onboarding`
+
+일반 ID/비밀번호 회원가입·로그인 API는 제공하지 않습니다. Apple 최초 로그인
+성공 시 사용자를 즉시 생성하고 Access JWT를 반환하며, 닉네임 등록 전 응답은
+`nickname: null`, `onboardingCompleted: false`입니다. 닉네임 등록 전에는 현재
+사용자 조회와 온보딩 API 외의 회원 API가 `403 ONBOARDING_REQUIRED`를 반환합니다.
 
 When the `local` or `dev` profile is active, the server creates these idempotent test
 accounts and exposes one token endpoint:
@@ -93,7 +96,7 @@ accounts and exposes one token endpoint:
 - `POST /api/auth/dev/tokens`
 
 The endpoint requires no request body and returns the Access JWT responses for
-`dev-user-1` and `dev-user-2`. It is not registered in the `prod` profile.
+two fixed direct users. It is not registered in the `prod` profile.
 
 Login responses include an Access JWT.
 Protected APIs use the `Authorization: Bearer {accessToken}` header.
@@ -102,8 +105,8 @@ Not included yet:
 
 - Refresh Token
 - Logout
-- Kakao/Apple OAuth integration
-- Guest participant authentication
+- Kakao login
+- Social account linking
 
 ## Current Meeting APIs
 
@@ -205,9 +208,20 @@ DB_USERNAME
 DB_PASSWORD
 JWT_SECRET
 CORS_ALLOWED_ORIGINS
+APPLE_OAUTH_ENABLED
+APPLE_CLIENT_ID
+APPLE_TEAM_ID
+APPLE_KEY_ID
+APPLE_PRIVATE_KEY_BASE64
+APPLE_REDIRECT_URI
 KAKAO_LOCAL_REST_API_KEY
 MEETING_COVER_S3_BUCKET
 ```
+
+Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
+`APPLE_OAUTH_ENABLED=true`로 지정합니다. `.p8` 개인키는 파일 전체를 Base64로
+인코딩한 값만 `APPLE_PRIVATE_KEY_BASE64`에 저장하며 원문과 실제 값은 커밋하거나
+로그에 출력하지 않습니다.
 
 `KAKAO_LOCAL_REST_API_KEY` is the Kakao Local REST API key used only by the
 server for departure place search.

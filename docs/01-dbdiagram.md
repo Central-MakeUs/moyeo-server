@@ -8,23 +8,10 @@
 ```dbml
 Table users {
   id bigint [pk, increment, note: "서비스 사용자 ID"]
-  nickname varchar(30) [not null, note: "사용자 기본 닉네임. 전역 고유값이 아님"]
+  nickname varchar(30) [note: "사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료"]
   created_at datetime [not null, note: "사용자 생성 일시"]
   updated_at datetime [not null, note: "사용자 정보 수정 일시"]
   deleted_at datetime [note: "사용자 탈퇴/삭제 일시. null이면 활성 상태"]
-}
-
-Table login_accounts {
-  id bigint [pk, increment, note: "로컬 로그인 계정 ID"]
-  user_id bigint [not null, unique, note: "연결된 서비스 사용자 ID"]
-  login_id varchar(50) [not null, unique, note: "로그인에 사용하는 고유 ID"]
-  password_hash varchar(100) [not null, note: "BCrypt로 해시한 비밀번호"]
-  created_at datetime [not null, note: "로컬 로그인 계정 생성 일시"]
-
-  indexes {
-    login_id [unique, name: "uk_login_accounts_login_id"]
-    user_id [unique, name: "uk_login_accounts_user_id"]
-  }
 }
 
 Table social_accounts {
@@ -167,7 +154,6 @@ Table departure_place_search_candidates {
   }
 }
 
-Ref fk_login_accounts_user: login_accounts.user_id - users.id
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
 Ref fk_saved_places_user: saved_places.user_id > users.id
 Ref fk_meetings_host_user: meetings.host_user_id > users.id
@@ -186,9 +172,11 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 ## Notes
 
 - `users` is the service user table.
-- `login_accounts` stores local login credentials separately from the user profile.
+- `users.nickname` is null only while a newly registered social user has not
+  completed nickname onboarding. A separate onboarding flag is not stored.
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
+- Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
 - `meetings` stores the first milestone meeting creation and invite code base.

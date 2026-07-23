@@ -3,7 +3,6 @@ package com.moyeo.development;
 import com.moyeo.controller.auth.AuthResponse;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
-import com.moyeo.service.member.MemberAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,11 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Development Auth", description = "local 및 dev 프로필에서만 제공되는 테스트 계정 인증 API")
 class DevAuthController {
 
-    private final MemberAuthService memberAuthService;
+    private final DevTestAccountService devTestAccountService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    DevAuthController(MemberAuthService memberAuthService, JwtTokenProvider jwtTokenProvider) {
-        this.memberAuthService = memberAuthService;
+    DevAuthController(DevTestAccountService devTestAccountService, JwtTokenProvider jwtTokenProvider) {
+        this.devTestAccountService = devTestAccountService;
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
@@ -37,7 +36,7 @@ class DevAuthController {
     }
 
     private AuthResponse issueToken(DevTestAccount account) {
-        AuthenticatedMember member = account.login(memberAuthService);
+        AuthenticatedMember member = devTestAccountService.getOrCreate(account);
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 }

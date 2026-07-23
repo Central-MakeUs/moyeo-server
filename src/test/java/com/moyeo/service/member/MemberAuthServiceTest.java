@@ -3,7 +3,6 @@ package com.moyeo.service.member;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
-import com.moyeo.repository.member.LoginAccountRepository;
 import com.moyeo.repository.member.SocialAccountRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -11,26 +10,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.password.PasswordEncoder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
-@Import({MemberAuthService.class, TestPasswordEncoderConfig.class})
+@Import({MemberAuthService.class, MemberOnboardingService.class})
 class MemberAuthServiceTest {
 
     @Autowired
     private MemberAuthService memberAuthService;
 
     @Autowired
-    private LoginAccountRepository loginAccountRepository;
+    private MemberOnboardingService memberOnboardingService;
 
     @Autowired
     private SocialAccountRepository socialAccountRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -39,131 +34,68 @@ class MemberAuthServiceTest {
     private EntityManager entityManager;
 
     @Test
-    void registerLocalCreatesUserAndHashedPassword() {
-        AuthenticatedMember member = memberAuthService.registerLocal("moyeo", "password123!", "모여");
+    void socialLoginCreatesPendingUserOnFirstLogin() {
+        AuthenticatedMember member = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
 
         assertThat(member.userId()).isNotNull();
-        assertThat(member.nickname()).isEqualTo("모여");
+        assertThat(member.nickname()).isNull();
+        assertThat(member.onboardingCompleted()).isFalse();
         assertThat(member.registered()).isTrue();
-
-        var loginAccount = loginAccountRepository.findByLoginId("moyeo").orElseThrow();
-        assertThat(loginAccount.getPasswordHash()).isNotEqualTo("password123!");
-        assertThat(passwordEncoder.matches("password123!", loginAccount.getPasswordHash())).isTrue();
+        assertThat(socialAccountRepository.findByProviderAndProviderUserId(AuthProvider.APPLE, "apple-123"))
+                .get()
+                .extracting(account -> account.getEmail())
+                .isNull();
     }
 
     @Test
-    void registerLocalRejectsDuplicatedLoginId() {
-        memberAuthService.registerLocal("moyeo", "password123!", "모여");
-
-        assertThatThrownBy(() -> memberAuthService.registerLocal("moyeo", "password123!", "중복"))
-                .isInstanceOfSatisfying(MoyeoException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.DUPLICATE_LOGIN_ID)
-                );
-    }
-
-    @Test
-    void loginLocalReturnsExistingUser() {
-        AuthenticatedMember registered = memberAuthService.registerLocal("moyeo", "password123!", "모여");
-
-        AuthenticatedMember loggedIn = memberAuthService.loginLocal("moyeo", "password123!");
+    void socialLoginReturnsSameUserForSameProviderSubject() {
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
+        AuthenticatedMember loggedIn = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
 
         assertThat(loggedIn.userId()).isEqualTo(registered.userId());
         assertThat(loggedIn.registered()).isFalse();
     }
 
     @Test
-    void loginLocalRejectsWrongPassword() {
-        memberAuthService.registerLocal("moyeo", "password123!", "모여");
+    void differentProvidersCreateSeparateUsersWithoutEmailMerge() {
+        AuthenticatedMember apple = memberAuthService.loginSocial(AuthProvider.APPLE, "same-person");
+        AuthenticatedMember kakao = memberAuthService.loginSocial(AuthProvider.KAKAO, "same-person");
 
-        assertThatThrownBy(() -> memberAuthService.loginLocal("moyeo", "wrong-password"))
-                .isInstanceOfSatisfying(MoyeoException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS)
-                );
+        assertThat(kakao.userId()).isNotEqualTo(apple.userId());
     }
 
     @Test
-    void loginLocalRejectsSoftDeletedUser() {
-        AuthenticatedMember member = memberAuthService.registerLocal("deleted", "password123!", "deleted");
-        softDeleteUser(member.userId());
-
-        assertThatThrownBy(() -> memberAuthService.loginLocal("deleted", "password123!"))
-                .isInstanceOfSatisfying(MoyeoException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS)
-                );
-    }
-
-    @Test
-    void registerLocalAllowsDuplicatedNickname() {
-        AuthenticatedMember first = memberAuthService.registerLocal("moyeo1", "password123!", "현우");
-        AuthenticatedMember second = memberAuthService.registerLocal("moyeo2", "password123!", "현우");
-
-        assertThat(second.userId()).isNotEqualTo(first.userId());
-        assertThat(second.nickname()).isEqualTo("현우");
-    }
-
-    @Test
-    void loginLocalRejectsUnknownLoginId() {
-        assertThatThrownBy(() -> memberAuthService.loginLocal("unknown", "password123!"))
-                .isInstanceOfSatisfying(MoyeoException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS)
-                );
-    }
-
-    @Test
-    void loginSocialCreatesUserOnFirstLogin() {
-        AuthenticatedMember member = memberAuthService.loginSocial(
-                AuthProvider.KAKAO,
-                "kakao-123",
-                "user@example.com",
-                "카카오"
-        );
-
-        assertThat(member.userId()).isNotNull();
-        assertThat(member.nickname()).isEqualTo("카카오");
-        assertThat(member.registered()).isTrue();
-        assertThat(socialAccountRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "kakao-123"))
-                .isPresent();
-    }
-
-    @Test
-    void loginSocialReturnsExistingUser() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(
-                AuthProvider.APPLE,
-                "apple-123",
-                "user@example.com",
-                "애플"
-        );
-
-        AuthenticatedMember loggedIn = memberAuthService.loginSocial(
-                AuthProvider.APPLE,
-                "apple-123",
-                "changed@example.com",
-                "변경"
-        );
-
-        assertThat(loggedIn.userId()).isEqualTo(registered.userId());
-        assertThat(loggedIn.nickname()).isEqualTo("애플");
-        assertThat(loggedIn.registered()).isFalse();
-    }
-
-    @Test
-    void loginSocialRejectsSoftDeletedUser() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(
-                AuthProvider.KAKAO,
-                "deleted-kakao-123",
-                "user@example.com",
-                "deleted"
-        );
+    void socialLoginRejectsSoftDeletedUser() {
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple");
         softDeleteUser(registered.userId());
 
-        assertThatThrownBy(() -> memberAuthService.loginSocial(
-                AuthProvider.KAKAO,
-                "deleted-kakao-123",
-                "changed@example.com",
-                "changed"
-        ))
+        assertThatThrownBy(() -> memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple"))
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
-                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS)
+                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
+                );
+    }
+
+    @Test
+    void onboardingIsIdempotentForSameNickname() {
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "onboarding-apple");
+
+        AuthenticatedMember completed = memberOnboardingService.complete(registered.userId(), "모여");
+        AuthenticatedMember retried = memberOnboardingService.complete(registered.userId(), "모여");
+
+        assertThat(completed.nickname()).isEqualTo("모여");
+        assertThat(retried.nickname()).isEqualTo("모여");
+        assertThat(retried.onboardingCompleted()).isTrue();
+    }
+
+    @Test
+    void onboardingRejectsDifferentNicknameAfterCompletion() {
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "completed-apple");
+        memberOnboardingService.complete(registered.userId(), "모여");
+
+        assertThatThrownBy(() -> memberOnboardingService.complete(registered.userId(), "다른 이름"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.ONBOARDING_ALREADY_COMPLETED)
                 );
     }
 

@@ -5,21 +5,68 @@
 
 ## Identity Model
 
-AUTH-001: Service identity, local credential identity, and social provider
-identity remain separated through `User`, `LoginAccount`, and `SocialAccount`.
+AUTH-001: Production authentication is social-login only. Service identity and
+social provider identity remain separated through `User` and `SocialAccount`.
 
 - Keep `User` as the service user identity.
-- Keep local login credentials in `LoginAccount` instead of storing password data
-  directly on `User`.
+- Do not provide a general login ID/password signup or login API.
 - Keep social provider identities in `SocialAccount` using
   `provider + providerUserId`.
 - `providerUserId` is the provider-issued user identifier, not CI/DI.
+- Never merge users automatically by email. Different providers create separate
+  users unless an already authenticated user explicitly links another provider
+  through a future account-linking feature.
 - Do not store CI/DI unless a separate human decision, consent policy, and
   security policy are documented.
 
+## Social Login
+
+AUTH-003: The frontend receives the provider callback and sends the one-time
+authorization code to the backend. The backend exchanges and verifies the code,
+then issues a Moyeo Access JWT.
+
+- Apple login uses `POST /api/auth/apple` with `{ "code": "...", "nonce": "..." }`.
+- The frontend Apple callback uses GET and does not request Apple name or email
+  scopes.
+- Identify Apple users only by Apple's verified `sub` claim.
+- The backend must verify the Apple identity token signature, issuer, audience,
+  expiration, subject, and nonce.
+- Keep the exact Apple redirect URI in server environment configuration. Do not
+  accept it from the API request.
+- Treat an invalid, expired, or already-used authorization code as
+  `401 SOCIAL_LOGIN_FAILED`.
+- Treat an Apple timeout or service failure as
+  `503 SOCIAL_LOGIN_UNAVAILABLE`.
+- Do not expose provider error bodies, tokens, keys, or internal verification
+  details to clients.
+
+## Nickname Onboarding
+
+AUTH-004: A verified social identity is registered immediately, before nickname
+entry.
+
+- On the first successful social login, create `User` and `SocialAccount`
+  immediately with `users.nickname = null`, and issue an Access JWT.
+- `nickname != null` is the single source of truth for onboarding completion.
+  Do not add a separate `is_onboarded` column.
+- Authentication responses return both nullable `nickname` and derived
+  `onboardingCompleted`.
+- A user whose onboarding is incomplete may call only `GET /api/auth/me` and
+  the first-nickname registration API among member-authenticated APIs.
+- Other member-authenticated APIs return `403 ONBOARDING_REQUIRED` until the
+  nickname is registered. Guest and invite-code flows remain unchanged.
+- `PUT /api/users/me/onboarding` registers the initial nickname.
+- Repeating that request with the same nickname is idempotent and returns
+  success. A different nickname after completion returns
+  `409 ONBOARDING_ALREADY_COMPLETED`.
+- Do not delete a user merely because nickname onboarding was abandoned.
+  A later social login resumes the same user.
+- Nickname editing is a separate future feature and is not provided by the
+  onboarding API.
+
 ## Access JWT
 
-- Use an Access JWT for local signup/login responses and protected API
+- Use an Access JWT for successful social login and protected API
   authentication.
 - Validate Access JWT format, signature, required headers and claims, expiration,
   and required JWT configuration at startup.
@@ -41,8 +88,9 @@ identity remain separated through `User`, `LoginAccount`, and `SocialAccount`.
 ## Development Test Accounts
 
 AUTH-002: The `local` and `dev` profiles may seed a fixed, idempotent pair of
-local test accounts to support frontend development. This initialization must
-not run in the `prod` profile.
+direct `User` records to support frontend development. They are not general
+login accounts, do not have passwords, and this initialization must not run in
+the `prod` profile.
 
 - The test-account token endpoint is available only when the `local` or `dev`
   profile is active.

@@ -22,8 +22,8 @@ public class User {
     @Comment("서비스 사용자 ID")
     private Long id;
 
-    @Column(nullable = false, length = 30)
-    @Comment("사용자 기본 닉네임. 전역 고유값이 아님")
+    @Column(length = 30)
+    @Comment("사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료")
     private String nickname;
 
     @Column(nullable = false)
@@ -44,6 +44,10 @@ public class User {
         this.nickname = nickname;
     }
 
+    public static User pendingOnboarding() {
+        return new User(null);
+    }
+
     @PrePersist
     void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -62,6 +66,10 @@ public class User {
 
     public String getNickname() {
         return nickname;
+    }
+
+    public boolean isOnboardingCompleted() {
+        return nickname != null;
     }
 
     public LocalDateTime getCreatedAt() {

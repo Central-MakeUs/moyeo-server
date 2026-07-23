@@ -81,6 +81,10 @@ can select a valid flow without translating a display label.
   `@Parameter(hidden = true)`.
 - For APIs that require the current user, show the Bearer token requirement in
   Swagger instead of exposing the internal current-user parameter.
+- For member APIs that require completed nickname onboarding, add the shared
+  `403 ONBOARDING_REQUIRED` response and example to Swagger/OpenAPI. APIs that
+  intentionally allow pending users, such as current-user lookup and nickname
+  onboarding, do not expose that response.
 - If the current-user injection structure changes later and Swagger no longer
   exposes these internal parameters, this temporary documentation rule and
   related annotations may be removed.

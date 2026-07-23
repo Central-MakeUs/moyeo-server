@@ -14,19 +14,33 @@ public enum AuthenticationErrorCode implements ErrorCode {
             "Authentication required",
             "Authentication is required."
     ),
-    INVALID_LOGIN_CREDENTIALS(
+    SOCIAL_LOGIN_FAILED(
             HttpStatus.UNAUTHORIZED,
-            "INVALID_LOGIN_CREDENTIALS",
-            "invalid-login-credentials",
-            "Invalid login credentials",
-            "Login ID or password is invalid."
+            "SOCIAL_LOGIN_FAILED",
+            "social-login-failed",
+            "Social login failed",
+            "The social login request could not be verified."
     ),
-    DUPLICATE_LOGIN_ID(
+    SOCIAL_LOGIN_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "SOCIAL_LOGIN_UNAVAILABLE",
+            "social-login-unavailable",
+            "Social login unavailable",
+            "The social login provider is temporarily unavailable."
+    ),
+    ONBOARDING_REQUIRED(
+            HttpStatus.FORBIDDEN,
+            "ONBOARDING_REQUIRED",
+            "onboarding-required",
+            "Onboarding required",
+            "Nickname onboarding must be completed first."
+    ),
+    ONBOARDING_ALREADY_COMPLETED(
             HttpStatus.CONFLICT,
-            "DUPLICATE_LOGIN_ID",
-            "duplicate-login-id",
-            "Duplicate login ID",
-            "The login ID is already in use."
+            "ONBOARDING_ALREADY_COMPLETED",
+            "onboarding-already-completed",
+            "Onboarding already completed",
+            "Nickname onboarding has already been completed."
     );
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";

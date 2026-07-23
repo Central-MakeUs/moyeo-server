@@ -4,14 +4,20 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.headers.Header;
+import io.swagger.v3.oas.models.media.Content;
+import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import com.moyeo.global.security.CurrentMember;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springdoc.core.customizers.OperationCustomizer;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 public class OpenApiConfig {
@@ -53,6 +59,29 @@ public class OpenApiConfig {
                     new SecurityRequirement().addList("bearerAuth"),
                     new SecurityRequirement()
             ));
+        };
+    }
+
+    @Bean
+    public OperationCustomizer onboardingRequiredResponseCustomizer() {
+        return (operation, handlerMethod) -> {
+            boolean onboardingRequired = java.util.Arrays.stream(handlerMethod.getMethodParameters())
+                    .map(parameter -> parameter.getParameterAnnotation(CurrentMember.class))
+                    .anyMatch(annotation -> annotation != null && annotation.onboardingRequired());
+            if (!onboardingRequired || operation.getResponses().containsKey("403")) {
+                return operation;
+            }
+
+            operation.getResponses().addApiResponse("403", new ApiResponse()
+                    .description("닉네임 온보딩 미완료")
+                    .content(new Content().addMediaType(
+                            "application/problem+json",
+                            new MediaType().example(Map.of(
+                                    "code", "ONBOARDING_REQUIRED",
+                                    "status", 403
+                            ))
+                    )));
+            return operation;
         };
     }
 }

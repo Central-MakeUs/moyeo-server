@@ -1,6 +1,7 @@
 package com.moyeo.controller.meeting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.service.meeting.MeetingService;
@@ -68,6 +69,9 @@ class MeetingControllerTest {
 
     @Autowired
     private MeetingService meetingService;
+
+    @Autowired
+    private TestMemberFactory testMemberFactory;
 
     @MockitoBean
     private MeetingCoverStorage meetingCoverStorage;
@@ -1429,19 +1433,7 @@ class MeetingControllerTest {
     }
 
     private String signupAndGetAccessToken(String loginId, String nickname) throws Exception {
-        String response = mockMvc.perform(post("/api/auth/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "loginId", loginId,
-                                "password", "password123!",
-                                "nickname", nickname
-                        ))))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        return objectMapper.readTree(response).get("accessToken").asText();
+        return testMemberFactory.createAccessToken(nickname);
     }
 
     private String createMeetingAndGetInviteCode(String loginId, String nickname, int maxParticipants) throws Exception {

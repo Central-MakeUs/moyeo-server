@@ -59,8 +59,17 @@ public class CurrentMemberArgumentResolver implements HandlerMethodArgumentResol
 
         try {
             JwtClaims claims = jwtTokenProvider.parse(token);
-            return memberAuthService.findAuthenticatedMember(claims.userId());
-        } catch (IllegalArgumentException | MoyeoException exception) {
+            AuthenticatedMember member = memberAuthService.findAuthenticatedMember(claims.userId());
+            if (currentMember != null && currentMember.onboardingRequired() && !member.onboardingCompleted()) {
+                throw new MoyeoException(AuthenticationErrorCode.ONBOARDING_REQUIRED);
+            }
+            return member;
+        } catch (MoyeoException exception) {
+            if (exception.getErrorCode() == AuthenticationErrorCode.ONBOARDING_REQUIRED) {
+                throw exception;
+            }
+            throw authenticationRequired();
+        } catch (IllegalArgumentException exception) {
             throw authenticationRequired();
         }
     }

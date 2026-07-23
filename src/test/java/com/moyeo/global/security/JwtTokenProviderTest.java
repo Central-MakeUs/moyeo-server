@@ -37,7 +37,6 @@ class JwtTokenProviderTest {
         JwtClaims claims = jwtTokenProvider.parse(token);
 
         assertThat(claims.userId()).isEqualTo(1L);
-        assertThat(claims.nickname()).isEqualTo("moyeo");
         assertThat(claims.role()).isEqualTo("USER");
     }
 
@@ -83,7 +82,7 @@ class JwtTokenProviderTest {
     @Test
     void parseRejectsMissingRequiredClaim() {
         Map<String, Object> payload = validPayload();
-        payload.remove("nickname");
+        payload.remove("role");
         String token = createToken(validHeader(), payload);
 
         assertThatThrownBy(() -> jwtTokenProvider.parse(token))
@@ -122,7 +121,6 @@ class JwtTokenProviderTest {
     private Map<String, Object> validPayload() {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", "1");
-        payload.put("nickname", "moyeo");
         payload.put("role", "USER");
         payload.put("iat", Instant.now(clock).getEpochSecond());
         payload.put("exp", Instant.now(clock).plusSeconds(3600).getEpochSecond());

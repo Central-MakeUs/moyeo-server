@@ -1,17 +1,13 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.AuthProvider;
-import com.moyeo.domain.member.LoginAccount;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
-import com.moyeo.repository.member.LoginAccountRepository;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
-import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,54 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberAuthService {
 
     private final UserRepository userRepository;
-    private final LoginAccountRepository loginAccountRepository;
     private final SocialAccountRepository socialAccountRepository;
-    private final PasswordEncoder passwordEncoder;
 
     public MemberAuthService(
             UserRepository userRepository,
-            LoginAccountRepository loginAccountRepository,
-            SocialAccountRepository socialAccountRepository,
-            PasswordEncoder passwordEncoder
+            SocialAccountRepository socialAccountRepository
     ) {
         this.userRepository = userRepository;
-        this.loginAccountRepository = loginAccountRepository;
         this.socialAccountRepository = socialAccountRepository;
-        this.passwordEncoder = passwordEncoder;
-    }
-
-    @Transactional
-    public AuthenticatedMember registerLocal(String loginId, String rawPassword, String nickname) {
-        if (loginAccountRepository.existsByLoginId(loginId)) {
-            throw new MoyeoException(AuthenticationErrorCode.DUPLICATE_LOGIN_ID);
-        }
-
-        try {
-            User user = userRepository.save(new User(nickname));
-            LoginAccount loginAccount = new LoginAccount(user, loginId, passwordEncoder.encode(rawPassword));
-            loginAccountRepository.saveAndFlush(loginAccount);
-            return AuthenticatedMember.from(user, true);
-        } catch (DataIntegrityViolationException exception) {
-            throw new MoyeoException(AuthenticationErrorCode.DUPLICATE_LOGIN_ID);
-        }
-    }
-
-    public AuthenticatedMember loginLocal(String loginId, String rawPassword) {
-        LoginAccount loginAccount = loginAccountRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS));
-
-        if (!passwordEncoder.matches(rawPassword, loginAccount.getPasswordHash())) {
-            throw new MoyeoException(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS);
-        }
-
-        return authenticatedLoginMember(loginAccount.getUser());
-    }
-
-    @Transactional
-    public void registerLocalIfMissing(String loginId, String rawPassword, String nickname) {
-        if (!loginAccountRepository.existsByLoginId(loginId)) {
-            registerLocal(loginId, rawPassword, nickname);
-        }
     }
 
     public AuthenticatedMember findAuthenticatedMember(Long userId) {
@@ -79,30 +35,26 @@ public class MemberAuthService {
     @Transactional
     public AuthenticatedMember loginSocial(
             AuthProvider provider,
-            String providerUserId,
-            String email,
-            String fallbackNickname
+            String providerUserId
     ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> authenticatedLoginMember(socialAccount.getUser()))
-                .orElseGet(() -> registerSocial(provider, providerUserId, email, fallbackNickname));
+                .orElseGet(() -> registerSocial(provider, providerUserId));
     }
 
     private AuthenticatedMember authenticatedLoginMember(User user) {
         if (user.getDeletedAt() != null) {
-            throw new MoyeoException(AuthenticationErrorCode.INVALID_LOGIN_CREDENTIALS);
+            throw new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED);
         }
         return AuthenticatedMember.from(user, false);
     }
 
     private AuthenticatedMember registerSocial(
             AuthProvider provider,
-            String providerUserId,
-            String email,
-            String fallbackNickname
+            String providerUserId
     ) {
-        User user = userRepository.save(new User(fallbackNickname));
-        SocialAccount socialAccount = new SocialAccount(user, provider, providerUserId, email);
+        User user = userRepository.save(User.pendingOnboarding());
+        SocialAccount socialAccount = new SocialAccount(user, provider, providerUserId, null);
         socialAccountRepository.save(socialAccount);
         return AuthenticatedMember.from(user, true);
     }

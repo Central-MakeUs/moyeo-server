@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-07-09
+> Last reviewed: 2026-07-23
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -53,8 +53,8 @@ Finalize decision
 - MySQL dev/prod datasource configuration
 - GitHub Actions CI/CD
 - Common error response base
-- Member/login base entities
-- Temporary local login API and Access JWT issue flow
+- Member/social-account base entities
+- Social login and Access JWT issue flow
 - First milestone meeting creation, invite-code lookup, and guest participation flow
 - AWS dev deployment
 
@@ -87,6 +87,11 @@ Finalize decision
 - Dev server temporarily uses Hibernate `ddl-auto=update` while the MVP schema
   is still changing quickly. Revisit this before real user data matters and move
   to explicit migrations or `validate`.
+- Hibernate `ddl-auto=update` does not remove tables for deleted entities. The
+  former `login_accounts` table may therefore remain physically in an existing
+  dev database after social-only authentication is deployed, although the
+  application no longer reads or writes it. Remove it only through a reviewed,
+  backed-up one-time database operation.
 - Amazon RDS MySQL is not the current default dev database. Keep any remaining
   RDS notes as legacy/reference only.
 
@@ -213,7 +218,7 @@ current RFC 9457-based error response policy, and documented working rules.
 - Repository mirrors: push verified `main` changes to both `origin` and `cmc`
   while the personal and CMC repositories are maintained together.
 
-### Apple Sign In Preparation (2026-07-13)
+### Sign in with Apple
 
 - The existing Moyeo App ID is enabled as the primary App ID for Sign in with
   Apple.
@@ -222,9 +227,19 @@ current RFC 9457-based error response policy, and documented working rules.
 - Apple Key material is stored only in the EC2 runtime `.env` as `APPLE_*`
   values; the downloaded `.p8` source file was removed from the server after
   its Base64 value was stored.
-- Apple OAuth is not implemented yet. The current Spring configuration and
-  Docker Compose file do not consume or pass through the `APPLE_*` values, so
-  this is preparation only and does not enable login by itself.
+- Required runtime names are `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`,
+  `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`, and
+  `APPLE_REDIRECT_URI`. Set `APPLE_OAUTH_ENABLED=true` only when all values are
+  ready; enabled configuration is validated at application startup.
+- The frontend receives the Apple GET callback and sends the one-time code and
+  nonce to the backend `POST /api/auth/apple` API.
+- The backend exchanges and verifies the code, identifies the user by Apple's
+  `sub`, and issues the Moyeo Access JWT.
+- The server callback URI is configured through `APPLE_REDIRECT_URI`; dev uses
+  `https://moyeo-dev.vercel.app/auth/callback/apple` and production uses
+  `https://moyeo-web.vercel.app/auth/callback/apple`.
+- Docker Compose passes Apple configuration from the EC2 runtime `.env` into
+  the application container. Apple secrets must never be committed or logged.
 
 ## Documentation Policy
 
