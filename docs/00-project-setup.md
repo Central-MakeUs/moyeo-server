@@ -87,6 +87,10 @@ Finalize decision
 - Dev server temporarily uses Hibernate `ddl-auto=update` while the MVP schema
   is still changing quickly. Revisit this before real user data matters and move
   to explicit migrations or `validate`.
+- Before deploying social login to an existing production database, back up the
+  target database and apply `scripts/db/2026-07-24-social-login.sql` so
+  `users.nickname` accepts the pending-onboarding null value. Production keeps
+  `ddl-auto=none`; the application does not run this SQL automatically.
 - Hibernate `ddl-auto=update` does not remove tables for deleted entities. The
   former `login_accounts` table may therefore remain physically in an existing
   dev database after social-only authentication is deployed, although the
@@ -238,6 +242,9 @@ current RFC 9457-based error response policy, and documented working rules.
 - The server callback URI is configured through `APPLE_REDIRECT_URI`; dev uses
   `https://moyeo-dev.vercel.app/auth/callback/apple` and production uses
   `https://moyeo-web.vercel.app/auth/callback/apple`.
+- The production profile allows `https://moyeo-web.vercel.app` through CORS by
+  default. Override it with `CORS_ALLOWED_ORIGINS` when the production frontend
+  domain changes.
 - Docker Compose passes Apple configuration from the EC2 runtime `.env` into
   the application container. Apple secrets must never be committed or logged.
 

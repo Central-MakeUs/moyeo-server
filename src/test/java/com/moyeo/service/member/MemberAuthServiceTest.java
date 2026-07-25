@@ -15,7 +15,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
-@Import({MemberAuthService.class, MemberOnboardingService.class})
+@Import({
+        MemberAuthService.class,
+        MemberOnboardingService.class,
+        SocialAccountRegistrationService.class
+})
 class MemberAuthServiceTest {
 
     @Autowired

@@ -223,6 +223,11 @@ Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
 인코딩한 값만 `APPLE_PRIVATE_KEY_BASE64`에 저장하며 원문과 실제 값은 커밋하거나
 로그에 출력하지 않습니다.
 
+기존 운영 DB에 소셜 로그인을 처음 배포하기 전에는 DB를 백업하고
+`scripts/db/2026-07-24-social-login.sql`을 1회 적용해야 합니다. 운영 프로필의
+기본 CORS 프론트 주소는 `https://moyeo-web.vercel.app`이며, 변경 시
+`CORS_ALLOWED_ORIGINS`로 덮어씁니다.
+
 `KAKAO_LOCAL_REST_API_KEY` is the Kakao Local REST API key used only by the
 server for departure place search.
 Keep the real key only in the runtime environment; do not add it to source code,

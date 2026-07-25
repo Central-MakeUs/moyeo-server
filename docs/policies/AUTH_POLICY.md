@@ -35,7 +35,8 @@ then issues a Moyeo Access JWT.
   accept it from the API request.
 - Treat an invalid, expired, or already-used authorization code as
   `401 SOCIAL_LOGIN_FAILED`.
-- Treat an Apple timeout or service failure as
+- Treat an Apple timeout, service failure, or provider response indicating
+  invalid server credentials or configuration as
   `503 SOCIAL_LOGIN_UNAVAILABLE`.
 - Do not expose provider error bodies, tokens, keys, or internal verification
   details to clients.
@@ -105,5 +106,5 @@ the `prod` profile.
   deployment URLs are decided.
 - Expose the `X-Trace-Id` response header so browser clients can correlate an
   API response with server logs.
-- If `CORS_ALLOWED_ORIGINS` exists in the EC2 runtime `.env`, it overrides the
-  default origins in `application-dev.yml`.
+- If `CORS_ALLOWED_ORIGINS` exists in the runtime environment, it overrides the
+  profile default origins in `application-dev.yml` or `application-prod.yml`.

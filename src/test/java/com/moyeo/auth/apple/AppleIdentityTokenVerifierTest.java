@@ -42,9 +42,7 @@ class AppleIdentityTokenVerifierTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(2048);
-        keyPair = keyPairGenerator.generateKeyPair();
+        keyPair = generateRsaKeyPair();
         publicJwk = new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
                 .keyID(KEY_ID)
                 .algorithm(JWSAlgorithm.RS256)
@@ -85,11 +83,70 @@ class AppleIdentityTokenVerifierTest {
     void rejectsExpiredIdentityToken() throws Exception {
         expectAppleJwks();
 
-        assertThatThrownBy(() -> verifier.verifyAndGetSubject(
-                identityToken("expected-nonce", NOW.minusSeconds(1)),
-                "expected-nonce"
-        )).isInstanceOfSatisfying(MoyeoException.class, exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
+        assertRejected(identityToken("expected-nonce", NOW.minusSeconds(1)));
+    }
+
+    @Test
+    void rejectsInvalidSignature() throws Exception {
+        expectAppleJwks();
+
+        assertRejected(identityToken(
+                "expected-nonce",
+                NOW.plusSeconds(300),
+                generateRsaKeyPair(),
+                "https://appleid.apple.com",
+                "com.moyeo.web",
+                "apple-user-sub"
+        ));
+    }
+
+    @Test
+    void rejectsInvalidIssuer() throws Exception {
+        expectAppleJwks();
+
+        assertRejected(identityToken(
+                "expected-nonce",
+                NOW.plusSeconds(300),
+                keyPair,
+                "https://attacker.example",
+                "com.moyeo.web",
+                "apple-user-sub"
+        ));
+    }
+
+    @Test
+    void rejectsInvalidAudience() throws Exception {
+        expectAppleJwks();
+
+        assertRejected(identityToken(
+                "expected-nonce",
+                NOW.plusSeconds(300),
+                keyPair,
+                "https://appleid.apple.com",
+                "other-client",
+                "apple-user-sub"
+        ));
+    }
+
+    @Test
+    void rejectsBlankSubject() throws Exception {
+        expectAppleJwks();
+
+        assertRejected(identityToken(
+                "expected-nonce",
+                NOW.plusSeconds(300),
+                keyPair,
+                "https://appleid.apple.com",
+                "com.moyeo.web",
+                ""
+        ));
+    }
+
+    private void assertRejected(String identityToken) {
+        assertThatThrownBy(() -> verifier.verifyAndGetSubject(identityToken, "expected-nonce"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
         );
     }
 
@@ -102,19 +159,43 @@ class AppleIdentityTokenVerifierTest {
     }
 
     private String identityToken(String nonce, Instant expiration) throws Exception {
+        return identityToken(
+                nonce,
+                expiration,
+                keyPair,
+                "https://appleid.apple.com",
+                "com.moyeo.web",
+                "apple-user-sub"
+        );
+    }
+
+    private String identityToken(
+            String nonce,
+            Instant expiration,
+            KeyPair signingKeyPair,
+            String issuer,
+            String audience,
+            String subject
+    ) throws Exception {
         SignedJWT signedJwt = new SignedJWT(
                 new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(KEY_ID).build(),
                 new JWTClaimsSet.Builder()
-                        .issuer("https://appleid.apple.com")
-                        .audience("com.moyeo.web")
-                        .subject("apple-user-sub")
+                        .issuer(issuer)
+                        .audience(audience)
+                        .subject(subject)
                         .claim("nonce", nonce)
                         .issueTime(Date.from(NOW))
                         .expirationTime(Date.from(expiration))
                         .build()
         );
-        signedJwt.sign(new RSASSASigner((RSAPrivateKey) keyPair.getPrivate()));
+        signedJwt.sign(new RSASSASigner((RSAPrivateKey) signingKeyPair.getPrivate()));
         return signedJwt.serialize();
+    }
+
+    private KeyPair generateRsaKeyPair() throws Exception {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+        keyPairGenerator.initialize(2048);
+        return keyPairGenerator.generateKeyPair();
     }
 
     private AppleOAuthProperties properties() {

@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +37,8 @@ class AppleTokenClientTest {
         tokenClient = new AppleTokenClient(
                 restClientBuilder.build(),
                 properties(),
-                clientSecretGenerator
+                clientSecretGenerator,
+                new ObjectMapper()
         );
     }
 
@@ -64,13 +66,41 @@ class AppleTokenClientTest {
     }
 
     @Test
-    void mapsProviderClientErrorToSocialLoginFailed() {
+    void mapsInvalidGrantToSocialLoginFailed() {
         server.expect(requestTo("https://appleid.apple.com/auth/token"))
-                .andRespond(withBadRequest());
+                .andRespond(withBadRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_grant\"}"));
 
         assertThatThrownBy(() -> tokenClient.exchange("invalid-code"))
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
+                );
+    }
+
+    @Test
+    void mapsInvalidClientToSocialLoginUnavailable() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withBadRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_client\"}"));
+
+        assertThatThrownBy(() -> tokenClient.exchange("code"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
+                );
+    }
+
+    @Test
+    void mapsUnrecognizedClientErrorToSocialLoginUnavailable() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withBadRequest());
+
+        assertThatThrownBy(() -> tokenClient.exchange("code"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
                 );
     }
 

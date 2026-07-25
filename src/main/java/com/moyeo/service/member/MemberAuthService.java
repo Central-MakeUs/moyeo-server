@@ -1,13 +1,13 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.AuthProvider;
-import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,13 +17,16 @@ public class MemberAuthService {
 
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
+    private final SocialAccountRegistrationService socialAccountRegistrationService;
 
     public MemberAuthService(
             UserRepository userRepository,
-            SocialAccountRepository socialAccountRepository
+            SocialAccountRepository socialAccountRepository,
+            SocialAccountRegistrationService socialAccountRegistrationService
     ) {
         this.userRepository = userRepository;
         this.socialAccountRepository = socialAccountRepository;
+        this.socialAccountRegistrationService = socialAccountRegistrationService;
     }
 
     public AuthenticatedMember findAuthenticatedMember(Long userId) {
@@ -32,14 +35,13 @@ public class MemberAuthService {
         return AuthenticatedMember.from(user, false);
     }
 
-    @Transactional
     public AuthenticatedMember loginSocial(
             AuthProvider provider,
             String providerUserId
     ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> authenticatedLoginMember(socialAccount.getUser()))
-                .orElseGet(() -> registerSocial(provider, providerUserId));
+                .orElseGet(() -> registerOrRecoverConcurrentLogin(provider, providerUserId));
     }
 
     private AuthenticatedMember authenticatedLoginMember(User user) {
@@ -49,13 +51,15 @@ public class MemberAuthService {
         return AuthenticatedMember.from(user, false);
     }
 
-    private AuthenticatedMember registerSocial(
+    private AuthenticatedMember registerOrRecoverConcurrentLogin(
             AuthProvider provider,
             String providerUserId
     ) {
-        User user = userRepository.save(User.pendingOnboarding());
-        SocialAccount socialAccount = new SocialAccount(user, provider, providerUserId, null);
-        socialAccountRepository.save(socialAccount);
-        return AuthenticatedMember.from(user, true);
+        try {
+            return socialAccountRegistrationService.register(provider, providerUserId);
+        } catch (DataIntegrityViolationException exception) {
+            return socialAccountRegistrationService.findRegistered(provider, providerUserId)
+                    .orElseThrow(() -> exception);
+        }
     }
 }
