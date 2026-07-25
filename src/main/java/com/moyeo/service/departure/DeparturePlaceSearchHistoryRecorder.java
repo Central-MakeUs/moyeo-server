@@ -3,6 +3,8 @@ package com.moyeo.service.departure;
 import com.moyeo.departure.DeparturePlaceSearchService.DeparturePlaceSearchResult;
 import com.moyeo.domain.departure.DeparturePlaceSearch;
 import com.moyeo.domain.departure.DeparturePlaceSearchProvider;
+import com.moyeo.global.error.MoyeoException;
+import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.member.UserRepository;
@@ -29,7 +31,8 @@ public class DeparturePlaceSearchHistoryRecorder {
     @Transactional
     public void recordMemberSearch(Long userId, DeparturePlaceSearchResult result) {
         DeparturePlaceSearch search = DeparturePlaceSearch.member(
-                userRepository.getReferenceById(userId),
+                userRepository.findActiveByIdForUpdate(userId)
+                        .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED)),
                 result.keyword(),
                 DeparturePlaceSearchProvider.KAKAO_LOCAL,
                 result.executionPath()

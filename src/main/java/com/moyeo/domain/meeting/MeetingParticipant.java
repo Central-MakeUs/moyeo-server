@@ -188,6 +188,10 @@ public class MeetingParticipant {
         return participantType;
     }
 
+    public boolean isWithdrawn() {
+        return user != null && user.getDeletedAt() != null;
+    }
+
     public String getDepartureName() {
         return departureName;
     }

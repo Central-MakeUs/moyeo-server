@@ -4,6 +4,7 @@ import com.moyeo.controller.auth.AuthUserResponse;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberOnboardingService;
+import com.moyeo.service.member.MemberWithdrawalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,9 +14,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -24,9 +28,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberOnboardingService memberOnboardingService;
+    private final MemberWithdrawalService memberWithdrawalService;
 
-    public MemberController(MemberOnboardingService memberOnboardingService) {
+    public MemberController(
+            MemberOnboardingService memberOnboardingService,
+            MemberWithdrawalService memberWithdrawalService
+    ) {
         this.memberOnboardingService = memberOnboardingService;
+        this.memberWithdrawalService = memberWithdrawalService;
     }
 
     @PutMapping("/onboarding")
@@ -68,5 +77,33 @@ public class MemberController {
             @Valid @RequestBody CompleteOnboardingRequest request
     ) {
         return AuthUserResponse.from(memberOnboardingService.complete(member.userId(), request.nickname()));
+    }
+
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            summary = "회원 탈퇴",
+            description = """
+                    현재 회원을 탈퇴 처리하고 본인이 생성한 모든 모임과 개인 소유 데이터를 삭제합니다.
+                    다른 회원이 생성한 모임의 참여 기록은 유지되며 참가자 조회에서 탈퇴 회원으로 표시됩니다.
+                    닉네임 온보딩을 완료하지 않은 회원도 탈퇴할 수 있습니다.
+                    """
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "회원 탈퇴 성공"),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token 없음, 만료 또는 유효하지 않음",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                            """))
+            )
+    })
+    public void withdraw(
+            @Parameter(hidden = true)
+            @CurrentMember(onboardingRequired = false) AuthenticatedMember member
+    ) {
+        memberWithdrawalService.withdraw(member.userId());
     }
 }

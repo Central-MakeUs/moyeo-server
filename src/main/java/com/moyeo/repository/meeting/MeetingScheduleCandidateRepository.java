@@ -8,4 +8,6 @@ import java.util.List;
 public interface MeetingScheduleCandidateRepository extends JpaRepository<MeetingScheduleCandidate, Long> {
 
     List<MeetingScheduleCandidate> findAllByMeetingIdOrderByCandidateDateAsc(Long meetingId);
+
+    void deleteAllByMeetingId(Long meetingId);
 }

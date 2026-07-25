@@ -86,6 +86,39 @@ entry.
 - Member saved-place create, list, rename, and delete APIs require a valid Access
   JWT and do not accept meeting invite-code access.
 
+## Account Withdrawal
+
+AUTH-005: An authenticated service user may withdraw through
+`DELETE /api/users/me`, including while nickname onboarding is incomplete.
+
+- Withdrawal returns `204 No Content` without a response body.
+- Mark the service user as withdrawn with `users.deleted_at` and clear the
+  service-level nickname. Keep the `User` row only because participation records
+  in meetings hosted by other users must retain a stable withdrawn-user
+  reference.
+- Remove the user's social-account links, saved places, and member departure
+  place search history. Removing the social-account link allows a later social
+  login with the same provider identity to register a new service user.
+- Serialize withdrawal with meeting creation, member meeting join, saved-place
+  create/rename/delete, and member search-history writes by locking the active
+  `User` row first. When one of these flows also requires another row lock, keep
+  the order `User` first, followed by the affected resource, to avoid opposite
+  lock ordering.
+- Every authenticated request resolves the JWT subject against an active
+  `User`. After withdrawal commits, previously issued Access JWTs for the old
+  user return `401 AUTHENTICATION_REQUIRED`; a refresh token, token blacklist,
+  or Redis is not required for the current implementation.
+- Delete every meeting hosted by the withdrawing user, including its
+  participants, schedule candidates and availabilities, meeting-linked departure
+  search history, and stored cover image.
+- Store a durable cover-cleanup task in the withdrawal transaction before
+  deleting a hosted meeting. Attempt S3 deletion immediately after commit and
+  retain failed tasks for scheduled retry so a transient failure or process
+  restart does not lose the cleanup target.
+- Keep the user's participant row and submitted participation snapshots in
+  meetings hosted by other users. Participant responses expose whether the
+  linked service user has withdrawn.
+
 ## Development Test Accounts
 
 AUTH-002: The `local` and `dev` profiles may seed a fixed, idempotent pair of

@@ -128,6 +128,18 @@ general best practice into domain policy.
 - Guest participants currently have nullable `user_id`, so multiple guest
   participants remain allowed.
 - Current participant behavior is defined for `HOST`, `MEMBER`, and `GUEST`.
+- When a service user withdraws, delete meetings hosted by that user. In meetings
+  hosted by another user, retain the withdrawing user's `MEMBER` participant row,
+  meeting-scoped nickname, schedule availability, and departure snapshot.
+- Participant-list responses expose `withdrawn = true` when the linked
+  `User.deletedAt` is present. Guest participants always return
+  `withdrawn = false`.
+- Temporary MVP policy: withdrawn member participants remain included in
+  participant counts, participant-limit checks, schedule availability
+  aggregation, and place recommendation calculations.
+- POLICY_UNDEFINED: Product confirmation is still required on whether withdrawn
+  member participants should later be excluded from those counts and
+  calculations.
 
 ## Invite and Guest Join
 

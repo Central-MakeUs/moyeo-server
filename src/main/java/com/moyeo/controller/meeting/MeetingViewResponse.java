@@ -79,14 +79,18 @@ public record MeetingViewResponse(
             String nickname,
 
             @Schema(description = "참여자 유형", example = "HOST", allowableValues = {"HOST", "MEMBER", "GUEST"})
-            String participantType
+            String participantType,
+
+            @Schema(description = "연결된 서비스 사용자의 탈퇴 여부. 게스트는 항상 false입니다.", example = "false")
+            boolean withdrawn
     ) {
 
         private static ParticipantResponse from(MeetingViewResult.Participant participant) {
             return new ParticipantResponse(
                     participant.participantId(),
                     participant.nickname(),
-                    participant.participantType()
+                    participant.participantType(),
+                    participant.withdrawn()
             );
         }
     }

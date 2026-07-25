@@ -8,7 +8,7 @@
 ```dbml
 Table users {
   id bigint [pk, increment, note: "서비스 사용자 ID"]
-  nickname varchar(30) [note: "사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료"]
+  nickname varchar(30) [note: "사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료 또는 탈퇴 상태"]
   created_at datetime [not null, note: "사용자 생성 일시"]
   updated_at datetime [not null, note: "사용자 정보 수정 일시"]
   deleted_at datetime [note: "사용자 탈퇴/삭제 일시. null이면 활성 상태"]
@@ -71,6 +71,18 @@ Table meetings {
 
   indexes {
     invite_code [unique, name: "uk_meetings_invite_code"]
+  }
+}
+
+Table meeting_cover_cleanup_tasks {
+  id bigint [pk, increment, note: "모임 커버 이미지 정리 작업 ID"]
+  object_key varchar(500) [not null, unique, note: "삭제할 S3 객체 키"]
+  attempt_count int [not null, note: "S3 삭제 실패 횟수"]
+  created_at datetime [not null, note: "정리 작업 생성 일시"]
+  last_attempted_at datetime [note: "마지막 S3 삭제 시도 일시"]
+
+  indexes {
+    object_key [unique, name: "uk_meeting_cover_cleanup_tasks_object_key"]
   }
 }
 
@@ -172,8 +184,10 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 ## Notes
 
 - `users` is the service user table.
-- `users.nickname` is null only while a newly registered social user has not
-  completed nickname onboarding. A separate onboarding flag is not stored.
+- `users.nickname` is null while a newly registered social user has not
+  completed nickname onboarding or after the user has withdrawn. Active-user
+  lookup distinguishes these states through `users.deleted_at`; a separate
+  onboarding flag is not stored.
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - Social accounts are never merged automatically by email.
@@ -186,6 +200,9 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
 - `meetings.place_recommendation_strategy` stores the recommendation strategy when `place_mode` is `RECOMMEND`; the current MVP creation flow stores `MIDDLE_POINT` server-side, while retaining the column for a later product-approved strategy change.
 - `meetings.cover_image_key` stores the S3 object key for the resized optional meeting cover image; the original upload is not retained.
+- `meeting_cover_cleanup_tasks` keeps account-withdrawal cover deletions durable
+  across S3 failures and process restarts. A successful idempotent S3 deletion
+  removes the task; failed attempts remain for scheduled retry.
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.

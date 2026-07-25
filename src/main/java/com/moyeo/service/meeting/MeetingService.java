@@ -13,6 +13,7 @@ import com.moyeo.domain.meeting.ScheduleMode;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
+import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
@@ -105,8 +106,7 @@ public class MeetingService {
             SaveParticipationCommand participationCommand,
             MultipartFile coverImage
     ) {
-        User hostUser = userRepository.findById(hostMember.userId())
-                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        User hostUser = findActiveUserForUpdate(hostMember.userId());
 
         Meeting meeting = new Meeting(
                 hostUser,
@@ -240,7 +240,8 @@ public class MeetingService {
                 .map(participant -> new MeetingViewResult.Participant(
                         participant.getId(),
                         participant.getNickname(),
-                        participant.getParticipantType().name()
+                        participant.getParticipantType().name(),
+                        participant.isWithdrawn()
                 ))
                 .toList();
 
@@ -351,6 +352,7 @@ public class MeetingService {
                         participant.getId(),
                         participant.getNickname(),
                         participant.getParticipantType().name(),
+                        participant.isWithdrawn(),
                         participant.getDepartureName() != null
                                 ? participant.getDepartureName()
                                 : participant.getDepartureAddress(),
@@ -449,8 +451,7 @@ public class MeetingService {
             String nickname,
             SaveParticipationCommand participationCommand
     ) {
-        User user = userRepository.findById(member.userId())
-                .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
+        User user = findActiveUserForUpdate(member.userId());
         String normalizedNickname = normalizeRequired(nickname);
 
         Meeting meeting = prepareMemberJoinableMeeting(inviteCode);
@@ -516,6 +517,11 @@ public class MeetingService {
     private Meeting findMeetingByInviteCode(String inviteCode) {
         return meetingRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_INVITATION_NOT_FOUND));
+    }
+
+    private User findActiveUserForUpdate(Long userId) {
+        return userRepository.findActiveByIdForUpdate(userId)
+                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
     }
 
     private Meeting findMeetingByInviteCodeForUpdate(String inviteCode) {

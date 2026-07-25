@@ -91,6 +91,11 @@ Finalize decision
   target database and apply `scripts/db/2026-07-24-social-login.sql` so
   `users.nickname` accepts the pending-onboarding null value. Production keeps
   `ddl-auto=none`; the application does not run this SQL automatically.
+- Before deploying account withdrawal to production, apply
+  `scripts/db/2026-07-25-meeting-cover-cleanup.sql`. The cleanup task table keeps
+  failed S3 cover deletions retryable after a process restart.
+- Account-withdrawal cover cleanup retries every five minutes by default.
+  `MEETING_COVER_CLEANUP_RETRY_DELAY` may override the Spring duration value.
 - Hibernate `ddl-auto=update` does not remove tables for deleted entities. The
   former `login_accounts` table may therefore remain physically in an existing
   dev database after social-only authentication is deployed, although the

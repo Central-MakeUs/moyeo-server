@@ -23,7 +23,7 @@ public class User {
     private Long id;
 
     @Column(length = 30)
-    @Comment("사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료")
+    @Comment("사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료 또는 탈퇴 상태")
     private String nickname;
 
     @Column(nullable = false)
@@ -70,6 +70,11 @@ public class User {
 
     public boolean isOnboardingCompleted() {
         return nickname != null;
+    }
+
+    public void withdraw() {
+        this.nickname = null;
+        this.deletedAt = LocalDateTime.now();
     }
 
     public LocalDateTime getCreatedAt() {

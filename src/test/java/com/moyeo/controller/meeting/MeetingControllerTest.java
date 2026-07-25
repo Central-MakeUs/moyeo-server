@@ -1022,10 +1022,38 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.respondedParticipantCount").doesNotExist())
                 .andExpect(jsonPath("$.responseRate").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].participantType").value("HOST"))
+                .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
                 .andExpect(jsonPath("$.participants[1].nickname").value("guest-view"))
+                .andExpect(jsonPath("$.participants[1].withdrawn").value(false))
                 .andExpect(jsonPath("$.participants[0].scheduleResponded").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].placeResponded").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].responseCompleted").doesNotExist());
+    }
+
+    @Test
+    void withdrawnMemberRemainsMarkedInMeetingAndPlaceViews() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("withdraw-view-host", "withdraw-view-host", 6);
+        String memberToken = signupAndGetAccessToken("withdraw-view-member", "withdraw-view-member");
+        joinMember(inviteCode, memberToken, "withdrawn-snapshot");
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
+                .andExpect(jsonPath("$.participants[1].nickname").value("withdrawn-snapshot"))
+                .andExpect(jsonPath("$.participants[1].participantType").value("MEMBER"))
+                .andExpect(jsonPath("$.participants[1].withdrawn").value(true));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
+                .andExpect(jsonPath("$.participants[1].nickname").value("withdrawn-snapshot"))
+                .andExpect(jsonPath("$.participants[1].withdrawn").value(true));
     }
 
     @Test
@@ -1058,6 +1086,18 @@ class MeetingControllerTest {
                         "$.components.schemas.ScheduleViewResponse.properties.scheduleInputType.enum",
                         containsInAnyOrder("DATE_ONLY", "DATE_AND_TIME", "NONE")
                 ));
+    }
+
+    @Test
+    void swaggerDocumentsWithdrawnParticipantFields() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.components.schemas.ParticipantResponse.properties.withdrawn.type"
+                ).value("boolean"))
+                .andExpect(jsonPath(
+                        "$.components.schemas.ParticipantDepartureResponse.properties.withdrawn.type"
+                ).value("boolean"));
     }
 
     @Test

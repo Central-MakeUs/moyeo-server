@@ -11,4 +11,6 @@ public interface SavedPlaceRepository extends JpaRepository<SavedPlace, Long> {
     List<SavedPlace> findAllByUserIdOrderByCreatedAtDescIdDesc(Long userId);
 
     Optional<SavedPlace> findByIdAndUserId(Long id, Long userId);
+
+    void deleteAllByUserId(Long userId);
 }

@@ -1,7 +1,9 @@
 package com.moyeo.service.place;
 
+import com.moyeo.domain.member.User;
 import com.moyeo.domain.place.SavedPlace;
 import com.moyeo.global.error.MoyeoException;
+import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.place.SavedPlaceRepository;
 import org.springframework.stereotype.Service;
@@ -23,7 +25,7 @@ public class SavedPlaceService {
     @Transactional
     public SavedPlaceResult save(Long userId, SavePlaceCommand command) {
         SavedPlace place = new SavedPlace(
-                userRepository.getReferenceById(userId),
+                findActiveUserForUpdate(userId),
                 command.alias(),
                 command.type(),
                 command.displayName(),
@@ -45,6 +47,7 @@ public class SavedPlaceService {
 
     @Transactional
     public SavedPlaceResult rename(Long userId, Long savedPlaceId, String alias) {
+        findActiveUserForUpdate(userId);
         SavedPlace place = findOwnedPlace(userId, savedPlaceId);
         place.rename(alias);
         savedPlaceRepository.flush();
@@ -53,7 +56,13 @@ public class SavedPlaceService {
 
     @Transactional
     public void delete(Long userId, Long savedPlaceId) {
+        findActiveUserForUpdate(userId);
         savedPlaceRepository.delete(findOwnedPlace(userId, savedPlaceId));
+    }
+
+    private User findActiveUserForUpdate(Long userId) {
+        return userRepository.findActiveByIdForUpdate(userId)
+                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
     }
 
     private SavedPlace findOwnedPlace(Long userId, Long savedPlaceId) {

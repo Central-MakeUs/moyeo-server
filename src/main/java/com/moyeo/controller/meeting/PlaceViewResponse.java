@@ -67,6 +67,9 @@ public record PlaceViewResponse(
             @Schema(description = "참여자 유형", example = "HOST", allowableValues = {"HOST", "MEMBER", "GUEST"})
             String participantType,
 
+            @Schema(description = "연결된 서비스 사용자의 탈퇴 여부. 게스트는 항상 false입니다.", example = "false")
+            boolean withdrawn,
+
             @Schema(description = "출발지 표시 이름입니다. 요청에서 name을 생략하면 출발지 주소를 반환합니다.", example = "회사")
             String departureName,
 
@@ -82,6 +85,7 @@ public record PlaceViewResponse(
                     participant.participantId(),
                     participant.nickname(),
                     participant.participantType(),
+                    participant.withdrawn(),
                     participant.departureName(),
                     participant.departureAddress(),
                     participant.transportationMode()

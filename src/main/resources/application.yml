@@ -68,6 +68,7 @@ moyeo:
   meeting-cover:
     bucket: ${MEETING_COVER_S3_BUCKET:}
     region: ${AWS_REGION:ap-northeast-2}
+    cleanup-retry-delay: ${MEETING_COVER_CLEANUP_RETRY_DELAY:5m}
     max-upload-size: 5MB
     max-width: 1280
     max-height: 720

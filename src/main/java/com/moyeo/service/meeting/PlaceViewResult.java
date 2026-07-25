@@ -23,6 +23,7 @@ public record PlaceViewResult(
             Long participantId,
             String nickname,
             String participantType,
+            boolean withdrawn,
             String departureName,
             String departureAddress,
             String transportationMode
