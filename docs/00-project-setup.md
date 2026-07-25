@@ -208,11 +208,15 @@ current RFC 9457-based error response policy, and documented working rules.
 - Serve the dev API through Caddy at `https://3-35-119-70.sslip.io`; keep ports
   `80` and `443` public for certificate issuance, HTTP-to-HTTPS redirection, and
   HTTPS traffic.
-- Keep dev API port `8080` temporarily public while the frontend migrates from
-  the former direct HTTP endpoint.
-- TODO: After the dev frontend deployment and end-to-end Apple login are
-  verified against HTTPS, remove public security-group access to `8080` and
-  stop publishing the application container port to the public host.
+- Keep dev API port `8080` temporarily public while the frontend application
+  migrates from the former direct HTTP endpoint.
+- Apple login has been verified end to end from the dev Vercel origin through
+  `https://3-35-119-70.sslip.io`, including browser CORS preflight, Apple code
+  exchange, existing-user lookup, onboarding state, and Moyeo Access JWT
+  issuance.
+- TODO: After the frontend application is wired to and deployed with the HTTPS
+  API base URL, remove public security-group access to `8080` and stop
+  publishing the application container port to the public host.
 - Keep SSH port `22` restricted to the developer IP.
 - Keep MySQL port `3306` private and accessible only from the EC2 application
   path.
@@ -272,6 +276,9 @@ current RFC 9457-based error response policy, and documented working rules.
   nonce to the backend `POST /api/auth/apple` API.
 - The backend exchanges and verifies the code, identifies the user by Apple's
   `sub`, and issues the Moyeo Access JWT.
+- Apple login backend implementation and HTTPS integration verification are
+  complete. The remaining work is frontend UI integration with the HTTPS API
+  base URL.
 - The server callback URI is configured through `APPLE_REDIRECT_URI`; dev uses
   `https://moyeo-dev.vercel.app/auth/callback/apple` and production uses
   `https://moyeo-web.vercel.app/auth/callback/apple`.

@@ -74,9 +74,13 @@ Dev Server:
 The former direct endpoint `http://3.35.119.70:8080` remains temporarily
 available while the dev frontend moves to HTTPS.
 
-TODO: After the frontend deployment and end-to-end Apple login have been
-verified against the HTTPS base URL, remove public port `8080` from the EC2
-security group and stop publishing the app container port to the public host.
+Apple login has been verified end to end from the dev Vercel origin through the
+HTTPS API, including browser CORS preflight and Access JWT issuance. Frontend UI
+integration remains.
+
+TODO: After the frontend application is deployed with the HTTPS API base URL,
+remove public port `8080` from the EC2 security group and stop publishing the
+app container port to the public host.
 
 `GET /health` response:
 
@@ -203,8 +207,8 @@ Security policy for dev:
 - HTTPS ports `80` and `443` are public for Caddy certificate issuance,
   HTTP-to-HTTPS redirection, and API traffic.
 - API port `8080` remains temporarily public for frontend migration and direct
-  troubleshooting. Remove this exception after the dev frontend and Apple login
-  use the HTTPS endpoint successfully.
+  troubleshooting. Remove this exception after the dev frontend application is
+  deployed with the verified HTTPS endpoint.
 - SSH port `22` is restricted to the developer IP.
 - MySQL port `3306` is not publicly exposed.
 - MySQL may be bound to EC2 localhost `127.0.0.1:3306` for DBeaver access through SSH tunneling.
