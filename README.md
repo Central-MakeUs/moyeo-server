@@ -93,11 +93,12 @@ app container port to the public host.
 ## Current Auth APIs
 
 - `POST /api/auth/apple`
+- `POST /api/auth/kakao`
 - `GET /api/auth/me`
 - `PUT /api/users/me/onboarding`
 
-일반 ID/비밀번호 회원가입·로그인 API는 제공하지 않습니다. Apple 최초 로그인
-성공 시 사용자를 즉시 생성하고 Access JWT를 반환하며, 닉네임 등록 전 응답은
+일반 ID/비밀번호 회원가입·로그인 API는 제공하지 않습니다. Apple 또는 카카오 최초
+로그인 성공 시 사용자를 즉시 생성하고 Access JWT를 반환하며, 닉네임 등록 전 응답은
 `nickname: null`, `onboardingCompleted: false`입니다. 닉네임 등록 전에는 현재
 사용자 조회와 온보딩 API 외의 회원 API가 `403 ONBOARDING_REQUIRED`를 반환합니다.
 
@@ -116,7 +117,6 @@ Not included yet:
 
 - Refresh Token
 - Logout
-- Kakao login
 - Social account linking
 
 ## Current Meeting APIs
@@ -233,6 +233,10 @@ APPLE_TEAM_ID
 APPLE_KEY_ID
 APPLE_PRIVATE_KEY_BASE64
 APPLE_REDIRECT_URI
+KAKAO_OAUTH_ENABLED
+KAKAO_OAUTH_REST_API_KEY
+KAKAO_OAUTH_CLIENT_SECRET
+KAKAO_OAUTH_REDIRECT_URI
 KAKAO_LOCAL_REST_API_KEY
 MEETING_COVER_S3_BUCKET
 ```
@@ -249,6 +253,13 @@ Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
 `APPLE_OAUTH_ENABLED=true`로 지정합니다. `.p8` 개인키는 파일 전체를 Base64로
 인코딩한 값만 `APPLE_PRIVATE_KEY_BASE64`에 저장하며 원문과 실제 값은 커밋하거나
 로그에 출력하지 않습니다.
+
+카카오 로그인 활성화 시 `KAKAO_OAUTH_REST_API_KEY`,
+`KAKAO_OAUTH_CLIENT_SECRET`, 정확한 `KAKAO_OAUTH_REDIRECT_URI`를 설정하고
+`KAKAO_OAUTH_ENABLED=true`로 지정합니다. 프론트엔드는 콜백의 `state`를 검증한
+뒤 일회용 인가 코드만 `POST /api/auth/kakao`로 전달합니다. 로그인 설정은 장소
+검색용 `KAKAO_LOCAL_REST_API_KEY`와 이름을 분리하며, 실제 키와 시크릿은 런타임
+환경에만 저장합니다.
 
 기존 운영 DB에 소셜 로그인을 처음 배포하기 전에는 DB를 백업하고
 `scripts/db/2026-07-24-social-login.sql`을 1회 적용해야 합니다. 운영 프로필의

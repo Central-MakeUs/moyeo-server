@@ -288,6 +288,30 @@ current RFC 9457-based error response policy, and documented working rules.
 - Docker Compose passes Apple configuration from the EC2 runtime `.env` into
   the application container. Apple secrets must never be committed or logged.
 
+### Kakao Login
+
+- Kakao login uses the REST API authorization-code flow without OpenID Connect.
+- The dev redirect URI is
+  `https://moyeo-dev.vercel.app/auth/callback/kakao`. Register the production
+  redirect URI separately before enabling Kakao login in production.
+- The frontend generates a unique `state`, verifies the callback value, and
+  sends only the one-time authorization code to `POST /api/auth/kakao`.
+- The backend exchanges the code with the server-owned REST API key, client
+  secret, and exact redirect URI, then uses only the Kakao user-information
+  response `id` as `providerUserId`.
+- Required runtime names are `KAKAO_OAUTH_ENABLED`,
+  `KAKAO_OAUTH_REST_API_KEY`, `KAKAO_OAUTH_CLIENT_SECRET`, and
+  `KAKAO_OAUTH_REDIRECT_URI`. Set `KAKAO_OAUTH_ENABLED=true` only when all
+  values are ready.
+- Keep Kakao OAuth credentials separate from the
+  `KAKAO_LOCAL_REST_API_KEY` place-search configuration. Provider tokens and
+  secrets must never be committed, stored after login, or logged.
+- Backend implementation and automated verification are complete. Dev HTTPS
+  integration verification requires the runtime OAuth values and a fresh
+  one-time authorization code.
+- Provider-initiated unlink webhook behavior remains `POLICY_UNDEFINED` and is
+  not part of the current login implementation.
+
 ## Documentation Policy
 
 - Keep documentation minimal and useful.

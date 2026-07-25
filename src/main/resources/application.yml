@@ -41,6 +41,15 @@ moyeo:
       connect-timeout: 2s
       read-timeout: 3s
       jwks-cache-ttl: 1h
+    kakao:
+      enabled: ${KAKAO_OAUTH_ENABLED:false}
+      rest-api-key: ${KAKAO_OAUTH_REST_API_KEY:}
+      client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
+      redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:}
+      token-uri: https://kauth.kakao.com/oauth/token
+      user-info-uri: https://kapi.kakao.com/v2/user/me
+      connect-timeout: 2s
+      read-timeout: 3s
   cors:
     allowed-origins:
       - http://localhost:3000

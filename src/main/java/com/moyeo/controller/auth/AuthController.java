@@ -1,6 +1,7 @@
 package com.moyeo.controller.auth;
 
 import com.moyeo.auth.apple.AppleLoginService;
+import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
@@ -25,10 +26,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AppleLoginService appleLoginService;
+    private final KakaoLoginService kakaoLoginService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public AuthController(AppleLoginService appleLoginService, JwtTokenProvider jwtTokenProvider) {
+    public AuthController(
+            AppleLoginService appleLoginService,
+            KakaoLoginService kakaoLoginService,
+            JwtTokenProvider jwtTokenProvider
+    ) {
         this.appleLoginService = appleLoginService;
+        this.kakaoLoginService = kakaoLoginService;
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
@@ -67,6 +74,44 @@ public class AuthController {
     })
     public AuthResponse loginApple(@Valid @RequestBody AppleLoginRequest request) {
         AuthenticatedMember member = appleLoginService.login(request.code(), request.nonce());
+        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+    }
+
+    @PostMapping("/kakao")
+    @Operation(
+            summary = "카카오 로그인",
+            description = """
+                    프론트엔드가 카카오 GET 콜백의 state를 검증한 뒤 일회용 code를 전달합니다.
+                    서버가 카카오와 code를 교환하고 회원번호를 확인한 뒤 Moyeo Access Token을 발급합니다.
+                    최초 로그인도 즉시 가입 처리하며 nickname은 null, onboardingCompleted는 false로 반환합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "카카오 로그인 및 Access Token 발급 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "code 요청값 검증 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "code가 유효하지 않거나 만료 또는 재사용됨",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_FAILED", "status": 401 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "카카오 로그인 서비스의 일시적 장애 또는 서버 설정 미완료",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
+                            """))
+            )
+    })
+    public AuthResponse loginKakao(@Valid @RequestBody KakaoLoginRequest request) {
+        AuthenticatedMember member = kakaoLoginService.login(request.code());
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 

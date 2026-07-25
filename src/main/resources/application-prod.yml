@@ -20,3 +20,5 @@ moyeo:
   oauth:
     apple:
       redirect-uri: ${APPLE_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/apple}
+    kakao:
+      redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/kakao}

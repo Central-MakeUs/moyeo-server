@@ -175,6 +175,30 @@ class MemberWithdrawalControllerTest {
     }
 
     @Test
+    void kakaoUserCanRegisterAsNewUserAfterWithdrawal() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("withdraw-kakao");
+        Long withdrawnUserId = jwtTokenProvider.parse(accessToken).userId();
+        String providerUserId = "1234567890";
+        jdbcTemplate.update(
+                """
+                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
+                values (?, 'KAKAO', ?, null, current_timestamp)
+                """,
+                withdrawnUserId,
+                providerUserId
+        );
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isNoContent());
+
+        AuthenticatedMember reRegistered = memberAuthService.loginSocial(AuthProvider.KAKAO, providerUserId);
+        assertThat(reRegistered.userId()).isNotEqualTo(withdrawnUserId);
+        assertThat(reRegistered.onboardingCompleted()).isFalse();
+        assertThat(reRegistered.registered()).isTrue();
+    }
+
+    @Test
     void withdrawalRequiresAuthenticationAndIsDocumentedInSwagger() throws Exception {
         mockMvc.perform(delete("/api/users/me"))
                 .andExpect(status().isUnauthorized())

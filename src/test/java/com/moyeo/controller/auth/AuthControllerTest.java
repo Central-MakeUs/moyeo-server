@@ -2,6 +2,7 @@ package com.moyeo.controller.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.auth.apple.AppleLoginService;
+import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
@@ -53,6 +54,9 @@ class AuthControllerTest {
     @MockitoBean
     private AppleLoginService appleLoginService;
 
+    @MockitoBean
+    private KakaoLoginService kakaoLoginService;
+
     @Test
     void appleLoginReturnsPendingUserAndAccessToken() throws Exception {
         when(appleLoginService.login("apple-code", "nonce"))
@@ -103,6 +107,51 @@ class AuthControllerTest {
                                 "code", "",
                                 "nonce", ""
                         ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void kakaoLoginReturnsPendingUserAndAccessToken() throws Exception {
+        when(kakaoLoginService.login("kakao-code"))
+                .thenReturn(new AuthenticatedMember(200L, null, true));
+
+        String response = mockMvc.perform(post("/api/auth/kakao")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("code", "kakao-code"))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.user.id").value(200))
+                .andExpect(jsonPath("$.user.nickname").doesNotExist())
+                .andExpect(jsonPath("$.user.onboardingCompleted").value(false))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        AuthResponse authResponse = objectMapper.readValue(response, AuthResponse.class);
+        assertThat(jwtTokenProvider.parse(authResponse.accessToken()).userId()).isEqualTo(200L);
+    }
+
+    @Test
+    void kakaoLoginMapsVerificationFailure() throws Exception {
+        when(kakaoLoginService.login("invalid-code"))
+                .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
+
+        mockMvc.perform(post("/api/auth/kakao")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("code", "invalid-code"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
+    }
+
+    @Test
+    void kakaoLoginValidatesRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/kakao")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("code", ""))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
     }
@@ -175,11 +224,13 @@ class AuthControllerTest {
     }
 
     @Test
-    void swaggerDocumentsAppleOnboardingAndSharedOnboardingError() throws Exception {
+    void swaggerDocumentsSocialLoginOnboardingAndSharedOnboardingError() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$['paths']['/api/auth/apple']['post']['responses']['401']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/apple']['post']['responses']['503']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['401']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/onboarding']['put']['responses']['409']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/signup']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/auth/login']").doesNotExist())

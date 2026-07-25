@@ -38,6 +38,25 @@ then issues a Moyeo Access JWT.
 - Treat an Apple timeout, service failure, or provider response indicating
   invalid server credentials or configuration as
   `503 SOCIAL_LOGIN_UNAVAILABLE`.
+- Kakao login uses `POST /api/auth/kakao` with `{ "code": "..." }`.
+- The frontend must generate a unique `state` for each Kakao login request and
+  verify that the callback returns the same value before sending the code to the
+  backend.
+- Keep Kakao OpenID Connect disabled for the current flow. The backend exchanges
+  the code using the server-configured REST API key, client secret, and exact
+  redirect URI, then identifies the user only by the Kakao user-information
+  response `id`.
+- Do not request or store Kakao profile, email, CI, phone number, or other
+  additional consent information for the current login flow.
+- Treat an invalid, expired, or already-used Kakao authorization code, or an
+  invalid Kakao access token response, as `401 SOCIAL_LOGIN_FAILED`.
+- Treat a Kakao timeout, service failure, malformed provider response, or
+  invalid server credentials/configuration as
+  `503 SOCIAL_LOGIN_UNAVAILABLE`.
+- Do not store Kakao access or refresh tokens after the login request completes.
+- TODO(POLICY_UNDEFINED): Decide how provider-initiated Kakao unlink events are
+  handled before public launch. Moyeo-initiated account withdrawal remains
+  governed by AUTH-005.
 - Do not expose provider error bodies, tokens, keys, or internal verification
   details to clients.
 
