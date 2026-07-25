@@ -15,7 +15,7 @@ CMC 모여(Moyeo) 프로젝트의 Spring Boot 기반 MVP 백엔드 서버입니�
 - Springdoc OpenAPI
 - Spring Boot Actuator
 - JUnit 5
-- Docker, Docker Compose
+- Docker, Docker Compose, Caddy
 - AWS EC2, ECR, EC2 Docker Compose MySQL, Systems Manager
 - GitHub Actions
 
@@ -66,10 +66,17 @@ Local:
 
 Dev Server:
 
-- API Base URL: `http://3.35.119.70:8080`
-- Health Check: `http://3.35.119.70:8080/health`
-- Swagger UI: `http://3.35.119.70:8080/swagger-ui.html`
-- OpenAPI JSON: `http://3.35.119.70:8080/v3/api-docs`
+- API Base URL: `https://3-35-119-70.sslip.io`
+- Health Check: `https://3-35-119-70.sslip.io/health`
+- Swagger UI: `https://3-35-119-70.sslip.io/swagger-ui.html`
+- OpenAPI JSON: `https://3-35-119-70.sslip.io/v3/api-docs`
+
+The former direct endpoint `http://3.35.119.70:8080` remains temporarily
+available while the dev frontend moves to HTTPS.
+
+TODO: After the frontend deployment and end-to-end Apple login have been
+verified against the HTTPS base URL, remove public port `8080` from the EC2
+security group and stop publishing the app container port to the public host.
 
 `GET /health` response:
 
@@ -179,7 +186,7 @@ GitHub Actions
 → Docker image build
 → Amazon ECR push
 → AWS Systems Manager Run Command
-→ EC2 Docker Compose deployment
+→ EC2 Docker Compose deployment (Caddy + application + MySQL)
 → EC2 Docker Compose MySQL connection
 ```
 
@@ -189,10 +196,15 @@ Runtime components:
 - MySQL container: `moyeo-mysql`
 - ECR repository: `moyeo-server`
 - App container: `moyeo-server`
+- HTTPS reverse-proxy container: `moyeo-caddy`
 
 Security policy for dev:
 
-- API port `8080` is public for frontend development and testing.
+- HTTPS ports `80` and `443` are public for Caddy certificate issuance,
+  HTTP-to-HTTPS redirection, and API traffic.
+- API port `8080` remains temporarily public for frontend migration and direct
+  troubleshooting. Remove this exception after the dev frontend and Apple login
+  use the HTTPS endpoint successfully.
 - SSH port `22` is restricted to the developer IP.
 - MySQL port `3306` is not publicly exposed.
 - MySQL may be bound to EC2 localhost `127.0.0.1:3306` for DBeaver access through SSH tunneling.
@@ -217,6 +229,14 @@ APPLE_REDIRECT_URI
 KAKAO_LOCAL_REST_API_KEY
 MEETING_COVER_S3_BUCKET
 ```
+
+`DEV_API_DOMAIN` is optional and defaults to `3-35-119-70.sslip.io`. Caddy uses
+it as the dev HTTPS host and stores certificate state in the persistent
+`moyeo-caddy-data` Docker volume.
+
+Caddy manages certificate issuance and renewal automatically. Keep public ports
+`80` and `443` reachable and do not delete the `moyeo-caddy-data` or
+`moyeo-caddy-config` volumes during ordinary deployments.
 
 Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
 `APPLE_OAUTH_ENABLED=true`로 지정합니다. `.p8` 개인키는 파일 전체를 Base64로

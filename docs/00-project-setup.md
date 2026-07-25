@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-07-23
+> Last reviewed: 2026-07-25
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -109,6 +109,19 @@ Finalize decision
 - Use only for local development and tests.
 - Do not use H2 as the production database.
 
+### Caddy
+
+- Use one Caddy container as the dev HTTPS reverse proxy in the existing EC2
+  Docker Compose deployment.
+- Use `3-35-119-70.sslip.io` as the temporary dev hostname backed by the current
+  Elastic IP.
+- Let Caddy manage ACME certificate issuance and renewal automatically; keep
+  public ports `80` and `443` reachable for this lifecycle.
+- Keep Caddy certificate state in named Docker volumes so application
+  redeployments do not discard issued certificates. Do not delete
+  `moyeo-caddy-data` or `moyeo-caddy-config` during ordinary deployments.
+- Keep this setup limited to the current single-instance dev environment.
+
 ## Currently Excluded
 
 ### Domain Logic
@@ -189,20 +202,30 @@ current RFC 9457-based error response policy, and documented working rules.
   `X-Trace-Id`, and include it in application and exception logs.
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in
   repository files.
-- Keep dev API port `8080` public for frontend collaboration.
+- Serve the dev API through Caddy at `https://3-35-119-70.sslip.io`; keep ports
+  `80` and `443` public for certificate issuance, HTTP-to-HTTPS redirection, and
+  HTTPS traffic.
+- Keep dev API port `8080` temporarily public while the frontend migrates from
+  the former direct HTTP endpoint.
+- TODO: After the dev frontend deployment and end-to-end Apple login are
+  verified against HTTPS, remove public security-group access to `8080` and
+  stop publishing the application container port to the public host.
 - Keep SSH port `22` restricted to the developer IP.
 - Keep MySQL port `3306` private and accessible only from the EC2 application
   path.
 - Keep zero-downtime deployment, blue/green deployment, load balancer setup, and
   autoscaling out of the current MVP setup.
-- Revisit HTTPS, reverse proxy, migration, rollback, and zero-downtime strategy
-  before public launch.
+- Revisit the production domain and TLS setup, migration, rollback, and
+  zero-downtime strategy before public launch.
 
 ## Current Dev Infrastructure
 
-- Dev API base URL: `http://3.35.119.70:8080`
+- Dev API base URL: `https://3-35-119-70.sslip.io`
+- Temporary direct dev API URL: `http://3.35.119.70:8080`
 - EC2 instance: `moyeo-api-dev`
 - Elastic IP: `3.35.119.70`
+- HTTPS reverse proxy: Caddy container `moyeo-caddy`
+- Caddy certificate volumes: `moyeo-caddy-data`, `moyeo-caddy-config`
 - Dev database: MySQL 8.4 container `moyeo-mysql` on the EC2 Docker Compose
   network
 - ECR repository: `moyeo-server`
@@ -220,7 +243,7 @@ current RFC 9457-based error response policy, and documented working rules.
   `MEETING_COVER_S3_BUCKET` and `AWS_REGION` from that runtime `.env` into the
   application container.
 - Deployment command path: GitHub Actions -> Amazon ECR -> AWS Systems Manager
-  Run Command -> EC2 Docker Compose
+  Run Command -> EC2 Docker Compose -> Caddy/Application/MySQL
 - Runtime `DB_URL` on the EC2 app container should point to the Compose service
   name:
   `jdbc:mysql://mysql:3306/moyeo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8`.
@@ -278,8 +301,7 @@ current RFC 9457-based error response policy, and documented working rules.
 
 After MVP completion, review these items in sequence as needs become clear:
 
-- HTTPS and domain
-- Nginx or Caddy reverse proxy
+- Production domain and TLS
 - Database migration
 - Refresh Token and token rotation
 - Error monitoring
