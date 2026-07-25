@@ -40,10 +40,17 @@ public record CreateMeetingRequest(
         @Size(max = 100)
         String description,
 
-        @Schema(description = "최대 참여 인원입니다. 방장을 포함합니다.", example = "6", minimum = "2", maximum = "20")
+        @Schema(
+                description = "필수 입력인 최대 참여 인원입니다. 방장을 포함합니다.",
+                example = "6",
+                minimum = "2",
+                maximum = "20",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        @NotNull
         @Min(2)
         @Max(20)
-        int maxParticipants,
+        Integer maxParticipants,
 
         @Schema(
                 description = """

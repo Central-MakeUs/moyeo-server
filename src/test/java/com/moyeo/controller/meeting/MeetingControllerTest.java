@@ -1,6 +1,7 @@
 package com.moyeo.controller.meeting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
@@ -382,6 +383,38 @@ class MeetingControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void createMeetingRejectsMissingMaxParticipants() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-missing-participants", "host-missing-participants");
+        ObjectNode request = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        request.remove("maxParticipants");
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("maxParticipants"));
+    }
+
+    @Test
+    void createMeetingRejectsNullMaxParticipants() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-null-participants", "host-null-participants");
+        ObjectNode request = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        request.putNull("maxParticipants");
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("maxParticipants"));
     }
 
     @Test
@@ -1039,6 +1072,22 @@ class MeetingControllerTest {
                         "$.components.schemas.CreateMeetingRequest.required",
                         org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("scheduleInputType"))
                 ));
+    }
+
+    @Test
+    void swaggerDocumentsMaxParticipantsAsRequired() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.components.schemas.CreateMeetingRequest.required",
+                        org.hamcrest.Matchers.hasItem("maxParticipants")
+                ))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CreateMeetingRequest.properties.maxParticipants.minimum"
+                ).value(2))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CreateMeetingRequest.properties.maxParticipants.maximum"
+                ).value(20));
     }
 
     @Test
