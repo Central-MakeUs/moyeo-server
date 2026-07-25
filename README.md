@@ -209,6 +209,9 @@ Security policy for dev:
 - MySQL port `3306` is not publicly exposed.
 - MySQL may be bound to EC2 localhost `127.0.0.1:3306` for DBeaver access through SSH tunneling.
 - GitHub Actions deploys through AWS Systems Manager instead of opening SSH to GitHub Actions runners.
+- Only `ohujj/MOYEO` runs the `Deploy Dev` job. The CMC mirror runs CI but
+  skips dev deployment so mirrored pushes cannot deploy the same EC2 instance
+  twice.
 
 ## Environment Variables
 

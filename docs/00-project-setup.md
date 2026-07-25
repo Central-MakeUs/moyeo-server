@@ -189,6 +189,9 @@ current RFC 9457-based error response policy, and documented working rules.
   control.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.
+- Use `ohujj/MOYEO` as the sole dev deployment source. Keep the deployment
+  workflow file mirrored to `Central-MakeUs/moyeo-server`, but skip its deploy
+  job there so a mirrored push cannot deploy the same EC2 instance twice.
 - Prefer AWS Systems Manager Run Command over opening SSH to GitHub Actions
   runners.
 - Keep EC2 runtime secrets in a server-side `.env` file or managed secret
@@ -229,7 +232,8 @@ current RFC 9457-based error response policy, and documented working rules.
 - Dev database: MySQL 8.4 container `moyeo-mysql` on the EC2 Docker Compose
   network
 - ECR repository: `moyeo-server`
-- Deployment workflow: `.github/workflows/deploy-dev.yml`
+- Deployment workflow: `.github/workflows/deploy-dev.yml`, executed only from
+  `ohujj/MOYEO`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
 - Departure place search API key: store `KAKAO_LOCAL_REST_API_KEY` only in the
   EC2 runtime `.env`; Docker Compose passes the value into the application
@@ -248,7 +252,8 @@ current RFC 9457-based error response policy, and documented working rules.
   name:
   `jdbc:mysql://mysql:3306/moyeo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8`.
 - Repository mirrors: push verified `main` changes to both `origin` and `cmc`
-  while the personal and CMC repositories are maintained together.
+  while the personal and CMC repositories are maintained together. The CMC
+  mirror runs CI only; it does not deploy the dev server.
 
 ### Sign in with Apple
 
