@@ -37,17 +37,22 @@ moyeo:
       private-key-base64: ${APPLE_PRIVATE_KEY_BASE64:}
       redirect-uri: ${APPLE_REDIRECT_URI:}
       token-uri: https://appleid.apple.com/auth/token
+      revoke-uri: https://appleid.apple.com/auth/revoke
       jwks-uri: https://appleid.apple.com/auth/keys
       connect-timeout: 2s
       read-timeout: 3s
       jwks-cache-ttl: 1h
+    apple-token-storage:
+      encryption-key-base64: ${APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64:}
     kakao:
       enabled: ${KAKAO_OAUTH_ENABLED:false}
       rest-api-key: ${KAKAO_OAUTH_REST_API_KEY:}
       client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
+      admin-key: ${KAKAO_OAUTH_ADMIN_KEY:}
       redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:}
       token-uri: https://kauth.kakao.com/oauth/token
       user-info-uri: https://kapi.kakao.com/v2/user/me
+      unlink-uri: https://kapi.kakao.com/v1/user/unlink
       connect-timeout: 2s
       read-timeout: 3s
   cors:

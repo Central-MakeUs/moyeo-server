@@ -58,6 +58,10 @@ public class SocialAccount {
     @Comment("소셜 제공자로부터 받은 이메일")
     private String email;
 
+    @Column(name = "provider_refresh_token_ciphertext", length = 2048)
+    @Comment("서버 암호화 키로 암호화한 제공자 refresh token. 현재 Apple만 저장")
+    private String providerRefreshTokenCiphertext;
+
     @Column(nullable = false)
     @Comment("소셜 계정 연결 생성 일시")
     private LocalDateTime createdAt;
@@ -66,10 +70,21 @@ public class SocialAccount {
     }
 
     public SocialAccount(User user, AuthProvider provider, String providerUserId, String email) {
+        this(user, provider, providerUserId, email, null);
+    }
+
+    public SocialAccount(
+            User user,
+            AuthProvider provider,
+            String providerUserId,
+            String email,
+            String providerRefreshTokenCiphertext
+    ) {
         this.user = user;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.email = email;
+        this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
     }
 
     @PrePersist
@@ -95,5 +110,13 @@ public class SocialAccount {
 
     public String getEmail() {
         return email;
+    }
+
+    public String getProviderRefreshTokenCiphertext() {
+        return providerRefreshTokenCiphertext;
+    }
+
+    public void updateProviderRefreshTokenCiphertext(String providerRefreshTokenCiphertext) {
+        this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
     }
 }

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -100,6 +101,38 @@ class KakaoOAuthClient {
         }
     }
 
+    void unlinkByAdminKey(String expectedProviderUserId) {
+        ensureEnabled();
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("target_id_type", "user_id");
+        form.add("target_id", expectedProviderUserId);
+
+        try {
+            KakaoUnlinkResponse response = restClient.post()
+                    .uri(properties.unlinkUri())
+                    .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + properties.adminKey())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .body(KakaoUnlinkResponse.class);
+            if (response == null
+                    || response.id() == null
+                    || !expectedProviderUserId.equals(response.id().toString())) {
+                throw KakaoOAuthException.unavailable();
+            }
+        } catch (RestClientResponseException exception) {
+            if (isAlreadyUnlinked(exception)) {
+                return;
+            }
+            log.warn("Kakao unlink request failed with provider status {}.", exception.getStatusCode().value());
+            throw KakaoOAuthException.unavailable();
+        } catch (RestClientException exception) {
+            log.warn("Kakao unlink request failed: {}", exception.getClass().getSimpleName());
+            throw KakaoOAuthException.unavailable();
+        }
+    }
+
     private void ensureEnabled() {
         if (!properties.enabled()) {
             throw KakaoOAuthException.unavailable();
@@ -142,12 +175,28 @@ class KakaoOAuthClient {
         }
     }
 
+    private boolean isAlreadyUnlinked(RestClientResponseException exception) {
+        try {
+            KakaoErrorResponse response = objectMapper.readValue(
+                    exception.getResponseBodyAsByteArray(),
+                    KakaoErrorResponse.class
+            );
+            return response != null && Integer.valueOf(-101).equals(response.code());
+        } catch (Exception parsingException) {
+            return false;
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record KakaoTokenResponse(@JsonProperty("access_token") String accessToken) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record KakaoUserInfoResponse(Long id) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record KakaoUnlinkResponse(Long id) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

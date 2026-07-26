@@ -85,6 +85,62 @@ class KakaoOAuthClientTest {
     }
 
     @Test
+    void unlinksStoredUserWithAdminKey() {
+        server.expect(requestTo("https://kapi.kakao.com/v1/user/unlink"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header(HttpHeaders.AUTHORIZATION, "KakaoAK kakao-admin-key"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("target_id_type=user_id"),
+                        org.hamcrest.Matchers.containsString("target_id=1234567890")
+                )))
+                .andRespond(withSuccess(
+                        "{\"id\":1234567890}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        oauthClient.unlinkByAdminKey("1234567890");
+
+        server.verify();
+    }
+
+    @Test
+    void treatsAlreadyUnlinkedUserAsSuccessful() {
+        server.expect(requestTo("https://kapi.kakao.com/v1/user/unlink"))
+                .andRespond(withBadRequest()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"msg\":\"NotRegisteredUserException\",\"code\":-101}"));
+
+        oauthClient.unlinkByAdminKey("1234567890");
+
+        server.verify();
+    }
+
+    @Test
+    void mapsUnlinkProviderFailureToSocialLoginUnavailable() {
+        server.expect(requestTo("https://kapi.kakao.com/v1/user/unlink"))
+                .andRespond(withServerError());
+
+        assertError(
+                () -> oauthClient.unlinkByAdminKey("1234567890"),
+                AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE
+        );
+        server.verify();
+    }
+
+    @Test
+    void rejectsUnlinkResponseForDifferentUser() {
+        server.expect(requestTo("https://kapi.kakao.com/v1/user/unlink"))
+                .andRespond(withSuccess("{\"id\":9999999999}", MediaType.APPLICATION_JSON));
+
+        assertError(
+                () -> oauthClient.unlinkByAdminKey("1234567890"),
+                AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE
+        );
+        server.verify();
+    }
+
+    @Test
     void mapsInvalidGrantToSocialLoginFailed() {
         server.expect(requestTo("https://kauth.kakao.com/oauth/token"))
                 .andRespond(withBadRequest()
@@ -238,9 +294,11 @@ class KakaoOAuthClientTest {
                 enabled,
                 "kakao-rest-api-key",
                 "kakao-client-secret",
+                "kakao-admin-key",
                 "https://moyeo-dev.vercel.app/auth/callback/kakao",
                 "https://kauth.kakao.com/oauth/token",
                 "https://kapi.kakao.com/v2/user/me",
+                "https://kapi.kakao.com/v1/user/unlink",
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(3)
         );

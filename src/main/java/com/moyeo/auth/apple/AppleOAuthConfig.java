@@ -8,7 +8,10 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(AppleOAuthProperties.class)
+@EnableConfigurationProperties({
+        AppleOAuthProperties.class,
+        AppleRefreshTokenEncryptionProperties.class
+})
 public class AppleOAuthConfig {
 
     @Bean

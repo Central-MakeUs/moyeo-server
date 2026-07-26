@@ -36,7 +36,7 @@ class AppleTokenClient {
         this.objectMapper = objectMapper;
     }
 
-    String exchange(String code) {
+    AppleTokenResult exchange(String code) {
         if (!properties.enabled()) {
             log.warn("Apple login failed: stage=configuration reason=oauth_disabled.");
             throw AppleOAuthException.unavailable();
@@ -60,7 +60,7 @@ class AppleTokenClient {
                 log.warn("Apple login failed: stage=token_exchange providerStatus=200 reason=missing_id_token.");
                 throw AppleOAuthException.failed();
             }
-            return response.idToken();
+            return new AppleTokenResult(response.idToken(), response.accessToken(), response.refreshToken());
         } catch (RestClientResponseException exception) {
             String providerError = providerError(exception);
             log.warn(
@@ -77,6 +77,36 @@ class AppleTokenClient {
                     "Apple login failed: stage=token_exchange reason=request_failed exception={}.",
                     exception.getClass().getSimpleName()
             );
+            throw AppleOAuthException.unavailable();
+        }
+    }
+
+    void revokeRefreshToken(String refreshToken) {
+        if (!properties.enabled()) {
+            throw AppleOAuthException.unavailable();
+        }
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw AppleOAuthException.unavailable();
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("client_id", properties.clientId());
+        form.add("client_secret", clientSecretGenerator.generate());
+        form.add("token", refreshToken);
+        form.add("token_type_hint", "refresh_token");
+
+        try {
+            restClient.post()
+                    .uri(properties.revokeUri())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(form)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException exception) {
+            log.warn("Apple token revocation failed with provider status {}.", exception.getStatusCode().value());
+            throw AppleOAuthException.unavailable();
+        } catch (RestClientException exception) {
+            log.warn("Apple token revocation request failed: {}", exception.getClass().getSimpleName());
             throw AppleOAuthException.unavailable();
         }
     }
@@ -104,8 +134,15 @@ class AppleTokenClient {
         }
     }
 
+    record AppleTokenResult(String idToken, String accessToken, String refreshToken) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record AppleTokenResponse(@JsonProperty("id_token") String idToken) {
+    private record AppleTokenResponse(
+            @JsonProperty("id_token") String idToken,
+            @JsonProperty("access_token") String accessToken,
+            @JsonProperty("refresh_token") String refreshToken
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

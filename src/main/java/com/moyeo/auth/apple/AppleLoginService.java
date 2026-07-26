@@ -10,21 +10,33 @@ public class AppleLoginService {
 
     private final AppleTokenClient tokenClient;
     private final AppleIdentityTokenVerifier identityTokenVerifier;
+    private final AppleRefreshTokenCipher refreshTokenCipher;
     private final MemberAuthService memberAuthService;
 
     AppleLoginService(
             AppleTokenClient tokenClient,
             AppleIdentityTokenVerifier identityTokenVerifier,
+            AppleRefreshTokenCipher refreshTokenCipher,
             MemberAuthService memberAuthService
     ) {
         this.tokenClient = tokenClient;
         this.identityTokenVerifier = identityTokenVerifier;
+        this.refreshTokenCipher = refreshTokenCipher;
         this.memberAuthService = memberAuthService;
     }
 
     public AuthenticatedMember login(String code, String nonce) {
-        String identityToken = tokenClient.exchange(code);
-        String subject = identityTokenVerifier.verifyAndGetSubject(identityToken, nonce);
-        return memberAuthService.loginSocial(AuthProvider.APPLE, subject);
+        AppleTokenClient.AppleTokenResult tokens = tokenClient.exchange(code);
+        String subject = identityTokenVerifier.verifyAndGetSubject(tokens.idToken(), nonce);
+        String encryptedRefreshToken = refreshTokenCipher.encrypt(subject, tokens.refreshToken());
+        return memberAuthService.loginSocial(AuthProvider.APPLE, subject, encryptedRefreshToken);
+    }
+
+    public void disconnectStoredAuthorization(
+            String expectedSubject,
+            String encryptedRefreshToken
+    ) {
+        String refreshToken = refreshTokenCipher.decrypt(expectedSubject, encryptedRefreshToken);
+        tokenClient.revokeRefreshToken(refreshToken);
     }
 }

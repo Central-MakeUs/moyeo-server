@@ -34,9 +34,9 @@ class MemberAuthServiceConcurrencyTest {
     void recoversConcurrentFirstLoginByReturningAlreadyRegisteredAccount() {
         when(socialAccountRepository.findByProviderAndProviderUserId(AuthProvider.APPLE, "apple-user"))
                 .thenReturn(Optional.empty());
-        when(socialAccountRegistrationService.register(AuthProvider.APPLE, "apple-user"))
+        when(socialAccountRegistrationService.register(AuthProvider.APPLE, "apple-user", null))
                 .thenThrow(new DataIntegrityViolationException("duplicate provider identity"));
-        when(socialAccountRegistrationService.findRegistered(AuthProvider.APPLE, "apple-user"))
+        when(socialAccountRegistrationService.findRegistered(AuthProvider.APPLE, "apple-user", null))
                 .thenReturn(Optional.of(new AuthenticatedMember(7L, null, false)));
 
         AuthenticatedMember result = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-user");

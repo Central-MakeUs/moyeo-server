@@ -2,6 +2,7 @@ package com.moyeo.controller.meeting;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
@@ -9,6 +10,7 @@ import com.moyeo.service.meeting.MeetingService;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.SaveParticipationCommand;
 import com.moyeo.domain.meeting.ScheduleInputType;
+import com.moyeo.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +71,9 @@ class MeetingControllerTest {
     private JdbcTemplate jdbcTemplate;
 
     @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
+    @Autowired
     private MeetingService meetingService;
 
     @Autowired
@@ -76,6 +81,9 @@ class MeetingControllerTest {
 
     @MockitoBean
     private MeetingCoverStorage meetingCoverStorage;
+
+    @MockitoBean
+    private KakaoLoginService kakaoLoginService;
 
     @Test
     void createMeetingReturnsMeetingAndInvitationInformation() throws Exception {
@@ -1034,11 +1042,23 @@ class MeetingControllerTest {
     void withdrawnMemberRemainsMarkedInMeetingAndPlaceViews() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("withdraw-view-host", "withdraw-view-host", 6);
         String memberToken = signupAndGetAccessToken("withdraw-view-member", "withdraw-view-member");
+        Long memberUserId = jwtTokenProvider.parse(memberToken).userId();
+        String providerUserId = "withdraw-view-provider";
+        jdbcTemplate.update(
+                """
+                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
+                values (?, 'KAKAO', ?, null, current_timestamp)
+                """,
+                memberUserId,
+                providerUserId
+        );
         joinMember(inviteCode, memberToken, "withdrawn-snapshot");
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", "Bearer " + memberToken))
                 .andExpect(status().isNoContent());
+
+        verify(kakaoLoginService).disconnectStoredAccount(providerUserId);
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
                 .andExpect(status().isOk())

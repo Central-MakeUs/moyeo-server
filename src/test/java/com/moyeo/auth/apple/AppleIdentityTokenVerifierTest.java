@@ -218,6 +218,7 @@ class AppleIdentityTokenVerifierTest {
                 "unused",
                 "https://moyeo-dev.vercel.app/auth/callback/apple",
                 "https://appleid.apple.com/auth/token",
+                "https://appleid.apple.com/auth/revoke",
                 "https://appleid.apple.com/auth/keys",
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(3),

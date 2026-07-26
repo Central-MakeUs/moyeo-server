@@ -94,6 +94,9 @@ Finalize decision
 - Before deploying account withdrawal to production, apply
   `scripts/db/2026-07-25-meeting-cover-cleanup.sql`. The cleanup task table keeps
   failed S3 cover deletions retryable after a process restart.
+- Before deploying re-login-free Apple withdrawal to an existing database,
+  apply `scripts/db/2026-07-26-social-refresh-token.sql`. Existing Apple users
+  populate the new nullable ciphertext column on their next successful login.
 - Account-withdrawal cover cleanup retries every five minutes by default.
   `MEETING_COVER_CLEANUP_RETRY_DELAY` may override the Spring duration value.
 - Hibernate `ddl-auto=update` does not remove tables for deleted entities. The
@@ -293,12 +296,20 @@ current RFC 9457-based error response policy, and documented working rules.
   its Base64 value was stored.
 - Required runtime names are `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`,
   `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`, and
-  `APPLE_REDIRECT_URI`. Set `APPLE_OAUTH_ENABLED=true` only when all values are
-  ready; enabled configuration is validated at application startup.
+  `APPLE_REDIRECT_URI`, plus `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`.
+  The encryption key must be a separate Base64-encoded random 32-byte value.
+  Set `APPLE_OAUTH_ENABLED=true` only when all values are ready; enabled
+  configuration is validated at application startup.
 - The frontend receives the Apple GET callback and sends the one-time code and
   nonce to the backend `POST /api/auth/apple` API.
 - The backend exchanges and verifies the code, identifies the user by Apple's
   `sub`, and issues the Moyeo Access JWT.
+- The backend encrypts the Apple refresh token with AES-256-GCM, binds it to the
+  verified `sub`, and stores only the ciphertext. Account withdrawal decrypts
+  and revokes this stored refresh token without another Apple login.
+- Existing Apple rows without ciphertext cannot withdraw until their next
+  successful Apple login stores a fresh token; withdrawal then returns
+  `503 SOCIAL_LOGIN_UNAVAILABLE` without deleting local data.
 - Apple login backend implementation and HTTPS integration verification are
   complete. The remaining work is frontend UI integration with the HTTPS API
   base URL.
@@ -324,13 +335,17 @@ current RFC 9457-based error response policy, and documented working rules.
 - The backend exchanges the code with the server-owned REST API key, client
   secret, and exact redirect URI, then uses only the Kakao user-information
   response `id` as `providerUserId`.
+- Kakao account withdrawal uses the server-owned Admin Key and stored Kakao
+  service user ID to call the Unlink API without another Kakao login.
 - Required runtime names are `KAKAO_OAUTH_ENABLED`,
-  `KAKAO_OAUTH_REST_API_KEY`, `KAKAO_OAUTH_CLIENT_SECRET`, and
+  `KAKAO_OAUTH_REST_API_KEY`, `KAKAO_OAUTH_CLIENT_SECRET`,
+  `KAKAO_OAUTH_ADMIN_KEY`, and
   `KAKAO_OAUTH_REDIRECT_URI`. Set `KAKAO_OAUTH_ENABLED=true` only when all
   values are ready.
 - Keep Kakao OAuth credentials separate from the
-  `KAKAO_LOCAL_REST_API_KEY` place-search configuration. Provider tokens and
-  secrets must never be committed, stored after login, or logged.
+  `KAKAO_LOCAL_REST_API_KEY` place-search configuration. Kakao provider tokens
+  and all provider secrets must never be committed, stored after login, or
+  logged.
 - Backend implementation and automated verification are complete. Dev HTTPS
   integration verification requires the runtime OAuth values and a fresh
   one-time authorization code.

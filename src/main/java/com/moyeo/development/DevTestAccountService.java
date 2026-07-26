@@ -13,9 +13,14 @@ import org.springframework.transaction.annotation.Transactional;
 class DevTestAccountService {
 
     private final UserRepository userRepository;
+    private final DevTestAccountWithdrawalExemption withdrawalExemption;
 
-    DevTestAccountService(UserRepository userRepository) {
+    DevTestAccountService(
+            UserRepository userRepository,
+            DevTestAccountWithdrawalExemption withdrawalExemption
+    ) {
         this.userRepository = userRepository;
+        this.withdrawalExemption = withdrawalExemption;
     }
 
     @Transactional
@@ -23,6 +28,7 @@ class DevTestAccountService {
         User user = userRepository
                 .findFirstByNicknameAndDeletedAtIsNullOrderByIdAsc(account.nickname())
                 .orElseGet(() -> userRepository.save(new User(account.nickname())));
+        withdrawalExemption.register(user);
         return AuthenticatedMember.from(user, false);
     }
 }

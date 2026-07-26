@@ -13,6 +13,7 @@ public record AppleOAuthProperties(
         String privateKeyBase64,
         String redirectUri,
         String tokenUri,
+        String revokeUri,
         String jwksUri,
         Duration connectTimeout,
         Duration readTimeout,
@@ -29,6 +30,7 @@ public record AppleOAuthProperties(
         requireText(privateKeyBase64, "APPLE_PRIVATE_KEY_BASE64");
         requireText(redirectUri, "APPLE_REDIRECT_URI");
         requireText(tokenUri, "Apple token URI");
+        requireText(revokeUri, "Apple revoke URI");
         requireText(jwksUri, "Apple JWKS URI");
         if (connectTimeout == null || readTimeout == null || jwksCacheTtl == null) {
             throw new IllegalStateException("Apple OAuth timeout configuration is required.");

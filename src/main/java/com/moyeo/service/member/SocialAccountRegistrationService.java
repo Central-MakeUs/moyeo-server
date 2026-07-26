@@ -29,19 +29,46 @@ public class SocialAccountRegistrationService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public AuthenticatedMember register(AuthProvider provider, String providerUserId) {
+        return register(provider, providerUserId, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public AuthenticatedMember register(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext
+    ) {
         User user = userRepository.save(User.pendingOnboarding());
-        SocialAccount socialAccount = new SocialAccount(user, provider, providerUserId, null);
+        SocialAccount socialAccount = new SocialAccount(
+                user,
+                provider,
+                providerUserId,
+                null,
+                providerRefreshTokenCiphertext
+        );
         socialAccountRepository.saveAndFlush(socialAccount);
         return AuthenticatedMember.from(user, true);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public Optional<AuthenticatedMember> findRegistered(AuthProvider provider, String providerUserId) {
+        return findRegistered(provider, providerUserId, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<AuthenticatedMember> findRegistered(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext
+    ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
                     User user = socialAccount.getUser();
                     if (user.getDeletedAt() != null) {
                         throw new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED);
+                    }
+                    if (providerRefreshTokenCiphertext != null) {
+                        socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
                     }
                     return AuthenticatedMember.from(user, false);
                 });

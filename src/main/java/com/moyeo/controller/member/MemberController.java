@@ -85,18 +85,34 @@ public class MemberController {
             summary = "회원 탈퇴",
             description = """
                     현재 회원을 탈퇴 처리하고 본인이 생성한 모든 모임과 개인 소유 데이터를 삭제합니다.
+                    별도 소셜 재로그인 없이 저장된 연결 정보로 Apple 토큰 철회 또는 Kakao 연결 해제를 완료합니다.
+                    제공자 연결 해제에 실패하면 로컬 계정은 유지됩니다.
                     다른 회원이 생성한 모임의 참여 기록은 유지되며 참가자 조회에서 탈퇴 회원으로 표시됩니다.
                     닉네임 온보딩을 완료하지 않은 회원도 탈퇴할 수 있습니다.
                     """
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "회원 탈퇴 성공"),
+            @ApiResponse(responseCode = "204", description = "소셜 연결 해제 및 회원 탈퇴 성공"),
             @ApiResponse(
                     responseCode = "401",
                     description = "Access Token 없음, 만료 또는 유효하지 않음",
                     content = @Content(examples = @ExampleObject(value = """
                             { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "저장된 Apple 토큰을 사용할 수 없거나 소셜 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "활성 운영 계정의 소셜 연결 정보가 일관되지 않음",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "COMMON_INTERNAL_SERVER_ERROR", "status": 500 }
                             """))
             )
     })

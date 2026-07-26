@@ -61,11 +61,54 @@ class AppleTokenClientTest {
                         )
                 )))
                 .andRespond(withSuccess(
-                        "{\"id_token\":\"apple-identity-token\"}",
+                        """
+                        {
+                          "id_token": "apple-identity-token",
+                          "access_token": "apple-access-token",
+                          "refresh_token": "apple-refresh-token",
+                          "token_type": "Bearer",
+                          "expires_in": 3600
+                        }
+                        """,
                         MediaType.APPLICATION_JSON
                 ));
 
-        assertThat(tokenClient.exchange("one-time-code")).isEqualTo("apple-identity-token");
+        AppleTokenClient.AppleTokenResult result = tokenClient.exchange("one-time-code");
+
+        assertThat(result.idToken()).isEqualTo("apple-identity-token");
+        assertThat(result.accessToken()).isEqualTo("apple-access-token");
+        assertThat(result.refreshToken()).isEqualTo("apple-refresh-token");
+        server.verify();
+    }
+
+    @Test
+    void revokesAuthorizationUsingRefreshToken() {
+        server.expect(requestTo("https://appleid.apple.com/auth/revoke"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_FORM_URLENCODED))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("client_id=com.moyeo.web"),
+                        org.hamcrest.Matchers.containsString("client_secret=signed-client-secret"),
+                        org.hamcrest.Matchers.containsString("token=apple-refresh-token"),
+                        org.hamcrest.Matchers.containsString("token_type_hint=refresh_token")
+                )))
+                .andRespond(withSuccess());
+
+        tokenClient.revokeRefreshToken("apple-refresh-token");
+
+        server.verify();
+    }
+
+    @Test
+    void revocationFailureKeepsWithdrawalUnavailable() {
+        server.expect(requestTo("https://appleid.apple.com/auth/revoke"))
+                .andRespond(withServerError());
+
+        assertThatThrownBy(() -> tokenClient.revokeRefreshToken("refresh-token"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
+                );
         server.verify();
     }
 
@@ -145,6 +188,7 @@ class AppleTokenClientTest {
                 "unused",
                 "https://moyeo-dev.vercel.app/auth/callback/apple",
                 "https://appleid.apple.com/auth/token",
+                "https://appleid.apple.com/auth/revoke",
                 "https://appleid.apple.com/auth/keys",
                 Duration.ofSeconds(2),
                 Duration.ofSeconds(3),

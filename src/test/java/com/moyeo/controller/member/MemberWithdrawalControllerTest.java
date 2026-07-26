@@ -2,6 +2,8 @@ package com.moyeo.controller.member;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.apple.AppleLoginService;
+import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.controller.meeting.CreateMeetingRequest;
 import com.moyeo.controller.meeting.SaveParticipationRequest;
@@ -9,6 +11,8 @@ import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.meeting.TransportationMode;
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.global.error.MoyeoException;
+import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.meeting.MeetingCoverCleanupProcessor;
 import com.moyeo.service.meeting.MeetingCoverStorage;
@@ -70,6 +74,12 @@ class MemberWithdrawalControllerTest {
     @MockitoBean
     private MeetingCoverStorage meetingCoverStorage;
 
+    @MockitoBean
+    private AppleLoginService appleLoginService;
+
+    @MockitoBean
+    private KakaoLoginService kakaoLoginService;
+
     @Test
     void withdrawalDeletesOwnedDataAndHostedMeetingsAndInvalidatesOldToken() throws Exception {
         String accessToken = testMemberFactory.createAccessToken("withdraw-owner");
@@ -99,6 +109,11 @@ class MemberWithdrawalControllerTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
+        verify(appleLoginService).disconnectStoredAuthorization(
+                providerUserId,
+                "encrypted-refresh-token"
+        );
+
         Map<String, Object> withdrawnUser = jdbcTemplate.queryForMap(
                 "select nickname, deleted_at from users where id = ?",
                 userId
@@ -118,7 +133,11 @@ class MemberWithdrawalControllerTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 
-        AuthenticatedMember reRegistered = memberAuthService.loginSocial(AuthProvider.APPLE, providerUserId);
+        AuthenticatedMember reRegistered = memberAuthService.loginSocial(
+                AuthProvider.APPLE,
+                providerUserId,
+                "new-encrypted-refresh-token"
+        );
         assertThat(reRegistered.userId()).isNotEqualTo(userId);
         assertThat(reRegistered.onboardingCompleted()).isFalse();
     }
@@ -126,6 +145,9 @@ class MemberWithdrawalControllerTest {
     @Test
     void failedCoverDeletionRemainsRetryableAfterWithdrawal() throws Exception {
         String accessToken = testMemberFactory.createAccessToken("withdraw-cover-retry");
+        Long userId = jwtTokenProvider.parse(accessToken).userId();
+        String providerUserId = "withdraw-cover-retry-provider";
+        insertSocialAccount(userId, AuthProvider.KAKAO, providerUserId);
         JsonNode hostedMeeting = createMeeting(accessToken, "withdraw-retry");
         long hostedMeetingId = hostedMeeting.path("meetingId").asLong();
         String coverObjectKey = "meeting-covers/withdraw-retry.jpg";
@@ -161,6 +183,8 @@ class MemberWithdrawalControllerTest {
     void pendingOnboardingUserCanWithdraw() throws Exception {
         String accessToken = testMemberFactory.createPendingAccessToken();
         Long userId = jwtTokenProvider.parse(accessToken).userId();
+        String providerUserId = "withdraw-pending-apple";
+        insertSocialAccount(userId, AuthProvider.APPLE, providerUserId);
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", bearer(accessToken)))
@@ -175,14 +199,55 @@ class MemberWithdrawalControllerTest {
     }
 
     @Test
+    void fixedDevelopmentTestAccountCanWithdrawWithoutSocialReauthentication() throws Exception {
+        Long userId = jdbcTemplate.queryForObject(
+                "select id from users where nickname = '개발 사용자 1' and deleted_at is null order by id limit 1",
+                Long.class
+        );
+        String accessToken = jwtTokenProvider.createAccessToken(
+                new AuthenticatedMember(userId, "개발 사용자 1", false)
+        );
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select deleted_at is not null from users where id = ?",
+                Boolean.class,
+                userId
+        )).isTrue();
+    }
+
+    @Test
+    void nonFixedUserWithoutSocialAccountCannotBypassSocialAccountRequirement() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("not-a-fixed-development-user");
+        Long userId = jwtTokenProvider.parse(accessToken).userId();
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("COMMON_INTERNAL_SERVER_ERROR"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select deleted_at is null from users where id = ?",
+                Boolean.class,
+                userId
+        )).isTrue();
+    }
+
+    @Test
     void kakaoUserCanRegisterAsNewUserAfterWithdrawal() throws Exception {
         String accessToken = testMemberFactory.createAccessToken("withdraw-kakao");
         Long withdrawnUserId = jwtTokenProvider.parse(accessToken).userId();
         String providerUserId = "1234567890";
         jdbcTemplate.update(
                 """
-                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
-                values (?, 'KAKAO', ?, null, current_timestamp)
+                insert into social_accounts(
+                    user_id, provider, provider_user_id, email,
+                    provider_refresh_token_ciphertext, created_at
+                )
+                values (?, 'KAKAO', ?, null, null, current_timestamp)
                 """,
                 withdrawnUserId,
                 providerUserId
@@ -192,6 +257,7 @@ class MemberWithdrawalControllerTest {
                         .header("Authorization", bearer(accessToken)))
                 .andExpect(status().isNoContent());
 
+        verify(kakaoLoginService).disconnectStoredAccount(providerUserId);
         AuthenticatedMember reRegistered = memberAuthService.loginSocial(AuthProvider.KAKAO, providerUserId);
         assertThat(reRegistered.userId()).isNotEqualTo(withdrawnUserId);
         assertThat(reRegistered.onboardingCompleted()).isFalse();
@@ -206,19 +272,97 @@ class MemberWithdrawalControllerTest {
 
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['requestBody']").doesNotExist())
+                .andExpect(jsonPath("$['components']['schemas']['WithdrawMemberRequest']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['204']").exists())
+                .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['400']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['401']").exists())
+                .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['500']").exists())
+                .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me']['delete']['responses']['403']").doesNotExist());
+    }
+
+    @Test
+    void providerDisconnectFailureKeepsLocalAccountAndSocialLink() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("withdraw-provider-failure");
+        Long userId = jwtTokenProvider.parse(accessToken).userId();
+        String providerUserId = "withdraw-provider-failure-sub";
+        prepareMemberOwnedData(userId, providerUserId);
+        JsonNode hostedMeeting = createMeeting(accessToken, "withdraw-fail");
+        long hostedMeetingId = hostedMeeting.path("meetingId").asLong();
+        String coverObjectKey = "meeting-covers/withdraw-provider-failure.jpg";
+        jdbcTemplate.update(
+                "update meetings set cover_image_key = ? where id = ?",
+                coverObjectKey,
+                hostedMeetingId
+        );
+        long meetingSearchId = insertDepartureSearch(
+                null,
+                hostedMeetingId,
+                "withdraw-provider-failure-meeting-search"
+        );
+        insertDepartureSearchCandidate(meetingSearchId);
+        doThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE))
+                .when(appleLoginService)
+                .disconnectStoredAuthorization(providerUserId, "encrypted-refresh-token");
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_UNAVAILABLE"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select deleted_at is null from users where id = ?",
+                Boolean.class,
+                userId
+        )).isTrue();
+        assertThat(count("social_accounts", "user_id", userId)).isEqualTo(1);
+        assertThat(count("saved_places", "user_id", userId)).isEqualTo(1);
+        assertThat(count("departure_place_searches", "user_id", userId)).isEqualTo(1);
+        assertThat(count("meetings", "id", hostedMeetingId)).isEqualTo(1);
+        assertThat(count("meeting_participants", "meeting_id", hostedMeetingId)).isPositive();
+        assertThat(count("meeting_schedule_candidates", "meeting_id", hostedMeetingId)).isPositive();
+        assertThat(count("departure_place_searches", "meeting_id", hostedMeetingId)).isEqualTo(1);
+        assertThat(count("meeting_cover_cleanup_tasks", "object_key", coverObjectKey)).isZero();
+    }
+
+    @Test
+    void appleWithdrawalRequiresStoredRefreshTokenAndKeepsLocalAccountWhenMissing() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("withdraw-missing-refresh-token");
+        Long userId = jwtTokenProvider.parse(accessToken).userId();
+        jdbcTemplate.update(
+                """
+                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
+                values (?, 'APPLE', 'withdraw-missing-token-sub', null, current_timestamp)
+                """,
+                userId
+        );
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_UNAVAILABLE"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select deleted_at is null from users where id = ?",
+                Boolean.class,
+                userId
+        )).isTrue();
+        assertThat(count("social_accounts", "user_id", userId)).isEqualTo(1);
     }
 
     private void prepareMemberOwnedData(Long userId, String providerUserId) {
         jdbcTemplate.update(
                 """
-                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
-                values (?, 'APPLE', ?, null, current_timestamp)
+                insert into social_accounts(
+                    user_id, provider, provider_user_id, email,
+                    provider_refresh_token_ciphertext, created_at
+                )
+                values (?, 'APPLE', ?, null, ?, current_timestamp)
                 """,
                 userId,
-                providerUserId
+                providerUserId,
+                "encrypted-refresh-token"
         );
         jdbcTemplate.update(
                 """
@@ -314,5 +458,21 @@ class MemberWithdrawalControllerTest {
 
     private String bearer(String accessToken) {
         return "Bearer " + accessToken;
+    }
+
+    private void insertSocialAccount(Long userId, AuthProvider provider, String providerUserId) {
+        jdbcTemplate.update(
+                """
+                insert into social_accounts(
+                    user_id, provider, provider_user_id, email,
+                    provider_refresh_token_ciphertext, created_at
+                )
+                values (?, ?, ?, null, ?, current_timestamp)
+                """,
+                userId,
+                provider.name(),
+                providerUserId,
+                provider == AuthProvider.APPLE ? "encrypted-refresh-token" : null
+        );
     }
 }

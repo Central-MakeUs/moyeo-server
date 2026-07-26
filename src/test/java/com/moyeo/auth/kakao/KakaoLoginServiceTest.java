@@ -37,4 +37,11 @@ class KakaoLoginServiceTest {
         assertThat(result).isEqualTo(expected);
         verify(memberAuthService).loginSocial(AuthProvider.KAKAO, "1234567890");
     }
+
+    @Test
+    void disconnectsStoredKakaoAccountWithoutReauthentication() {
+        kakaoLoginService.disconnectStoredAccount("1234567890");
+
+        verify(oauthClient).unlinkByAdminKey("1234567890");
+    }
 }

@@ -61,6 +61,31 @@ class MemberAuthServiceTest {
     }
 
     @Test
+    void appleLoginStoresAndRotatesEncryptedRefreshToken() {
+        memberAuthService.loginSocial(AuthProvider.APPLE, "apple-token-user", "encrypted-token-v1");
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(socialAccountRepository.findByProviderAndProviderUserId(
+                AuthProvider.APPLE,
+                "apple-token-user"
+        )).get()
+                .extracting(account -> account.getProviderRefreshTokenCiphertext())
+                .isEqualTo("encrypted-token-v1");
+
+        memberAuthService.loginSocial(AuthProvider.APPLE, "apple-token-user", "encrypted-token-v2");
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(socialAccountRepository.findByProviderAndProviderUserId(
+                AuthProvider.APPLE,
+                "apple-token-user"
+        )).get()
+                .extracting(account -> account.getProviderRefreshTokenCiphertext())
+                .isEqualTo("encrypted-token-v2");
+    }
+
+    @Test
     void differentProvidersCreateSeparateUsersWithoutEmailMerge() {
         AuthenticatedMember apple = memberAuthService.loginSocial(AuthProvider.APPLE, "same-person");
         AuthenticatedMember kakao = memberAuthService.loginSocial(AuthProvider.KAKAO, "same-person");

@@ -39,9 +39,27 @@ public class MemberAuthService {
             AuthProvider provider,
             String providerUserId
     ) {
+        return loginSocial(provider, providerUserId, null);
+    }
+
+    @Transactional
+    public AuthenticatedMember loginSocial(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext
+    ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
-                .map(socialAccount -> authenticatedLoginMember(socialAccount.getUser()))
-                .orElseGet(() -> registerOrRecoverConcurrentLogin(provider, providerUserId));
+                .map(socialAccount -> {
+                    if (providerRefreshTokenCiphertext != null) {
+                        socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
+                    }
+                    return authenticatedLoginMember(socialAccount.getUser());
+                })
+                .orElseGet(() -> registerOrRecoverConcurrentLogin(
+                        provider,
+                        providerUserId,
+                        providerRefreshTokenCiphertext
+                ));
     }
 
     private AuthenticatedMember authenticatedLoginMember(User user) {
@@ -53,12 +71,21 @@ public class MemberAuthService {
 
     private AuthenticatedMember registerOrRecoverConcurrentLogin(
             AuthProvider provider,
-            String providerUserId
+            String providerUserId,
+            String providerRefreshTokenCiphertext
     ) {
         try {
-            return socialAccountRegistrationService.register(provider, providerUserId);
+            return socialAccountRegistrationService.register(
+                    provider,
+                    providerUserId,
+                    providerRefreshTokenCiphertext
+            );
         } catch (DataIntegrityViolationException exception) {
-            return socialAccountRegistrationService.findRegistered(provider, providerUserId)
+            return socialAccountRegistrationService.findRegistered(
+                            provider,
+                            providerUserId,
+                            providerRefreshTokenCiphertext
+                    )
                     .orElseThrow(() -> exception);
         }
     }

@@ -38,6 +38,13 @@ then issues a Moyeo Access JWT.
 - Treat an Apple timeout, service failure, or provider response indicating
   invalid server credentials or configuration as
   `503 SOCIAL_LOGIN_UNAVAILABLE`.
+- Require an Apple refresh token in every successful authorization-code
+  exchange. Encrypt it with the server-only AES-256-GCM key before persistence,
+  bind the ciphertext to the verified Apple `sub`, and replace the stored
+  ciphertext on each successful Apple login.
+- Never persist or log an Apple provider token in plaintext. Keep
+  `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64` separate from the database and
+  other Apple credentials.
 - Kakao login uses `POST /api/auth/kakao` with `{ "code": "..." }`.
 - The frontend must generate a unique `state` for each Kakao login request and
   verify that the callback returns the same value before sending the code to the
@@ -110,7 +117,35 @@ entry.
 AUTH-005: An authenticated service user may withdraw through
 `DELETE /api/users/me`, including while nickname onboarding is incomplete.
 
+- The withdrawal request requires only the current Moyeo Access JWT and has no
+  request body. The backend derives the provider and provider identity from the
+  stored `SocialAccount`; it does not trust client-supplied provider data.
+- Apply and flush all rollbackable local withdrawal changes, disconnect the
+  stored provider authorization immediately before committing, and roll back
+  the local transaction if provider disconnection fails.
+- For Apple, decrypt the stored refresh token using the server-only encryption
+  key and verified stored `providerUserId` as authenticated context, then revoke
+  that refresh token through Apple's revoke endpoint. Do not require a new Apple
+  authorization code or nonce at withdrawal time.
+- If an existing Apple account has no stored encrypted refresh token, return
+  `503 SOCIAL_LOGIN_UNAVAILABLE` and leave the local account unchanged. Its next
+  successful Apple login stores a fresh encrypted refresh token, after which
+  immediate withdrawal is available.
+- For Kakao, call the Unlink API with the server-owned Admin Key and the stored
+  Kakao service user ID as `target_id`. Require the success response ID to match
+  that stored ID. Do not require a new Kakao authorization code or persist a
+  Kakao provider token.
+- A provider timeout, service/configuration failure, or unsuccessful revoke or
+  unlink returns `503 SOCIAL_LOGIN_UNAVAILABLE` and leaves all local account
+  data unchanged. A provider response that confirms the authorization was
+  already disconnected is treated as successful.
+- Only the two fixed local/dev test users may withdraw without a
+  `SocialAccount` and provider disconnection. An active user without exactly
+  one `SocialAccount` in any other case is an internal data-integrity failure
+  and returns `500 COMMON_INTERNAL_SERVER_ERROR` without completing withdrawal.
 - Withdrawal returns `204 No Content` without a response body.
+- Return `204 No Content` only after provider disconnection and the local
+  withdrawal transaction both complete.
 - Mark the service user as withdrawn with `users.deleted_at` and clear the
   service-level nickname. Keep the `User` row only because participation records
   in meetings hosted by other users must retain a stable withdrawn-user

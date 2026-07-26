@@ -9,9 +9,11 @@ public record KakaoOAuthProperties(
         boolean enabled,
         String restApiKey,
         String clientSecret,
+        String adminKey,
         String redirectUri,
         String tokenUri,
         String userInfoUri,
+        String unlinkUri,
         Duration connectTimeout,
         Duration readTimeout
 ) {
@@ -22,9 +24,11 @@ public record KakaoOAuthProperties(
         }
         requireText(restApiKey, "KAKAO_OAUTH_REST_API_KEY");
         requireText(clientSecret, "KAKAO_OAUTH_CLIENT_SECRET");
+        requireText(adminKey, "KAKAO_OAUTH_ADMIN_KEY");
         requireText(redirectUri, "KAKAO_OAUTH_REDIRECT_URI");
         requireText(tokenUri, "Kakao token URI");
         requireText(userInfoUri, "Kakao user information URI");
+        requireText(unlinkUri, "Kakao unlink URI");
         if (connectTimeout == null || readTimeout == null) {
             throw new IllegalStateException("Kakao OAuth timeout configuration is required.");
         }

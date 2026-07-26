@@ -20,6 +20,7 @@ Table social_accounts {
   provider varchar(20) [not null, note: "소셜 로그인 제공자"]
   provider_user_id varchar(191) [not null, note: "소셜 제공자가 발급한 사용자 식별자"]
   email varchar(255) [note: "소셜 제공자로부터 받은 이메일"]
+  provider_refresh_token_ciphertext varchar(2048) [note: "서버 키로 암호화한 제공자 refresh token. 현재 Apple만 저장"]
   created_at datetime [not null, note: "소셜 계정 연결 생성 일시"]
 
   indexes {
@@ -189,6 +190,8 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
   lookup distinguishes these states through `users.deleted_at`; a separate
   onboarding flag is not stored.
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
+  Apple refresh tokens are stored only as AES-256-GCM ciphertext bound to the
+  Apple provider user ID; Kakao rows keep this field null.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
