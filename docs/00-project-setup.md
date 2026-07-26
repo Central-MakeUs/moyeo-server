@@ -120,6 +120,9 @@ Finalize decision
   Elastic IP.
 - Let Caddy manage ACME certificate issuance and renewal automatically; keep
   public ports `80` and `443` reachable for this lifecycle.
+- In the `dev` Spring profile, use `server.forward-headers-strategy=framework`
+  so requests forwarded by Caddy retain their public HTTPS scheme and
+  Swagger/OpenAPI generates HTTPS server URLs.
 - Keep Caddy certificate state in named Docker volumes so application
   redeployments do not discard issued certificates. Do not delete
   `moyeo-caddy-data` or `moyeo-caddy-config` during ordinary deployments.
