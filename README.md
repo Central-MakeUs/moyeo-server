@@ -249,6 +249,12 @@ Caddy manages certificate issuance and renewal automatically. Keep public ports
 `80` and `443` reachable and do not delete the `moyeo-caddy-data` or
 `moyeo-caddy-config` volumes during ordinary deployments.
 
+The `Monitor SSL Certificate` GitHub Actions workflow checks the public
+certificate daily and fails if TLS or hostname verification fails, or if fewer
+than 21 days remain before expiration. It runs outside EC2 and therefore adds no
+resident process or memory usage to the server. The check runs only in
+`ohujj/MOYEO`, not in the CMC mirror.
+
 Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
 `APPLE_OAUTH_ENABLED=true`로 지정합니다. `.p8` 개인키는 파일 전체를 Base64로
 인코딩한 값만 `APPLE_PRIVATE_KEY_BASE64`에 저장하며 원문과 실제 값은 커밋하거나

@@ -1,0 +1,79 @@
+name: Monitor SSL Certificate
+
+on:
+  schedule:
+    - cron: "17 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor-ssl-certificate
+  cancel-in-progress: true
+
+env:
+  TLS_HOST: 3-35-119-70.sslip.io
+  TLS_PORT: "443"
+  TLS_WARNING_DAYS: "21"
+
+jobs:
+  check-certificate:
+    if: github.repository == 'ohujj/MOYEO'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check certificate validity and expiration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          handshake_file="$(mktemp)"
+          certificate_file="$(mktemp)"
+          error_file="$(mktemp)"
+          trap 'rm -f "$handshake_file" "$certificate_file" "$error_file"' EXIT
+
+          if ! timeout 20 openssl s_client \
+            -connect "${TLS_HOST}:${TLS_PORT}" \
+            -servername "${TLS_HOST}" \
+            -verify_hostname "${TLS_HOST}" \
+            -verify_return_error \
+            </dev/null >"$handshake_file" 2>"$error_file"; then
+            cat "$error_file" >&2
+            echo "::error::TLS connection or certificate verification failed for ${TLS_HOST}:${TLS_PORT}."
+            exit 1
+          fi
+
+          openssl x509 -in "$handshake_file" -outform PEM >"$certificate_file"
+
+          subject="$(openssl x509 -in "$certificate_file" -noout -subject)"
+          issuer="$(openssl x509 -in "$certificate_file" -noout -issuer)"
+          not_after="$(openssl x509 -in "$certificate_file" -noout -enddate | cut -d= -f2-)"
+          not_after_epoch="$(date -u -d "$not_after" +%s)"
+          now_epoch="$(date -u +%s)"
+          remaining_days="$(( (not_after_epoch - now_epoch + 86399) / 86400 ))"
+
+          {
+            echo "## SSL certificate status"
+            echo
+            echo "- Host: \`${TLS_HOST}:${TLS_PORT}\`"
+            echo "- ${subject}"
+            echo "- ${issuer}"
+            echo "- Expires: \`${not_after}\`"
+            echo "- Remaining: \`${remaining_days} days\`"
+            echo "- Warning threshold: \`${TLS_WARNING_DAYS} days\`"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+          if ! openssl x509 -in "$certificate_file" -checkend 0 -noout; then
+            echo "::error::The SSL certificate for ${TLS_HOST} has expired."
+            exit 1
+          fi
+
+          warning_seconds="$((TLS_WARNING_DAYS * 86400))"
+          if ! openssl x509 -in "$certificate_file" -checkend "$warning_seconds" -noout; then
+            echo "::error::The SSL certificate for ${TLS_HOST} expires within ${TLS_WARNING_DAYS} days."
+            exit 1
+          fi
+
+          echo "SSL certificate is valid for ${remaining_days} more days."

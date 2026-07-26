@@ -120,6 +120,10 @@ Finalize decision
 - Keep Caddy certificate state in named Docker volumes so application
   redeployments do not discard issued certificates. Do not delete
   `moyeo-caddy-data` or `moyeo-caddy-config` during ordinary deployments.
+- Monitor the public certificate once per day from GitHub Actions. Fail the
+  monitor when the TLS handshake or hostname verification fails, or when fewer
+  than 21 days remain before expiration. Keep this check external so it adds no
+  resident process or memory usage to the EC2 instance.
 - Keep this setup limited to the current single-instance dev environment.
 
 ## Currently Excluded
@@ -238,6 +242,8 @@ current RFC 9457-based error response policy, and documented working rules.
 - ECR repository: `moyeo-server`
 - Deployment workflow: `.github/workflows/deploy-dev.yml`, executed only from
   `ohujj/MOYEO`
+- SSL monitor workflow: `.github/workflows/monitor-ssl.yml`, executed daily and
+  available for manual runs only in `ohujj/MOYEO`
 - Runtime env file on EC2: `/home/ubuntu/moyeo/.env`
 - Departure place search API key: store `KAKAO_LOCAL_REST_API_KEY` only in the
   EC2 runtime `.env`; Docker Compose passes the value into the application
