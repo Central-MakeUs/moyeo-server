@@ -38,6 +38,7 @@ class AppleTokenClient {
 
     String exchange(String code) {
         if (!properties.enabled()) {
+            log.warn("Apple login failed: stage=configuration reason=oauth_disabled.");
             throw AppleOAuthException.unavailable();
         }
 
@@ -56,35 +57,50 @@ class AppleTokenClient {
                     .retrieve()
                     .body(AppleTokenResponse.class);
             if (response == null || response.idToken() == null || response.idToken().isBlank()) {
+                log.warn("Apple login failed: stage=token_exchange providerStatus=200 reason=missing_id_token.");
                 throw AppleOAuthException.failed();
             }
             return response.idToken();
         } catch (RestClientResponseException exception) {
-            if (exception.getStatusCode().is4xxClientError()) {
-                if (isInvalidGrant(exception)) {
-                    throw AppleOAuthException.failed();
-                }
-                log.warn("Apple token exchange rejected the server request with status {}.",
-                        exception.getStatusCode().value());
-                throw AppleOAuthException.unavailable();
+            String providerError = providerError(exception);
+            log.warn(
+                    "Apple login failed: stage=token_exchange providerStatus={} providerError={}.",
+                    exception.getStatusCode().value(),
+                    providerError
+            );
+            if (exception.getStatusCode().is4xxClientError() && "invalid_grant".equals(providerError)) {
+                throw AppleOAuthException.failed();
             }
-            log.warn("Apple token exchange failed with provider status {}.", exception.getStatusCode().value());
             throw AppleOAuthException.unavailable();
         } catch (RestClientException exception) {
-            log.warn("Apple token exchange request failed: {}", exception.getClass().getSimpleName());
+            log.warn(
+                    "Apple login failed: stage=token_exchange reason=request_failed exception={}.",
+                    exception.getClass().getSimpleName()
+            );
             throw AppleOAuthException.unavailable();
         }
     }
 
-    private boolean isInvalidGrant(RestClientResponseException exception) {
+    private String providerError(RestClientResponseException exception) {
         try {
             AppleErrorResponse response = objectMapper.readValue(
                     exception.getResponseBodyAsByteArray(),
                     AppleErrorResponse.class
             );
-            return response != null && "invalid_grant".equals(response.error());
+            if (response == null) {
+                return "unknown";
+            }
+            return switch (response.error()) {
+                case "invalid_request",
+                     "invalid_client",
+                     "invalid_grant",
+                     "unauthorized_client",
+                     "unsupported_grant_type",
+                     "invalid_scope" -> response.error();
+                case null, default -> "unknown";
+            };
         } catch (Exception parsingException) {
-            return false;
+            return "unknown";
         }
     }
 

@@ -5,6 +5,9 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -23,6 +26,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class AppleTokenClientTest {
 
     private MockRestServiceServer server;
@@ -66,20 +70,32 @@ class AppleTokenClientTest {
     }
 
     @Test
-    void mapsInvalidGrantToSocialLoginFailed() {
+    void mapsInvalidGrantToSocialLoginFailedAndLogsSanitizedProviderError(CapturedOutput output) {
         server.expect(requestTo("https://appleid.apple.com/auth/token"))
                 .andRespond(withBadRequest()
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body("{\"error\":\"invalid_grant\"}"));
+                        .body("""
+                                {
+                                  "error": "invalid_grant",
+                                  "error_description": "authorization code invalid-code was rejected"
+                                }
+                                """));
 
         assertThatThrownBy(() -> tokenClient.exchange("invalid-code"))
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
                 );
+        assertThat(output)
+                .contains(
+                        "Apple login failed: stage=token_exchange providerStatus=400 "
+                                + "providerError=invalid_grant."
+                )
+                .doesNotContain("invalid-code")
+                .doesNotContain("error_description");
     }
 
     @Test
-    void mapsInvalidClientToSocialLoginUnavailable() {
+    void mapsInvalidClientToSocialLoginUnavailableAndLogsProviderError(CapturedOutput output) {
         server.expect(requestTo("https://appleid.apple.com/auth/token"))
                 .andRespond(withBadRequest()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -89,6 +105,11 @@ class AppleTokenClientTest {
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
                         assertThat(exception.getErrorCode())
                                 .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
+                );
+        assertThat(output)
+                .contains(
+                        "Apple login failed: stage=token_exchange providerStatus=400 "
+                                + "providerError=invalid_client."
                 );
     }
 

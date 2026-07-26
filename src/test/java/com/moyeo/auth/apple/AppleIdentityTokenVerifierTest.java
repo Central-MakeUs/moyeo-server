@@ -11,6 +11,9 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -30,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class AppleIdentityTokenVerifierTest {
 
     private static final Instant NOW = Instant.parse("2026-07-23T00:00:00Z");
@@ -68,15 +72,22 @@ class AppleIdentityTokenVerifierTest {
     }
 
     @Test
-    void rejectsNonceMismatch() throws Exception {
+    void rejectsNonceMismatchAndLogsReasonWithoutToken(CapturedOutput output) throws Exception {
         expectAppleJwks();
 
+        String identityToken = identityToken("different-nonce", NOW.plusSeconds(300));
         assertThatThrownBy(() -> verifier.verifyAndGetSubject(
-                identityToken("different-nonce", NOW.plusSeconds(300)),
+                identityToken,
                 "expected-nonce"
         )).isInstanceOfSatisfying(MoyeoException.class, exception ->
                 assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
         );
+        assertThat(output)
+                .contains(
+                        "Apple login failed: stage=identity_token_verification "
+                                + "reason=nonce_mismatch."
+                )
+                .doesNotContain(identityToken);
     }
 
     @Test

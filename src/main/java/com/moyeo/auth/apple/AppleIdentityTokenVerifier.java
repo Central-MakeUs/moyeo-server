@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.global.error.MoyeoException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.jwk.JWK;
@@ -49,42 +50,54 @@ class AppleIdentityTokenVerifier {
         try {
             SignedJWT signedJwt = SignedJWT.parse(identityToken);
             if (!JWSAlgorithm.RS256.equals(signedJwt.getHeader().getAlgorithm())) {
-                throw AppleOAuthException.failed();
+                throw verificationFailed("unsupported_algorithm");
             }
 
             RSAKey rsaKey = findRsaKey(signedJwt.getHeader().getKeyID());
             if (!signedJwt.verify(new RSASSAVerifier(rsaKey))) {
-                throw AppleOAuthException.failed();
+                throw verificationFailed("invalid_signature");
             }
 
             JWTClaimsSet claims = signedJwt.getJWTClaimsSet();
             validateClaims(claims, expectedNonce);
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
-                throw AppleOAuthException.failed();
+                throw verificationFailed("missing_subject");
             }
             return subject;
-        } catch (com.moyeo.global.error.MoyeoException exception) {
+        } catch (MoyeoException exception) {
             throw exception;
         } catch (Exception exception) {
+            log.warn(
+                    "Apple login failed: stage=identity_token_verification reason=malformed_token exception={}.",
+                    exception.getClass().getSimpleName()
+            );
             throw AppleOAuthException.failed();
         }
     }
 
     private void validateClaims(JWTClaimsSet claims, String expectedNonce) throws java.text.ParseException {
         Date expirationTime = claims.getExpirationTime();
-        if (!APPLE_ISSUER.equals(claims.getIssuer())
-                || !claims.getAudience().contains(properties.clientId())
-                || expirationTime == null
-                || !expirationTime.toInstant().isAfter(Instant.now(clock))
-                || !expectedNonce.equals(claims.getStringClaim("nonce"))) {
-            throw AppleOAuthException.failed();
+        if (!APPLE_ISSUER.equals(claims.getIssuer())) {
+            throw verificationFailed("invalid_issuer");
+        }
+        if (!claims.getAudience().contains(properties.clientId())) {
+            throw verificationFailed("invalid_audience");
+        }
+        if (expirationTime == null) {
+            throw verificationFailed("missing_expiration");
+        }
+        if (!expirationTime.toInstant().isAfter(Instant.now(clock))) {
+            throw verificationFailed("expired_token");
+        }
+        if (!expectedNonce.equals(claims.getStringClaim("nonce"))) {
+            throw verificationFailed("nonce_mismatch");
         }
     }
 
     private RSAKey findRsaKey(String keyId) {
         if (keyId == null || keyId.isBlank()) {
-            throw AppleOAuthException.failed();
+            throw verificationFailed("missing_key_id");
         }
 
         CachedJwkSet current = cachedJwkSet;
@@ -118,18 +131,29 @@ class AppleIdentityTokenVerifier {
             cachedJwkSet = new CachedJwkSet(jwkSet, Instant.now(clock));
             RSAKey refreshed = rsaKey(jwkSet, keyId);
             if (refreshed == null) {
-                throw AppleOAuthException.failed();
+                throw verificationFailed("unknown_key_id");
             }
             return refreshed;
-        } catch (com.moyeo.global.error.MoyeoException exception) {
+        } catch (MoyeoException exception) {
             throw exception;
         } catch (RestClientException exception) {
-            log.warn("Apple public key request failed: {}", exception.getClass().getSimpleName());
+            log.warn(
+                    "Apple login failed: stage=jwks_fetch reason=request_failed exception={}.",
+                    exception.getClass().getSimpleName()
+            );
             throw AppleOAuthException.unavailable();
         } catch (Exception exception) {
-            log.warn("Apple public key response could not be parsed.");
+            log.warn(
+                    "Apple login failed: stage=jwks_fetch reason=malformed_response exception={}.",
+                    exception.getClass().getSimpleName()
+            );
             throw AppleOAuthException.unavailable();
         }
+    }
+
+    private MoyeoException verificationFailed(String reason) {
+        log.warn("Apple login failed: stage=identity_token_verification reason={}.", reason);
+        return AppleOAuthException.failed();
     }
 
     private RSAKey rsaKey(JWKSet jwkSet, String keyId) {
