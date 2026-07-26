@@ -30,7 +30,8 @@ Before changing code or documentation:
 
 ## Routing References
 
-- Project lifecycle, MVP scope, tech decisions, deployment:
+- Project lifecycle, MVP scope, tech decisions, deployment, production
+  readiness, and database durability/backup:
   `docs/00-project-setup.md`
 - API and error contract: `docs/policies/API_POLICY.md`
 - Auth and security: `docs/policies/AUTH_POLICY.md`
@@ -43,6 +44,9 @@ For deployment or environment work:
 
 - Check the actual committed deployment files first.
 - Do not rely on local-only notes unless the user explicitly provides them.
+- For production server, database hosting, persistent storage, migration,
+  backup, or restore work, read the `Production Data Durability Gate` in
+  `docs/00-project-setup.md` before proposing or implementing changes.
 
 ## Hard Rules
 
@@ -94,7 +98,8 @@ For each change, classify the touched surface before editing:
 - Auth/security contract: JWT behavior, current-user injection, CORS, password
   handling, or access rules.
 - Deployment/runtime contract: Docker, GitHub Actions, profiles, environment
-  variables, or external services.
+  variables, external services, database hosting, persistent volumes, backup,
+  or restore behavior.
 - Domain policy: meeting, participant, voting, place, schedule, result, or member
   behavior not already documented.
 

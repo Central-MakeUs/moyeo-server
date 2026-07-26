@@ -1,6 +1,6 @@
 # Project Setup Policy
 
-> Last reviewed: 2026-07-25
+> Last reviewed: 2026-07-26
 > Review trigger: 기술 스택, MVP 범위, 배포 방식, Codex 작업 규칙, 도메인 정책 변경 시
 
 ## Project Goal
@@ -229,6 +229,23 @@ current RFC 9457-based error response policy, and documented working rules.
 - Revisit the production domain and TLS setup, migration, rollback, and
   zero-downtime strategy before public launch.
 
+### Production Data Durability Gate
+
+- The current EC2 Docker Compose MySQL volume is a development convenience, not
+  an approved production durability or backup design.
+- Before a production server accepts real user data, explicitly decide and
+  document the production database hosting and persistence model, automated
+  backup scope and schedule, retention, access control, restore procedure,
+  recovery ownership, RPO, and RTO.
+- Verify at least one production-like restore rehearsal before declaring the
+  production data path ready.
+- Back up production data before schema migrations or deployment operations
+  with destructive data risk, and document the matching rollback or restore
+  path.
+- `POLICY_UNDEFINED`: production database service, backup schedule, retention,
+  RPO, RTO, and recovery owner remain human decisions until explicitly
+  approved.
+
 ## Current Dev Infrastructure
 
 - Dev API base URL: `https://3-35-119-70.sslip.io`
@@ -346,6 +363,7 @@ current RFC 9457-based error response policy, and documented working rules.
 After MVP completion, review these items in sequence as needs become clear:
 
 - Production domain and TLS
+- Production database durability, automated backup, and restore rehearsal
 - Database migration
 - Refresh Token and token rotation
 - Error monitoring
