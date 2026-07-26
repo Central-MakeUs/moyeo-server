@@ -9,6 +9,8 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
@@ -34,6 +37,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("local")
+@TestPropertySource(properties = {
+        "moyeo.cors.allowed-origins=http://localhost:3000,https://moyeo-web.vercel.app,"
+                + "https://moyeo-dev.vercel.app",
+        "moyeo.cors.allowed-origin-patterns=https://moyeo-*-hyeonjirohs-projects.vercel.app"
+})
 class AuthControllerTest {
 
     @Autowired
@@ -265,15 +273,21 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
     }
 
-    @Test
-    void corsAllowsConfiguredFrontendOrigin() throws Exception {
-        mockMvc.perform(options("/api/auth/me")
-                        .header("Origin", "http://localhost:3000")
-                        .header("Access-Control-Request-Method", "GET")
-                        .header("Access-Control-Request-Headers", "Authorization"))
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "http://localhost:3000",
+            "https://moyeo-web.vercel.app",
+            "https://moyeo-dev.vercel.app",
+            "https://moyeo-pr-check-hyeonjirohs-projects.vercel.app"
+    })
+    void corsAllowsConfiguredFrontendOrigins(String origin) throws Exception {
+        mockMvc.perform(options("/api/auth/apple")
+                        .header("Origin", origin)
+                        .header("Access-Control-Request-Method", "POST")
+                        .header("Access-Control-Request-Headers", "Authorization, Content-Type"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:3000"))
+                .andExpect(header().string("Access-Control-Allow-Origin", origin))
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS"))
-                .andExpect(header().string("Access-Control-Allow-Headers", "Authorization"));
+                .andExpect(header().string("Access-Control-Allow-Headers", "Authorization, Content-Type"));
     }
 }

@@ -288,6 +288,8 @@ current RFC 9457-based error response policy, and documented working rules.
 - The server callback URI is configured through `APPLE_REDIRECT_URI`; dev uses
   `https://moyeo-dev.vercel.app/auth/callback/apple` and production uses
   `https://moyeo-web.vercel.app/auth/callback/apple`.
+- The dev profile allows Vercel PR Preview origins matching
+  `https://moyeo-*-hyeonjirohs-projects.vercel.app` through CORS.
 - The production profile allows `https://moyeo-web.vercel.app` through CORS by
   default. Override it with `CORS_ALLOWED_ORIGINS` when the production frontend
   domain changes.

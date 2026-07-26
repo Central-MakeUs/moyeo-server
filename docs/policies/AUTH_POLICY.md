@@ -156,6 +156,8 @@ the `prod` profile.
 
 - Configure CORS with explicit frontend origins and update them when frontend
   deployment URLs are decided.
+- The dev profile also allows Vercel PR Preview origins matching
+  `https://moyeo-*-hyeonjirohs-projects.vercel.app`.
 - Expose the `X-Trace-Id` response header so browser clients can correlate an
   API response with server logs.
 - If `CORS_ALLOWED_ORIGINS` exists in the runtime environment, it overrides the

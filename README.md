@@ -287,6 +287,9 @@ Dev CORS origin example:
 CORS_ALLOWED_ORIGINS=https://moyeo-web.vercel.app,https://moyeo-dev.vercel.app,http://localhost:3000
 ```
 
+The dev profile separately allows Vercel PR Preview origins matching
+`https://moyeo-*-hyeonjirohs-projects.vercel.app`.
+
 The EC2 dev server stores runtime values in:
 
 ```text
