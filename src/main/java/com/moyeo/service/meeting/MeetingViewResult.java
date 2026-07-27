@@ -16,7 +16,7 @@ public record MeetingViewResult(
         int maxParticipants,
         long participantCount,
         LocalDateTime deadlineAt,
-        long remainingMinutes,
+        Long remainingMinutes,
         List<Participant> participants
 ) {
 

@@ -97,6 +97,11 @@ Finalize decision
 - Before deploying re-login-free Apple withdrawal to an existing database,
   apply `scripts/db/2026-07-26-social-refresh-token.sql`. Existing Apple users
   populate the new nullable ciphertext column on their next successful login.
+- Before deploying no-deadline meeting creation to an existing production
+  database, back up the target database and apply
+  `scripts/db/2026-07-27-meeting-deadline-nullable.sql` so
+  `meetings.deadline_at` accepts null for meetings without a participation
+  deadline.
 - Account-withdrawal cover cleanup retries every five minutes by default.
   `MEETING_COVER_CLEANUP_RETRY_DELAY` may override the Spring duration value.
 - Hibernate `ddl-auto=update` does not remove tables for deleted entities. The

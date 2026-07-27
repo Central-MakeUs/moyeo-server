@@ -43,18 +43,23 @@ general best practice into domain policy.
   `DATE_AND_TIME`. `DATE_ONLY` omits the common time range; `DATE_AND_TIME`
   requires both `availableStartTime` and `availableEndTime`.
 - A participant whose coordinate pair is omitted counts as having submitted a departure snapshot, but is excluded from the straight-line middle-point preview. If no submitted departure has coordinates, the place view returns `COORDINATES_PENDING` with no recommendations.
-- Meeting creation receives `deadlineMinutes`; the server calculates and stores
-  `deadlineAt`.
+- Meeting creation receives `noDeadline`. When it is false or omitted, the
+  request also receives `deadlineMinutes` and the server calculates and stores
+  `deadlineAt`. When `noDeadline=true`, `deadlineMinutes` is omitted or null
+  and `deadlineAt` is stored as null.
 - The meeting-creation success response returns `meetingId`, `inviteCode`, and
   `invitePath` so the client can move directly to the link-sharing screen.
 - The `meetup.app` domain shown in the CRT-08 design is an illustration only;
   it is not a configured Moyeo domain or an API contract. The frontend composes
   the final share URL from its deployed domain and `invitePath`.
-- `deadlineMinutes` is currently accepted in 10-minute units from 10 minutes up
-  to 72 hours. A zero-minute deadline is not allowed.
-- `deadlineAt` is calculated from the server processing time of the final meeting
-  creation request. Any client-side expected end time is only a preview and may
-  differ if the user stays on the screen before submitting.
+- When `noDeadline` is false or omitted, `deadlineMinutes` is required and is
+  accepted in 10-minute units from 10 minutes up to 72 hours. A zero-minute
+  deadline is not allowed. When `noDeadline=true`, `deadlineMinutes` is
+  omitted or null.
+- For a deadline-bound meeting, `deadlineAt` is calculated from the server
+  processing time of the final meeting creation request. Any client-side
+  expected end time is only a preview and may differ if the user stays on the
+  screen before submitting.
 - TODO: For CRT-06, keep the current duration-only selection UX until product
   confirmation. If an absolute deadline preview or second-accurate countdown is
   later required, decide whether the API should provide a server-time reference;
@@ -181,7 +186,8 @@ general best practice into domain policy.
 - A repeated guest join attempt with the same nickname as an existing guest in
   the same meeting should continue to return a duplicate nickname conflict, even if
   the same password is provided.
-- Member and guest participation is rejected after the meeting `deadlineAt`.
+- Member and guest participation is rejected after a non-null meeting
+  `deadlineAt`. A null `deadlineAt` has no deadline-based participation block.
 - Member and guest participation checks the current participant count before
   saving.
 - To prevent concurrent joins from exceeding `maxParticipants`, participant

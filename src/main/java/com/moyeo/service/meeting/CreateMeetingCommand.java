@@ -20,6 +20,39 @@ public record CreateMeetingCommand(
         PlaceMode placeMode,
         String fixedPlaceName,
         String fixedPlaceAddress,
-        int deadlineMinutes
+        Integer deadlineMinutes,
+        boolean noDeadline
 ) {
+    public CreateMeetingCommand(
+            String name,
+            String description,
+            int maxParticipants,
+            PlanningType planningType,
+            ScheduleMode scheduleMode,
+            ScheduleInputType scheduleInputType,
+            LocalDateTime fixedScheduleAt,
+            LocalTime availableStartTime,
+            LocalTime availableEndTime,
+            PlaceMode placeMode,
+            String fixedPlaceName,
+            String fixedPlaceAddress,
+            int deadlineMinutes
+    ) {
+        this(
+                name,
+                description,
+                maxParticipants,
+                planningType,
+                scheduleMode,
+                scheduleInputType,
+                fixedScheduleAt,
+                availableStartTime,
+                availableEndTime,
+                placeMode,
+                fixedPlaceName,
+                fixedPlaceAddress,
+                deadlineMinutes,
+                false
+        );
+    }
 }

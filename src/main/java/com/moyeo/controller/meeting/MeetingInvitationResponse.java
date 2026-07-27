@@ -93,7 +93,7 @@ public record MeetingInvitationResponse(
         )
         String placeRecommendationStrategy,
 
-        @Schema(description = "서버가 계산한 모임 참여/응답 마감 일시", example = "2026-07-01T18:00:00")
+        @Schema(description = "서버가 계산한 모임 참여/응답 마감 일시입니다. 마감 없는 모임에서는 반환하지 않습니다.", example = "2026-07-01T18:00:00")
         LocalDateTime deadlineAt,
 
         @Schema(description = "현재 참여 인원. 방장을 포함합니다.", example = "1")

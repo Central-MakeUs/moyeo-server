@@ -41,11 +41,11 @@ public record MeetingViewResponse(
         @Schema(description = "현재 참여 인원. 방장을 포함합니다.", example = "3")
         long participantCount,
 
-        @Schema(description = "모임 참여/응답 마감 일시", example = "2026-07-12T18:00:00")
+        @Schema(description = "모임 참여/응답 마감 일시입니다. 마감 없는 모임에서는 반환하지 않습니다.", example = "2026-07-12T18:00:00")
         LocalDateTime deadlineAt,
 
-        @Schema(description = "현재 서버 시간 기준 마감까지 남은 분. 이미 마감된 경우 0입니다.", example = "360")
-        long remainingMinutes,
+        @Schema(description = "현재 서버 시간 기준 마감까지 남은 분입니다. 이미 마감된 경우 0이며, 마감 없는 모임에서는 반환하지 않습니다.", example = "360")
+        Long remainingMinutes,
 
         @Schema(description = "참여자 목록. 방장이 먼저 오고 이후 참여 순서로 정렬됩니다.")
         List<ParticipantResponse> participants

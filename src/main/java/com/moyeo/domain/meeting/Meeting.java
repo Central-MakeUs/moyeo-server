@@ -99,8 +99,7 @@ public class Meeting {
     @Comment("S3에 보관하는 모임 커버 이미지 객체 키")
     private String coverImageKey;
 
-    @Column(nullable = false)
-    @Comment("모임 참여/응답 마감 일시")
+    @Comment("모임 참여/응답 마감 일시. null이면 마감 없음")
     private LocalDateTime deadlineAt;
 
     @Column(name = "invite_code", nullable = false, length = 20)

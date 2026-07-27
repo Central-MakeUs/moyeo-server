@@ -92,11 +92,43 @@ public record CreateMeetingRequest(
         @Schema(description = "방장의 출발지와 이동수단입니다. 장소 조율 모임에서 필수입니다.")
         @Valid SaveParticipationRequest.DepartureRequest departure,
 
-        @Schema(description = "생성 요청 처리 시점부터 마감까지 남은 시간(분)입니다. 10분 단위이며 최소 10분, 최대 72시간입니다.", example = "1440", minimum = "10", maximum = "4320")
+        @Schema(description = "noDeadline가 false이거나 생략된 경우 필수입니다. 생성 요청 처리 시점부터 마감까지 남은 시간(분)이며, 10분 단위로 최소 10분, 최대 72시간입니다. noDeadline가 true이면 생략하거나 null로 보냅니다.", example = "1440", minimum = "10", maximum = "4320")
         @Min(10)
         @Max(4320)
-        int deadlineMinutes
+        Integer deadlineMinutes,
+
+        @Schema(description = "true이면 참여/응답 마감 없이 모임을 생성합니다. 이 경우 deadlineMinutes는 생략하거나 null로 보냅니다. 생략하거나 false이면 deadlineMinutes가 필요합니다.", example = "false", defaultValue = "false")
+        boolean noDeadline
 ) {
+    public CreateMeetingRequest(
+            String name,
+            String description,
+            Integer maxParticipants,
+            PlanningType planningType,
+            ScheduleInputType scheduleInputType,
+            LocalTime availableStartTime,
+            LocalTime availableEndTime,
+            List<LocalDate> scheduleCandidateDates,
+            SaveParticipationRequest.ScheduleResponseRequest scheduleResponse,
+            SaveParticipationRequest.DepartureRequest departure,
+            Integer deadlineMinutes
+    ) {
+        this(
+                name,
+                description,
+                maxParticipants,
+                planningType,
+                scheduleInputType,
+                availableStartTime,
+                availableEndTime,
+                scheduleCandidateDates,
+                scheduleResponse,
+                departure,
+                deadlineMinutes,
+                false
+        );
+    }
+
     @AssertTrue(message = "일정 입력 유형과 공통 시간대가 모임 생성 유형에 맞지 않습니다.")
     @Schema(hidden = true)
     public boolean isValidSchedulePlanning() {
@@ -121,7 +153,13 @@ public record CreateMeetingRequest(
     @AssertTrue(message = "마감 시간은 10분 단위로 입력해야 합니다.")
     @Schema(hidden = true)
     public boolean isValidDeadlineUnit() {
-        return deadlineMinutes % 10 == 0;
+        return noDeadline || deadlineMinutes == null || deadlineMinutes % 10 == 0;
+    }
+
+    @AssertTrue(message = "마감 기한 없이 만들 때는 deadlineMinutes를 생략하거나 null로 보내고, 마감 기한이 있으면 deadlineMinutes를 입력해야 합니다.")
+    @Schema(hidden = true)
+    public boolean isValidDeadlineSelection() {
+        return noDeadline ? deadlineMinutes == null : deadlineMinutes != null;
     }
 
     public CreateMeetingCommand toCommand() {
@@ -138,7 +176,8 @@ public record CreateMeetingRequest(
                 resolvePlaceMode(),
                 null,
                 null,
-                deadlineMinutes
+                deadlineMinutes,
+                noDeadline
         );
     }
 

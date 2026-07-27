@@ -123,7 +123,7 @@ public class MeetingService {
                 resolvePlaceRecommendationStrategy(command.placeMode()),
                 resolveFixedPlaceName(command),
                 resolveFixedPlaceAddress(command),
-                LocalDateTime.now().plusMinutes(command.deadlineMinutes()),
+                resolveDeadlineAt(command),
                 inviteCodeGenerator.generate()
         );
         Meeting savedMeeting = meetingRepository.saveAndFlush(meeting);
@@ -545,7 +545,7 @@ public class MeetingService {
     }
 
     private void validateJoinOpen(Meeting meeting) {
-        if (!meeting.getDeadlineAt().isAfter(LocalDateTime.now())) {
+        if (meeting.getDeadlineAt() != null && !meeting.getDeadlineAt().isAfter(LocalDateTime.now())) {
             throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPATION_CLOSED);
         }
     }
@@ -575,8 +575,15 @@ public class MeetingService {
         return participant.getDepartureLatitude() != null && participant.getDepartureLongitude() != null;
     }
 
-    private long remainingMinutes(LocalDateTime deadlineAt) {
+    private Long remainingMinutes(LocalDateTime deadlineAt) {
+        if (deadlineAt == null) {
+            return null;
+        }
         return Math.max(0, ChronoUnit.MINUTES.between(LocalDateTime.now(), deadlineAt));
+    }
+
+    private LocalDateTime resolveDeadlineAt(CreateMeetingCommand command) {
+        return command.noDeadline() ? null : LocalDateTime.now().plusMinutes(command.deadlineMinutes());
     }
 
     private String resolveScheduleSort(String sort) {

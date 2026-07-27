@@ -65,7 +65,7 @@ Table meetings {
   fixed_place_name varchar(100) [note: "확정 장소 이름. place_mode가 FIXED일 때 사용"]
   fixed_place_address varchar(255) [note: "확정 장소 주소. place_mode가 FIXED일 때 사용"]
   cover_image_key varchar(500) [note: "S3에 저장하는 모임 커버 이미지 객체 키"]
-  deadline_at datetime [not null, note: "모임 참여/응답 마감 일시"]
+  deadline_at datetime [note: "모임 참여/응답 마감 일시. null이면 마감 없음"]
   invite_code varchar(20) [not null, unique, note: "초대 링크에 사용하는 고유 코드"]
   created_at datetime [not null, note: "모임 생성 일시"]
   updated_at datetime [not null, note: "모임 수정 일시"]
@@ -206,7 +206,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meeting_cover_cleanup_tasks` keeps account-withdrawal cover deletions durable
   across S3 failures and process restarts. A successful idempotent S3 deletion
   removes the task; failed attempts remain for scheduled retry.
-- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes`, which is currently accepted in 10-minute units up to 72 hours.
+- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `meeting_participant_schedule_availabilities` stores participant-selected availability slots. For `DATE_AND_TIME`, meeting creation saves the host-selected ranges in the same transaction as the meeting and host row.

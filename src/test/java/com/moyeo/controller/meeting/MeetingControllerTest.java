@@ -120,6 +120,65 @@ class MeetingControllerTest {
     }
 
     @Test
+    void createMeetingWithoutDeadlineStoresNullDeadlineAndAllowsGuestJoin() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-no-deadline", "host-no-deadline");
+        ObjectNode request = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        request.remove("deadlineMinutes");
+        request.put("noDeadline", true);
+
+        String response = mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String inviteCode = objectMapper.readTree(response).get("inviteCode").asText();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select deadline_at is null from meetings where invite_code = ?",
+                Boolean.class,
+                inviteCode
+        )).isTrue();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deadlineAt").doesNotExist())
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(true));
+
+        joinGuest(inviteCode, "guest-no-deadline");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.deadlineAt").doesNotExist())
+                .andExpect(jsonPath("$.remainingMinutes").doesNotExist());
+    }
+
+    @Test
+    void createMeetingValidatesDeadlineFieldsAccordingToNoDeadline() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-no-deadline-validation", "host-no-deadline-validation");
+
+        ObjectNode deadlineWithoutValue = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        deadlineWithoutValue.remove("deadlineMinutes");
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(deadlineWithoutValue)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+
+        ObjectNode noDeadlineWithMinutes = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        noDeadlineWithMinutes.put("noDeadline", true);
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(noDeadlineWithMinutes)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void createMeetingRejectsScheduleInputTypeAndTimeRangeMismatch() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost-input-mismatch", "host-input-mismatch");
 
@@ -1148,6 +1207,27 @@ class MeetingControllerTest {
                 .andExpect(jsonPath(
                         "$.components.schemas.CreateMeetingRequest.properties.maxParticipants.maximum"
                 ).value(20));
+    }
+
+    @Test
+    void swaggerDocumentsNoDeadlineRequestAndOmittedDeadlineResponses() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath(
+                        "$.components.schemas.CreateMeetingRequest.properties.noDeadline.type"
+                ).value("boolean"))
+                .andExpect(jsonPath(
+                        "$.components.schemas.CreateMeetingRequest.properties.noDeadline.default"
+                ).value(false))
+                .andExpect(jsonPath(
+                        "$.components.schemas.MeetingInvitationResponse.properties.deadlineAt.description"
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")))
+                .andExpect(jsonPath(
+                        "$.components.schemas.MeetingViewResponse.properties.deadlineAt.description"
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")))
+                .andExpect(jsonPath(
+                        "$.components.schemas.MeetingViewResponse.properties.remainingMinutes.description"
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")));
     }
 
     @Test
