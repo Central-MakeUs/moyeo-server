@@ -168,8 +168,8 @@ Current meeting scope:
 - A participation save request replaces the participant's previous schedule availability slots.
 - Public pre-confirmation meeting views provide participant lists, schedule candidates, and place recommendations.
 - Schedule candidates are calculated from saved availability slots and can be sorted by longest meeting time or earliest date; each request returns up to three candidates.
-- Middle-point place recommendations use saved departure coordinates and a temporary commercial-area catalog to return up to five straight-line-distance preview candidates.
-- Random place recommendations return up to five candidates from the temporary commercial-area catalog.
+- Middle-point place recommendations use saved departure coordinates and the persistent Seoul commercial-area catalog to return up to five straight-line-distance preview candidates.
+- Random place recommendations return up to five candidates from the persistent Seoul commercial-area catalog.
 
 Not included yet:
 
@@ -177,7 +177,6 @@ Not included yet:
 - Actual travel-time-based place ranking and final place confirmation
 - Current-location lookup
 - Tmap/Tmap Transit integration
-- Persistent commercial-area data import and management
 - Voting/free-poll
 - Final decision/result
 - Meeting list/detail tabs

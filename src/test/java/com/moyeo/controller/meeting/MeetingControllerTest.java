@@ -6,10 +6,13 @@ import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
+import com.moyeo.repository.commercial.CommercialAreaRepository;
 import com.moyeo.service.meeting.MeetingService;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.SaveParticipationCommand;
 import com.moyeo.domain.meeting.ScheduleInputType;
+import com.moyeo.domain.commercial.CommercialAreaSource;
+import com.moyeo.domain.commercial.CommercialAreaType;
 import com.moyeo.global.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
@@ -66,6 +69,9 @@ class MeetingControllerTest {
     private MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository;
 
     @Autowired
+    private CommercialAreaRepository commercialAreaRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -85,6 +91,18 @@ class MeetingControllerTest {
 
     @MockitoBean
     private KakaoLoginService kakaoLoginService;
+
+    @Test
+    void localProfileLoadsConfirmedCommercialAreaCatalog() {
+        var areas = commercialAreaRepository.findAllBySourceAndAreaTypeInOrderByExternalCodeAsc(
+                CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+                List.of(CommercialAreaType.DEVELOPMENT, CommercialAreaType.TOURIST_SPECIAL)
+        );
+
+        assertThat(areas).hasSize(255);
+        assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.DEVELOPMENT)).hasSize(249);
+        assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.TOURIST_SPECIAL)).hasSize(6);
+    }
 
     @Test
     void createMeetingReturnsMeetingAndInvitationInformation() throws Exception {
@@ -1593,6 +1611,10 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.participants[0].departureResponded").doesNotExist())
                 .andExpect(jsonPath("$.recommendations[0].rank").value(1))
                 .andExpect(jsonPath("$.recommendations[0].areaName").isString())
+                .andExpect(jsonPath("$.recommendations[0].categoryName").value(org.hamcrest.Matchers.anyOf(
+                        org.hamcrest.Matchers.is("발달상권"),
+                        org.hamcrest.Matchers.is("관광특구")
+                )))
                 .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").isNumber());
     }
 

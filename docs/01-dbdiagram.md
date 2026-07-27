@@ -48,6 +48,25 @@ Table saved_places {
   }
 }
 
+Table commercial_areas {
+  id bigint [pk, increment, note: "추천 후보 상권 내부 ID"]
+  source varchar(40) [not null, note: "상권 데이터 출처"]
+  external_code varchar(30) [not null, note: "출처가 부여한 상권 코드"]
+  area_type varchar(30) [not null, note: "추천 대상 상권 유형: DEVELOPMENT/TOURIST_SPECIAL"]
+  area_name varchar(255) [not null, note: "상권명"]
+  latitude decimal(10,7) [not null, note: "상권 중심 WGS84 위도"]
+  longitude decimal(10,7) [not null, note: "상권 중심 WGS84 경도"]
+  district_code varchar(10) [note: "시군구 코드"]
+  district_name varchar(40) [note: "시군구명"]
+  administrative_dong_code varchar(12) [note: "행정동 코드"]
+  administrative_dong_name varchar(40) [note: "행정동명"]
+
+  indexes {
+    (source, external_code) [unique, name: "uk_commercial_areas_source_external_code"]
+    (source, area_type) [name: "idx_commercial_areas_source_type"]
+  }
+}
+
 Table meetings {
   id bigint [pk, increment, note: "모임 ID"]
   host_user_id bigint [not null, note: "모임을 만든 방장 사용자 ID"]
@@ -196,6 +215,8 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
+- `commercial_areas` stores source-owned recommendation candidates independently from meetings. The initial seed contains only Seoul development areas and tourist-special areas from `SEOUL_COMMERCIAL_ANALYSIS`; later regional sources can use the same table through a different `source` value and source-owned code.
+- `commercial_areas.latitude` and `commercial_areas.longitude` are WGS84 center coordinates converted once during import from the source coordinate system, so route-provider calls do not transform coordinates at request time.
 - `meetings` stores the first milestone meeting creation and invite code base.
 - `meetings.planning_type` stores the FAB-selected creation type: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
 - `meetings.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.

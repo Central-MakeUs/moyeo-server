@@ -102,6 +102,17 @@ Finalize decision
   `scripts/db/2026-07-27-meeting-deadline-nullable.sql` so
   `meetings.deadline_at` accepts null for meetings without a participation
   deadline.
+- Before deploying persistent commercial-area recommendations to an existing
+  production database, back up the target database and apply
+  `scripts/db/2026-07-27-commercial-areas.sql`, then
+  `scripts/db/2026-07-27-commercial-areas-seoul.sql`.
+- The local and dev profiles load the same 255 Seoul commercial-area seed from
+  `src/main/resources/commercial-areas-seoul.tsv` after Hibernate creates or
+  updates the schema. If the Seoul source has a partial row count, startup
+  fails instead of serving incomplete recommendations. Production keeps the
+  explicit SQL-apply procedure above. When the source dataset changes,
+  regenerate the production SQL and local/dev TSV together:
+  `python scripts/import-commercial-areas.py <source.dbf> scripts/db/2026-07-27-commercial-areas-seoul.sql src/main/resources/commercial-areas-seoul.tsv`.
 - Account withdrawal, cover replacement, and cover deletion store their cleanup
   tasks in the same database transaction as the local change, so a process
   restart cannot lose the object key after commit. A transaction-rollback

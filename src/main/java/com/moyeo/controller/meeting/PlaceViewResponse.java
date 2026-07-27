@@ -104,7 +104,7 @@ public record PlaceViewResponse(
             @Schema(description = "상권명", example = "삼각지역")
             String areaName,
 
-            @Schema(description = "상권 분류명", example = "관광특구")
+            @Schema(description = "상권 분류명", example = "관광특구", allowableValues = {"발달상권", "관광특구"})
             String categoryName,
 
             @Schema(description = "상권 중심 위도", example = "37.5344715")

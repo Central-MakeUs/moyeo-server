@@ -256,12 +256,15 @@ general best practice into domain policy.
 - Before final confirmation, middle-point place recommendation is a preview
   based on simple latitude/longitude distance from saved participant departure
   snapshots.
-- Before final confirmation, commercial-area candidates may use a temporary
-  in-memory catalog derived from the Seoul commercial-area CSV. Building a
-  persistent commercial-area table and import pipeline is deferred until the
-  place data policy is confirmed.
-- The `RANDOM` place recommendation strategy shuffles the temporary catalog for
-  each view request before selecting up to five candidates.
+- Pre-confirmation commercial-area candidates use the persistent
+  `commercial_areas` table. The initial recommendation dataset is the 255 Seoul
+  areas from the confirmed source selection: 249 development areas and six
+  tourist-special areas. Each source record is imported once with its WGS84
+  center coordinate; a later regional source uses the same table with its own
+  source identifier and source-owned area code.
+- The `RANDOM` place recommendation strategy shuffles the persistent
+  commercial-area catalog for each view request before selecting up to five
+  candidates.
 - Actual travel-time based reranking and final place result storage should be
   handled in the later final-confirmation flow, not on every pre-confirmation
   status view request.

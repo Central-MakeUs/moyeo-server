@@ -181,6 +181,14 @@ Confidence values:
 
 Do not report a LOW confidence finding as HIGH severity without clear evidence.
 
+## Conclusion Summary
+
+End every code-review report with a concise conclusion summary in Korean.
+
+- Keep it to one or two short sentences.
+- State the number of remaining actionable findings and their practical impact.
+- If there are none, state that the reviewed change is ready from the review perspective.
+
 ## Human Decision
 
 Each finding is later judged by the human developer as one of:
