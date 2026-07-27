@@ -216,6 +216,27 @@ public class MeetingController {
                                     mediaType = MediaType.APPLICATION_JSON_VALUE,
                                     examples = {
                                             @ExampleObject(
+                                                    name = "SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE",
+                                                    description = """
+                                                            마감 기한 없이 답변을 받는 날짜 선택 모임입니다.
+
+                                                            - `noDeadline`을 `true`로 보냅니다.
+                                                            - `deadlineMinutes`는 보내지 않거나 `null`로 보냅니다.
+                                                            - `DATE_ONLY`이므로 `availableStartTime`, `availableEndTime`, `scheduleResponse`는 보내지 않습니다.
+                                                            """,
+                                                    value = """
+                                                    {
+                                                      "name": "여유롭게 날짜 정하기",
+                                                      "description": "마감 없이 가능한 날짜를 받아요.",
+                                                      "maxParticipants": 4,
+                                                      "planningType": "SCHEDULE_ONLY",
+                                                      "scheduleInputType": "DATE_ONLY",
+                                                      "scheduleCandidateDates": ["2026-07-10", "2026-07-11"],
+                                                      "noDeadline": true
+                                                    }
+                                                    """
+                                            ),
+                                            @ExampleObject(
                                                     name = "SCHEDULE_AND_PLACE_DATE_AND_TIME",
                                                     description = """
                                                             **허용 `planningType`**
@@ -370,6 +391,29 @@ public class MeetingController {
                             mediaType = MediaType.MULTIPART_FORM_DATA_VALUE,
                             encoding = @Encoding(name = "request", contentType = MediaType.APPLICATION_JSON_VALUE),
                             examples = {
+                                    @ExampleObject(
+                                            name = "SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE",
+                                            description = """
+                                                    마감 기한 없이 답변을 받는 날짜 선택 모임입니다.
+
+                                                    - `request.noDeadline`를 `true`로 보냅니다.
+                                                    - `request.deadlineMinutes`는 보내지 않거나 `null`로 보냅니다.
+                                                    - `coverImage`는 선택 파일 파트이므로 필요할 때만 추가합니다.
+                                                    """,
+                                            value = """
+                                                    {
+                                                      "request": {
+                                                        "name": "여유롭게 날짜 정하기",
+                                                        "description": "마감 없이 가능한 날짜를 받아요.",
+                                                        "maxParticipants": 4,
+                                                        "planningType": "SCHEDULE_ONLY",
+                                                        "scheduleInputType": "DATE_ONLY",
+                                                        "scheduleCandidateDates": ["2026-07-10", "2026-07-11"],
+                                                        "noDeadline": true
+                                                      }
+                                                    }
+                                                    """
+                                    ),
                                     @ExampleObject(
                                             name = "SCHEDULE_AND_PLACE_DATE_AND_TIME",
                                             description = """

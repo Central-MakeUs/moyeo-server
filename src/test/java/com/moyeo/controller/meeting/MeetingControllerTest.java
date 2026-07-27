@@ -1233,6 +1233,7 @@ class MeetingControllerTest {
     @Test
     void swaggerDocumentsEveryMeetingCreationFlowForJsonAndMultipart() throws Exception {
         List<String> exampleNames = List.of(
+                "SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE",
                 "SCHEDULE_AND_PLACE_DATE_AND_TIME",
                 "SCHEDULE_AND_PLACE_DATE_ONLY",
                 "SCHEDULE_ONLY_DATE_AND_TIME",
@@ -1266,6 +1267,10 @@ class MeetingControllerTest {
         assertThat(jsonExamples.path("SCHEDULE_AND_PLACE_DATE_AND_TIME").path("value").has("scheduleResponse")).isTrue();
         assertThat(jsonExamples.path("SCHEDULE_AND_PLACE_DATE_AND_TIME").path("value").has("departure")).isTrue();
         assertThat(jsonExamples.path("SCHEDULE_ONLY_DATE_ONLY").path("value").has("scheduleCandidateDates")).isTrue();
+        assertThat(jsonExamples.path("SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE").path("value").path("noDeadline").asBoolean()).isTrue();
+        assertThat(jsonExamples.path("SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE").path("value").has("deadlineMinutes")).isFalse();
+        assertThat(multipartExamples.path("SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE").path("value").path("request").path("noDeadline").asBoolean()).isTrue();
+        assertThat(multipartExamples.path("SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE").path("value").path("request").has("deadlineMinutes")).isFalse();
         assertThat(jsonExamples.path("PLACE_ONLY").path("value").has("departure")).isTrue();
         assertThat(jsonExamples.path("PLACE_ONLY").path("value").path("departure").has("name")).isFalse();
         assertThat(multipartExamples.path("PLACE_ONLY").path("value").path("request").path("departure").has("name")).isFalse();
