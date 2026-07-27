@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
@@ -35,7 +36,7 @@ class AppleLoginServiceTest {
     void logsInWithVerifiedAppleSubject() {
         AppleTokenClient.AppleTokenResult tokens = tokens();
         AuthenticatedMember expected = new AuthenticatedMember(10L, null, true);
-        when(tokenClient.exchange("one-time-code")).thenReturn(tokens);
+        when(tokenClient.exchange("one-time-code", OAuthRedirectTarget.DEV)).thenReturn(tokens);
         when(identityTokenVerifier.verifyAndGetSubject("identity-token", "nonce"))
                 .thenReturn("apple-subject");
         when(refreshTokenCipher.encrypt("apple-subject", "refresh-token"))
@@ -46,7 +47,7 @@ class AppleLoginServiceTest {
                 "encrypted-refresh-token"
         )).thenReturn(expected);
 
-        AuthenticatedMember result = appleLoginService.login("one-time-code", "nonce");
+        AuthenticatedMember result = appleLoginService.login("one-time-code", "nonce", OAuthRedirectTarget.DEV);
 
         assertThat(result).isEqualTo(expected);
     }

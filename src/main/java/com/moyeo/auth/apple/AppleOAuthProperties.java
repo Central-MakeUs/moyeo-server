@@ -1,8 +1,10 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.Map;
 
 @ConfigurationProperties(prefix = "moyeo.oauth.apple")
 public record AppleOAuthProperties(
@@ -11,7 +13,7 @@ public record AppleOAuthProperties(
         String teamId,
         String keyId,
         String privateKeyBase64,
-        String redirectUri,
+        Map<OAuthRedirectTarget, String> redirectUris,
         String tokenUri,
         String revokeUri,
         String jwksUri,
@@ -28,13 +30,18 @@ public record AppleOAuthProperties(
         requireText(teamId, "APPLE_TEAM_ID");
         requireText(keyId, "APPLE_KEY_ID");
         requireText(privateKeyBase64, "APPLE_PRIVATE_KEY_BASE64");
-        requireText(redirectUri, "APPLE_REDIRECT_URI");
+        requireText(redirectUri(OAuthRedirectTarget.DEV), "APPLE_OAUTH_REDIRECT_URI_DEV");
+        requireText(redirectUri(OAuthRedirectTarget.PROD), "APPLE_OAUTH_REDIRECT_URI_PROD");
         requireText(tokenUri, "Apple token URI");
         requireText(revokeUri, "Apple revoke URI");
         requireText(jwksUri, "Apple JWKS URI");
         if (connectTimeout == null || readTimeout == null || jwksCacheTtl == null) {
             throw new IllegalStateException("Apple OAuth timeout configuration is required.");
         }
+    }
+
+    String redirectUri(OAuthRedirectTarget target) {
+        return redirectUris == null ? null : redirectUris.get(target);
     }
 
     private void requireText(String value, String name) {

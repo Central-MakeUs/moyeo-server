@@ -31,8 +31,10 @@ then issues a Moyeo Access JWT.
 - Identify Apple users only by Apple's verified `sub` claim.
 - The backend must verify the Apple identity token signature, issuer, audience,
   expiration, subject, and nonce.
-- Keep the exact Apple redirect URI in server environment configuration. Do not
-  accept it from the API request.
+- Keep the exact Apple redirect URI set in server environment configuration.
+  The API may accept only the fixed `redirectTarget` values `dev` or `prod` and
+  the server maps that value to a registered URI. Do not accept a redirect URI
+  string from the API request. Apple `local` is unsupported.
 - Treat an invalid, expired, or already-used authorization code as
   `401 SOCIAL_LOGIN_FAILED`.
 - Treat an Apple timeout, service failure, or provider response indicating
@@ -52,7 +54,9 @@ then issues a Moyeo Access JWT.
 - Keep Kakao OpenID Connect disabled for the current flow. The backend exchanges
   the code using the server-configured REST API key, client secret, and exact
   redirect URI, then identifies the user only by the Kakao user-information
-  response `id`.
+  response `id`. The API may accept only the fixed `redirectTarget` values
+  `local`, `dev`, or `prod`; the server maps the value to its registered URI and
+  never accepts a redirect URI string from the API request.
 - Do not request or store Kakao profile, email, CI, phone number, or other
   additional consent information for the current login flow.
 - Treat an invalid, expired, or already-used Kakao authorization code, or an

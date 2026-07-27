@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -27,6 +28,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Date;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -216,7 +218,10 @@ class AppleIdentityTokenVerifierTest {
                 "TEAM_ID",
                 "KEY_ID",
                 "unused",
-                "https://moyeo-dev.vercel.app/auth/callback/apple",
+                Map.of(
+                        OAuthRedirectTarget.DEV, "https://moyeo-dev.vercel.app/auth/callback/apple",
+                        OAuthRedirectTarget.PROD, "https://moyeo-web.vercel.app/auth/callback/apple"
+                ),
                 "https://appleid.apple.com/auth/token",
                 "https://appleid.apple.com/auth/revoke",
                 "https://appleid.apple.com/auth/keys",

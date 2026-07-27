@@ -1,10 +1,14 @@
 package com.moyeo.auth.kakao;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -12,6 +16,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -24,6 +29,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withUnauthorizedRequest;
 
+@ExtendWith(OutputCaptureExtension.class)
 class KakaoOAuthClientTest {
 
     private MockRestServiceServer server;
@@ -60,6 +66,19 @@ class KakaoOAuthClientTest {
                 ));
 
         assertThat(oauthClient.exchangeCode("one-time-code")).isEqualTo("kakao-access-token");
+        server.verify();
+    }
+
+    @Test
+    void exchangesCodeUsingLocalRedirectUriSelectedByTarget() {
+        server.expect(requestTo("https://kauth.kakao.com/oauth/token"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "redirect_uri=http%3A%2F%2Flocalhost%3A3000%2Fauth%2Fcallback%2Fkakao"
+                )))
+                .andRespond(withSuccess("{\"access_token\":\"kakao-access-token\"}", MediaType.APPLICATION_JSON));
+
+        assertThat(oauthClient.exchangeCode("one-time-code", OAuthRedirectTarget.LOCAL))
+                .isEqualTo("kakao-access-token");
         server.verify();
     }
 
@@ -160,7 +179,7 @@ class KakaoOAuthClientTest {
     }
 
     @Test
-    void mapsRedirectUriMismatchToSocialLoginUnavailable() {
+    void mapsRedirectUriMismatchToSocialLoginUnavailableWithoutLoggingSensitiveDetails(CapturedOutput output) {
         server.expect(requestTo("https://kauth.kakao.com/oauth/token"))
                 .andRespond(withBadRequest()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -176,6 +195,14 @@ class KakaoOAuthClientTest {
                 () -> oauthClient.exchangeCode("code-issued-for-another-redirect-uri"),
                 AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE
         );
+
+        assertThat(output)
+                .contains("Kakao token exchange failed: status=400")
+                .contains("providerError=invalid_grant")
+                .contains("providerErrorCode=KOE303")
+                .contains("providerCode=null")
+                .doesNotContain("Redirect URI mismatch.")
+                .doesNotContain("code-issued-for-another-redirect-uri");
     }
 
     @Test
@@ -295,7 +322,11 @@ class KakaoOAuthClientTest {
                 "kakao-rest-api-key",
                 "kakao-client-secret",
                 "kakao-admin-key",
-                "https://moyeo-dev.vercel.app/auth/callback/kakao",
+                Map.of(
+                        OAuthRedirectTarget.LOCAL, "http://localhost:3000/auth/callback/kakao",
+                        OAuthRedirectTarget.DEV, "https://moyeo-dev.vercel.app/auth/callback/kakao",
+                        OAuthRedirectTarget.PROD, "https://moyeo-web.vercel.app/auth/callback/kakao"
+                ),
                 "https://kauth.kakao.com/oauth/token",
                 "https://kapi.kakao.com/v2/user/me",
                 "https://kapi.kakao.com/v1/user/unlink",

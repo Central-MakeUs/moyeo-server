@@ -3,6 +3,7 @@ package com.moyeo.auth.kakao;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.OAuthRedirectTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,14 +38,14 @@ class KakaoOAuthClient {
         this.objectMapper = objectMapper;
     }
 
-    String exchangeCode(String code) {
+    String exchangeCode(String code, OAuthRedirectTarget redirectTarget) {
         ensureEnabled();
 
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "authorization_code");
         form.add("client_id", properties.restApiKey());
         form.add("client_secret", properties.clientSecret());
-        form.add("redirect_uri", properties.redirectUri());
+        form.add("redirect_uri", properties.redirectUri(redirectTarget));
         form.add("code", code);
 
         try {
@@ -69,6 +70,10 @@ class KakaoOAuthClient {
             log.warn("Kakao token exchange request failed: {}", exception.getClass().getSimpleName());
             throw KakaoOAuthException.unavailable();
         }
+    }
+
+    String exchangeCode(String code) {
+        return exchangeCode(code, OAuthRedirectTarget.DEV);
     }
 
     String getProviderUserId(String accessToken) {

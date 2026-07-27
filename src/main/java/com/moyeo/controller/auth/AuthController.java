@@ -43,7 +43,8 @@ public class AuthController {
     @Operation(
             summary = "Apple 로그인",
             description = """
-                    프론트가 Apple GET 콜백에서 받은 일회용 code와 로그인 요청 전에 만든 nonce를 전달합니다.
+                    프론트가 Apple GET 콜백에서 받은 일회용 code, 로그인 요청 전에 만든 nonce, 콜백 환경 식별자를 전달합니다.
+                    redirectTarget은 dev 또는 prod만 허용하며 URI 자체는 전달하지 않습니다.
                     서버가 Apple과 code를 교환하고 사용자 정보를 검증한 뒤 Moyeo Access Token을 발급합니다.
                     최초 로그인도 즉시 가입 처리되며 nickname은 null, onboardingCompleted는 false로 반환됩니다.
                     """
@@ -73,7 +74,7 @@ public class AuthController {
             )
     })
     public AuthResponse loginApple(@Valid @RequestBody AppleLoginRequest request) {
-        AuthenticatedMember member = appleLoginService.login(request.code(), request.nonce());
+        AuthenticatedMember member = appleLoginService.login(request.code(), request.nonce(), request.redirectTarget());
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 
@@ -81,7 +82,8 @@ public class AuthController {
     @Operation(
             summary = "카카오 로그인",
             description = """
-                    프론트엔드가 카카오 GET 콜백의 state를 검증한 뒤 일회용 code를 전달합니다.
+                    프론트엔드가 카카오 GET 콜백의 state를 검증한 뒤 일회용 code와 콜백 환경 식별자를 전달합니다.
+                    redirectTarget은 local, dev, prod 중 서버에 등록된 값만 허용하며 URI 자체는 전달하지 않습니다.
                     서버가 카카오와 code를 교환하고 회원번호를 확인한 뒤 Moyeo Access Token을 발급합니다.
                     최초 로그인도 즉시 가입 처리하며 nickname은 null, onboardingCompleted는 false로 반환합니다.
                     """
@@ -111,7 +113,7 @@ public class AuthController {
             )
     })
     public AuthResponse loginKakao(@Valid @RequestBody KakaoLoginRequest request) {
-        AuthenticatedMember member = kakaoLoginService.login(request.code());
+        AuthenticatedMember member = kakaoLoginService.login(request.code(), request.redirectTarget());
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 

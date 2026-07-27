@@ -3,6 +3,7 @@ package com.moyeo.auth.apple;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.OAuthRedirectTarget;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,7 +37,7 @@ class AppleTokenClient {
         this.objectMapper = objectMapper;
     }
 
-    AppleTokenResult exchange(String code) {
+    AppleTokenResult exchange(String code, OAuthRedirectTarget redirectTarget) {
         if (!properties.enabled()) {
             log.warn("Apple login failed: stage=configuration reason=oauth_disabled.");
             throw AppleOAuthException.unavailable();
@@ -47,7 +48,7 @@ class AppleTokenClient {
         form.add("client_secret", clientSecretGenerator.generate());
         form.add("code", code);
         form.add("grant_type", "authorization_code");
-        form.add("redirect_uri", properties.redirectUri());
+        form.add("redirect_uri", properties.redirectUri(redirectTarget));
 
         try {
             AppleTokenResponse response = restClient.post()
@@ -79,6 +80,10 @@ class AppleTokenClient {
             );
             throw AppleOAuthException.unavailable();
         }
+    }
+
+    AppleTokenResult exchange(String code) {
+        return exchange(code, OAuthRedirectTarget.DEV);
     }
 
     void revokeRefreshToken(String refreshToken) {

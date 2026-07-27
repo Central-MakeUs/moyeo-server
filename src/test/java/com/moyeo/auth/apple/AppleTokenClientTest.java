@@ -1,6 +1,7 @@
 package com.moyeo.auth.apple;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -78,6 +80,25 @@ class AppleTokenClientTest {
         assertThat(result.idToken()).isEqualTo("apple-identity-token");
         assertThat(result.accessToken()).isEqualTo("apple-access-token");
         assertThat(result.refreshToken()).isEqualTo("apple-refresh-token");
+        server.verify();
+    }
+
+    @Test
+    void exchangesCodeUsingProdRedirectUriSelectedByTarget() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "redirect_uri=https%3A%2F%2Fmoyeo-web.vercel.app%2Fauth%2Fcallback%2Fapple"
+                )))
+                .andRespond(withSuccess("""
+                        {
+                          "id_token": "apple-identity-token",
+                          "access_token": "apple-access-token",
+                          "refresh_token": "apple-refresh-token"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        tokenClient.exchange("one-time-code", OAuthRedirectTarget.PROD);
+
         server.verify();
     }
 
@@ -186,7 +207,10 @@ class AppleTokenClientTest {
                 "TEAM_ID",
                 "KEY_ID",
                 "unused",
-                "https://moyeo-dev.vercel.app/auth/callback/apple",
+                Map.of(
+                        OAuthRedirectTarget.DEV, "https://moyeo-dev.vercel.app/auth/callback/apple",
+                        OAuthRedirectTarget.PROD, "https://moyeo-web.vercel.app/auth/callback/apple"
+                ),
                 "https://appleid.apple.com/auth/token",
                 "https://appleid.apple.com/auth/revoke",
                 "https://appleid.apple.com/auth/keys",

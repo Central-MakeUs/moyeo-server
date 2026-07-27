@@ -1,5 +1,6 @@
 package com.moyeo.auth.kakao;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
@@ -16,8 +17,8 @@ public class KakaoLoginService {
         this.memberAuthService = memberAuthService;
     }
 
-    public AuthenticatedMember login(String code) {
-        String accessToken = oauthClient.exchangeCode(code);
+    public AuthenticatedMember login(String code, OAuthRedirectTarget redirectTarget) {
+        String accessToken = oauthClient.exchangeCode(code, redirectTarget);
         String providerUserId = oauthClient.getProviderUserId(accessToken);
         return memberAuthService.loginSocial(AuthProvider.KAKAO, providerUserId);
     }

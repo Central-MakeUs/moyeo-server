@@ -298,13 +298,17 @@ current RFC 9457-based error response policy, and documented working rules.
   values; the downloaded `.p8` source file was removed from the server after
   its Base64 value was stored.
 - Required runtime names are `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`,
-  `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`, and
-  `APPLE_REDIRECT_URI`, plus `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`.
+  `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`,
+  `APPLE_OAUTH_REDIRECT_URI_DEV`, `APPLE_OAUTH_REDIRECT_URI_PROD`, plus
+  `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`. `APPLE_REDIRECT_URI` remains a
+  temporary compatibility fallback for the dev URI.
   The encryption key must be a separate Base64-encoded random 32-byte value.
   Set `APPLE_OAUTH_ENABLED=true` only when all values are ready; enabled
   configuration is validated at application startup.
-- The frontend receives the Apple GET callback and sends the one-time code and
-  nonce to the backend `POST /api/auth/apple` API.
+- The frontend receives the Apple GET callback and sends the one-time code,
+  nonce, and fixed `redirectTarget` (`dev` or `prod`) to the backend
+  `POST /api/auth/apple` API. It never sends a URI string. Apple local callback
+  testing is unsupported.
 - The backend exchanges and verifies the code, identifies the user by Apple's
   `sub`, and issues the Moyeo Access JWT.
 - The backend encrypts the Apple refresh token with AES-256-GCM, binds it to the
@@ -316,8 +320,9 @@ current RFC 9457-based error response policy, and documented working rules.
 - Apple login backend implementation and HTTPS integration verification are
   complete. The remaining work is frontend UI integration with the HTTPS API
   base URL.
-- The server callback URI is configured through `APPLE_REDIRECT_URI`; dev uses
-  `https://moyeo-dev.vercel.app/auth/callback/apple` and production uses
+- The server maps Apple `redirectTarget=dev` and `redirectTarget=prod` to its
+  configured callback URIs. The defaults are
+  `https://moyeo-dev.vercel.app/auth/callback/apple` and
   `https://moyeo-web.vercel.app/auth/callback/apple`.
 - The dev profile allows Vercel PR Preview origins matching
   `https://moyeo-*-hyeonjirohs-projects.vercel.app` through CORS.
@@ -330,11 +335,14 @@ current RFC 9457-based error response policy, and documented working rules.
 ### Kakao Login
 
 - Kakao login uses the REST API authorization-code flow without OpenID Connect.
-- The dev redirect URI is
-  `https://moyeo-dev.vercel.app/auth/callback/kakao`. Register the production
-  redirect URI separately before enabling Kakao login in production.
+- Register local, dev, and production Kakao redirect URIs. Their defaults are
+  `http://localhost:3000/auth/callback/kakao`,
+  `https://moyeo-dev.vercel.app/auth/callback/kakao`, and
+  `https://moyeo-web.vercel.app/auth/callback/kakao`.
 - The frontend generates a unique `state`, verifies the callback value, and
-  sends only the one-time authorization code to `POST /api/auth/kakao`.
+  sends the one-time authorization code with a fixed `redirectTarget`
+  (`local`, `dev`, or `prod`) to `POST /api/auth/kakao`; it never sends a URI
+  string.
 - The backend exchanges the code with the server-owned REST API key, client
   secret, and exact redirect URI, then uses only the Kakao user-information
   response `id` as `providerUserId`.
@@ -342,9 +350,10 @@ current RFC 9457-based error response policy, and documented working rules.
   service user ID to call the Unlink API without another Kakao login.
 - Required runtime names are `KAKAO_OAUTH_ENABLED`,
   `KAKAO_OAUTH_REST_API_KEY`, `KAKAO_OAUTH_CLIENT_SECRET`,
-  `KAKAO_OAUTH_ADMIN_KEY`, and
-  `KAKAO_OAUTH_REDIRECT_URI`. Set `KAKAO_OAUTH_ENABLED=true` only when all
-  values are ready.
+  `KAKAO_OAUTH_ADMIN_KEY`, `KAKAO_OAUTH_REDIRECT_URI_LOCAL`,
+  `KAKAO_OAUTH_REDIRECT_URI_DEV`, and `KAKAO_OAUTH_REDIRECT_URI_PROD`.
+  `KAKAO_OAUTH_REDIRECT_URI` remains a temporary compatibility fallback for the
+  dev URI. Set `KAKAO_OAUTH_ENABLED=true` only when all values are ready.
 - Keep Kakao OAuth credentials separate from the
   `KAKAO_LOCAL_REST_API_KEY` place-search configuration. Kakao provider tokens
   and all provider secrets must never be committed, stored after login, or

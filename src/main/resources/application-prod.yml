@@ -19,6 +19,11 @@ moyeo:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:https://moyeo-web.vercel.app}
   oauth:
     apple:
-      redirect-uri: ${APPLE_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/apple}
+      redirect-uris:
+        dev: ${APPLE_OAUTH_REDIRECT_URI_DEV:https://moyeo-dev.vercel.app/auth/callback/apple}
+        prod: ${APPLE_OAUTH_REDIRECT_URI_PROD:${APPLE_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/apple}}
     kakao:
-      redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/kakao}
+      redirect-uris:
+        local: ${KAKAO_OAUTH_REDIRECT_URI_LOCAL:http://localhost:3000/auth/callback/kakao}
+        dev: ${KAKAO_OAUTH_REDIRECT_URI_DEV:https://moyeo-dev.vercel.app/auth/callback/kakao}
+        prod: ${KAKAO_OAUTH_REDIRECT_URI_PROD:${KAKAO_OAUTH_REDIRECT_URI:https://moyeo-web.vercel.app/auth/callback/kakao}}

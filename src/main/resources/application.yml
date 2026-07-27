@@ -35,7 +35,9 @@ moyeo:
       team-id: ${APPLE_TEAM_ID:}
       key-id: ${APPLE_KEY_ID:}
       private-key-base64: ${APPLE_PRIVATE_KEY_BASE64:}
-      redirect-uri: ${APPLE_REDIRECT_URI:}
+      redirect-uris:
+        dev: ${APPLE_OAUTH_REDIRECT_URI_DEV:${APPLE_REDIRECT_URI:https://moyeo-dev.vercel.app/auth/callback/apple}}
+        prod: ${APPLE_OAUTH_REDIRECT_URI_PROD:https://moyeo-web.vercel.app/auth/callback/apple}
       token-uri: https://appleid.apple.com/auth/token
       revoke-uri: https://appleid.apple.com/auth/revoke
       jwks-uri: https://appleid.apple.com/auth/keys
@@ -49,7 +51,10 @@ moyeo:
       rest-api-key: ${KAKAO_OAUTH_REST_API_KEY:}
       client-secret: ${KAKAO_OAUTH_CLIENT_SECRET:}
       admin-key: ${KAKAO_OAUTH_ADMIN_KEY:}
-      redirect-uri: ${KAKAO_OAUTH_REDIRECT_URI:}
+      redirect-uris:
+        local: ${KAKAO_OAUTH_REDIRECT_URI_LOCAL:http://localhost:3000/auth/callback/kakao}
+        dev: ${KAKAO_OAUTH_REDIRECT_URI_DEV:${KAKAO_OAUTH_REDIRECT_URI:https://moyeo-dev.vercel.app/auth/callback/kakao}}
+        prod: ${KAKAO_OAUTH_REDIRECT_URI_PROD:https://moyeo-web.vercel.app/auth/callback/kakao}
       token-uri: https://kauth.kakao.com/oauth/token
       user-info-uri: https://kapi.kakao.com/v2/user/me
       unlink-uri: https://kapi.kakao.com/v1/user/unlink

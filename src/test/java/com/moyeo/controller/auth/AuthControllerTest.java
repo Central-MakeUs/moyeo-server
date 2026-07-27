@@ -1,6 +1,7 @@
 package com.moyeo.controller.auth;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.auth.apple.AppleLoginService;
 import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.controller.TestMemberFactory;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -67,14 +69,15 @@ class AuthControllerTest {
 
     @Test
     void appleLoginReturnsPendingUserAndAccessToken() throws Exception {
-        when(appleLoginService.login("apple-code", "nonce"))
+        when(appleLoginService.login("apple-code", "nonce", OAuthRedirectTarget.DEV))
                 .thenReturn(new AuthenticatedMember(100L, null, true));
 
         String response = mockMvc.perform(post("/api/auth/apple")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "code", "apple-code",
-                                "nonce", "nonce"
+                                "nonce", "nonce",
+                                "redirectTarget", "dev"
                         ))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
@@ -93,14 +96,15 @@ class AuthControllerTest {
 
     @Test
     void appleLoginMapsVerificationFailure() throws Exception {
-        when(appleLoginService.login("invalid-code", "nonce"))
+        when(appleLoginService.login("invalid-code", "nonce", OAuthRedirectTarget.DEV))
                 .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
 
         mockMvc.perform(post("/api/auth/apple")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "code", "invalid-code",
-                                "nonce", "nonce"
+                                "nonce", "nonce",
+                                "redirectTarget", "dev"
                         ))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -113,7 +117,21 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "code", "",
-                                "nonce", ""
+                                "nonce", "",
+                                "redirectTarget", "dev"
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void appleLoginRejectsLocalRedirectTarget() throws Exception {
+        mockMvc.perform(post("/api/auth/apple")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "apple-code",
+                                "nonce", "nonce",
+                                "redirectTarget", "local"
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
@@ -121,12 +139,12 @@ class AuthControllerTest {
 
     @Test
     void kakaoLoginReturnsPendingUserAndAccessToken() throws Exception {
-        when(kakaoLoginService.login("kakao-code"))
+        when(kakaoLoginService.login("kakao-code", OAuthRedirectTarget.DEV))
                 .thenReturn(new AuthenticatedMember(200L, null, true));
 
         String response = mockMvc.perform(post("/api/auth/kakao")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("code", "kakao-code"))))
+                        .content(objectMapper.writeValueAsString(Map.of("code", "kakao-code", "redirectTarget", "dev"))))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.accessToken").isString())
@@ -144,12 +162,12 @@ class AuthControllerTest {
 
     @Test
     void kakaoLoginMapsVerificationFailure() throws Exception {
-        when(kakaoLoginService.login("invalid-code"))
+        when(kakaoLoginService.login("invalid-code", OAuthRedirectTarget.DEV))
                 .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
 
         mockMvc.perform(post("/api/auth/kakao")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("code", "invalid-code"))))
+                        .content(objectMapper.writeValueAsString(Map.of("code", "invalid-code", "redirectTarget", "dev"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
@@ -159,9 +177,25 @@ class AuthControllerTest {
     void kakaoLoginValidatesRequest() throws Exception {
         mockMvc.perform(post("/api/auth/kakao")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("code", ""))))
+                        .content(objectMapper.writeValueAsString(Map.of("code", "", "redirectTarget", "dev"))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void kakaoLoginAllowsLocalRedirectTarget() throws Exception {
+        when(kakaoLoginService.login("kakao-code", OAuthRedirectTarget.LOCAL))
+                .thenReturn(new AuthenticatedMember(200L, null, true));
+
+        mockMvc.perform(post("/api/auth/kakao")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "code", "kakao-code",
+                                "redirectTarget", "local"
+                        ))))
+                .andExpect(status().isOk());
+
+        verify(kakaoLoginService).login("kakao-code", OAuthRedirectTarget.LOCAL);
     }
 
     @Test

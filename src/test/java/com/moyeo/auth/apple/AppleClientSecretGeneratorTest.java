@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jwt.SignedJWT;
@@ -13,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,7 +54,10 @@ class AppleClientSecretGeneratorTest {
                 "TEAM_ID",
                 "KEY_ID",
                 privateKeyBase64,
-                "https://moyeo-dev.vercel.app/auth/callback/apple",
+                Map.of(
+                        OAuthRedirectTarget.DEV, "https://moyeo-dev.vercel.app/auth/callback/apple",
+                        OAuthRedirectTarget.PROD, "https://moyeo-web.vercel.app/auth/callback/apple"
+                ),
                 "https://appleid.apple.com/auth/token",
                 "https://appleid.apple.com/auth/revoke",
                 "https://appleid.apple.com/auth/keys",

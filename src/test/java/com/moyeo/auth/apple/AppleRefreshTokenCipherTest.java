@@ -1,5 +1,6 @@
 package com.moyeo.auth.apple;
 
+import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.Test;
@@ -7,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -59,7 +61,10 @@ class AppleRefreshTokenCipherTest {
                         "TEAM_ID",
                         "KEY_ID",
                         "unused",
-                        "https://moyeo.example/auth/apple",
+                        Map.of(
+                                OAuthRedirectTarget.DEV, "https://moyeo.example/auth/apple",
+                                OAuthRedirectTarget.PROD, "https://moyeo.example/auth/apple"
+                        ),
                         "https://appleid.apple.com/auth/token",
                         "https://appleid.apple.com/auth/revoke",
                         "https://appleid.apple.com/auth/keys",
