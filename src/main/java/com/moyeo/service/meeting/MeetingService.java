@@ -61,6 +61,7 @@ public class MeetingService {
     private final PasswordEncoder passwordEncoder;
     private final MeetingCoverStorage meetingCoverStorage;
     private final MeetingCoverProcessor meetingCoverProcessor;
+    private final MeetingCoverCleanupProcessor meetingCoverCleanupProcessor;
 
     public MeetingService(
             MeetingRepository meetingRepository,
@@ -73,7 +74,8 @@ public class MeetingService {
             InviteCodeGenerator inviteCodeGenerator,
             PasswordEncoder passwordEncoder,
             MeetingCoverStorage meetingCoverStorage,
-            MeetingCoverProcessor meetingCoverProcessor
+            MeetingCoverProcessor meetingCoverProcessor,
+            MeetingCoverCleanupProcessor meetingCoverCleanupProcessor
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
@@ -86,6 +88,7 @@ public class MeetingService {
         this.passwordEncoder = passwordEncoder;
         this.meetingCoverStorage = meetingCoverStorage;
         this.meetingCoverProcessor = meetingCoverProcessor;
+        this.meetingCoverCleanupProcessor = meetingCoverCleanupProcessor;
     }
 
     @Transactional
@@ -146,26 +149,28 @@ public class MeetingService {
 
     @Transactional
     public MeetingCoverResult replaceCoverImage(Long meetingId, AuthenticatedMember member, MultipartFile coverImage) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
         validateCoverModificationAuthority(meeting, member);
         String previousKey = meeting.getCoverImageKey();
+        Long cleanupTaskId = meetingCoverCleanupProcessor.createDeletionTask(previousKey);
         saveCoverImage(meeting, coverImage);
-        deleteAfterCommit(previousKey);
+        processCleanupTaskAfterCommit(cleanupTaskId);
         return new MeetingCoverResult(MeetingCoverUrl.from(meeting));
     }
 
     @Transactional
     public void deleteCoverImage(Long meetingId, AuthenticatedMember member) {
-        Meeting meeting = meetingRepository.findById(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new MoyeoException(CommonErrorCode.INVALID_REQUEST));
         validateCoverModificationAuthority(meeting, member);
         String previousKey = meeting.getCoverImageKey();
         if (previousKey == null) {
             throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_NOT_FOUND);
         }
+        Long cleanupTaskId = meetingCoverCleanupProcessor.createDeletionTask(previousKey);
         meeting.removeCoverImage();
-        deleteAfterCommit(previousKey);
+        processCleanupTaskAfterCommit(cleanupTaskId);
     }
 
     public MeetingCoverStorage.CoverObject getCoverImage(String inviteCode) {
@@ -195,30 +200,22 @@ public class MeetingService {
             @Override
             public void afterCompletion(int status) {
                 if (status == STATUS_ROLLED_BACK) {
-                    deleteQuietly(objectKey);
+                    meetingCoverCleanupProcessor.deleteOrEnqueue(objectKey);
                 }
             }
         });
     }
 
-    private void deleteAfterCommit(String objectKey) {
-        if (objectKey == null) {
+    private void processCleanupTaskAfterCommit(Long taskId) {
+        if (taskId == null) {
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                deleteQuietly(objectKey);
+                meetingCoverCleanupProcessor.process(List.of(taskId));
             }
         });
-    }
-
-    private void deleteQuietly(String objectKey) {
-        try {
-            meetingCoverStorage.delete(objectKey);
-        } catch (RuntimeException ignored) {
-            // 이전 이미지 정리 실패는 확정된 DB 변경을 되돌리지 않는다.
-        }
     }
 
     public MeetingInvitationResult getInvitation(String inviteCode) {

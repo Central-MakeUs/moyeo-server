@@ -10,6 +10,9 @@ public record MeetingCoverProperties(
         DataSize maxUploadSize,
         int maxWidth,
         int maxHeight,
+        int maxSourceWidth,
+        int maxSourceHeight,
+        long maxSourcePixels,
         float jpegQuality
 ) {
 }

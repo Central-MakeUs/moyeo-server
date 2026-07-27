@@ -14,6 +14,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     Optional<Meeting> findByInviteCode(String inviteCode);
 
+    boolean existsByCoverImageKey(String coverImageKey);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from Meeting r where r.id = :meetingId")
     Optional<Meeting> findByIdForUpdate(@Param("meetingId") Long meetingId);

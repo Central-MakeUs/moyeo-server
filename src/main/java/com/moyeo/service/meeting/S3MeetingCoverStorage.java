@@ -9,9 +9,12 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.S3Exception;
+
+import java.util.List;
 
 @Component
 public class S3MeetingCoverStorage implements MeetingCoverStorage {
@@ -52,6 +55,23 @@ public class S3MeetingCoverStorage implements MeetingCoverStorage {
     public void delete(String objectKey) {
         try {
             s3Client.deleteObject(builder -> builder.bucket(bucket()).key(objectKey));
+        } catch (S3Exception | SdkClientException exception) {
+            throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_UNAVAILABLE);
+        }
+    }
+
+    @Override
+    public List<StoredObject> list(String prefix) {
+        try {
+            ListObjectsV2Request request = ListObjectsV2Request.builder()
+                    .bucket(bucket())
+                    .prefix(prefix)
+                    .build();
+            return s3Client.listObjectsV2Paginator(request)
+                    .contents()
+                    .stream()
+                    .map(object -> new StoredObject(object.key(), object.lastModified()))
+                    .toList();
         } catch (S3Exception | SdkClientException exception) {
             throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_UNAVAILABLE);
         }

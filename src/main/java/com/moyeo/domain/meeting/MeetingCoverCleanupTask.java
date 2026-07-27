@@ -13,7 +13,7 @@ import org.hibernate.annotations.Comment;
 import java.time.LocalDateTime;
 
 @Entity
-@Comment("탈퇴로 삭제된 모임 커버 이미지 정리 작업")
+@Comment("삭제에 실패한 모임 커버 이미지 정리 작업")
 @Table(
         name = "meeting_cover_cleanup_tasks",
         uniqueConstraints = @UniqueConstraint(

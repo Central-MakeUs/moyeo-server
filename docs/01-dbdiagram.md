@@ -203,9 +203,12 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings.place_mode` supports `FIXED`, `RECOMMEND`, and `NONE`.
 - `meetings.place_recommendation_strategy` stores the recommendation strategy when `place_mode` is `RECOMMEND`; the current MVP creation flow stores `MIDDLE_POINT` server-side, while retaining the column for a later product-approved strategy change.
 - `meetings.cover_image_key` stores the S3 object key for the resized optional meeting cover image; the original upload is not retained.
-- `meeting_cover_cleanup_tasks` keeps account-withdrawal cover deletions durable
-  across S3 failures and process restarts. A successful idempotent S3 deletion
-  removes the task; failed attempts remain for scheduled retry.
+- `meeting_cover_cleanup_tasks` keeps failed cover deletions durable across S3
+  failures and process restarts for account withdrawal, cover replacement,
+  and cover deletion by storing the task in the same transaction as the local
+  change. Transaction-rollback callbacks also queue failed immediate deletions.
+  A successful idempotent S3 deletion removes the task; failed attempts remain
+  for scheduled retry.
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.

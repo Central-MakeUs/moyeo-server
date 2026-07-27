@@ -608,7 +608,7 @@ public class MeetingController {
                             )
                     })
             ),
-            @ApiResponse(responseCode = "413", description = "커버 파일 크기 초과"),
+            @ApiResponse(responseCode = "413", description = "커버 파일 10MB, 원본 이미지 13MP 또는 한 변 8,000px 제한 초과"),
             @ApiResponse(responseCode = "415", description = "JPEG 또는 PNG가 아닌 커버 파일"),
             @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
     })
@@ -620,7 +620,7 @@ public class MeetingController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = CreateMeetingRequest.class))
             )
             @Valid @RequestPart("request") CreateMeetingRequest request,
-            @Parameter(description = "선택 JPEG 또는 PNG 파일. 사진이 없으면 이 파트를 생략합니다.")
+            @Parameter(description = "선택 JPEG 또는 PNG 파일. 최대 10MB, 13MP이고 한 변은 8,000px 이하여야 합니다. 사진이 없으면 이 파트를 생략합니다.")
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage
     ) {
         return CreateMeetingResponse.from(meetingService.createMeeting(
@@ -629,10 +629,12 @@ public class MeetingController {
     }
 
     @PutMapping(value = "/{meetingId}/cover-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "모임 커버 사진 교체", description = "임시 MVP 정책상 방장만 커버 사진을 교체할 수 있습니다. 성공 응답의 coverImageUrl은 새로 저장된 이미지의 상대 조회 경로입니다. 프론트는 기존 <img src>를 이 값에 API 서버 주소를 붙인 URL로 교체합니다.")
+    @Operation(summary = "모임 커버 사진 교체", description = "임시 MVP 정책상 방장만 최대 10MB, 13MP이고 한 변이 8,000px 이하인 JPEG/PNG 커버 사진을 교체할 수 있습니다. 성공 응답의 coverImageUrl은 새로 저장된 이미지의 상대 조회 경로입니다. 프론트는 기존 <img src>를 이 값에 API 서버 주소를 붙인 URL로 교체합니다.")
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "커버 사진 교체 성공"),
+            @ApiResponse(responseCode = "413", description = "커버 파일 10MB, 원본 이미지 13MP 또는 한 변 8,000px 제한 초과"),
+            @ApiResponse(responseCode = "415", description = "JPEG 또는 PNG가 아닌 커버 파일"),
             @ApiResponse(responseCode = "403", description = "방장 권한 없음"),
             @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
     })

@@ -80,17 +80,31 @@ general best practice into domain policy.
   object key only to distinguish browser cache entries. It is not a new database
   field or object-storage path. When the host replaces the cover, clients use
   the returned new URL; the former S3 object is deleted only after the database
-  transaction commits successfully.
-- Temporary technical settings: JPEG/PNG input, 5 MB maximum upload size, a
-  1280x720 bounding box, and JPEG quality 0.85. They are configuration values,
-  not final product policy; revisit format, size, crop, compression, visibility,
-  and deletion retention after MVP feedback.
-- TODO: Before broadening cover-image upload use, add a configuration-backed
-  maximum decoded input width/height or pixel count. The current 5 MB encoded
-  file-size limit and 1280x720 output bound do not limit image decode memory.
-- TODO: Add negative-path cover-image tests: non-host modification rejection,
-  invalid/oversized file rejection, storage-unavailable response, and S3 cleanup
-  after a transaction rollback.
+  transaction commits successfully. Store the former object's cleanup task in
+  the same database transaction as the cover-key change, then attempt it after
+  commit so a process restart cannot lose the object key. If a newly uploaded
+  object cannot be deleted by the transaction-rollback callback, queue that
+  failed deletion for the shared cover-cleanup scheduler.
+- Because S3 upload and the database transaction cannot commit atomically, scan
+  cover objects after a 24-hour grace period and delete only keys that are not
+  referenced by any meeting. This recovers an upload left behind by a process
+  or instance failure before the rollback callback can run.
+- Temporary technical settings: JPEG/PNG input, 10 MB maximum upload size, a
+  1280x720 output bounding box, an 8000x8000 source-dimension bound, a 13,000,000
+  source-pixel bound, and JPEG quality 0.85. Validate source dimensions from the
+  image header before full decode. These are configuration values, not final
+  product policy; revisit format, size, crop, compression, visibility, source
+  dimensions, and deletion retention after MVP feedback.
+- Frontend integration direction: after the user selects a cover, preserve its
+  orientation, offer a 16:9 crop, resize the long edge to at most 2,560 pixels,
+  and encode JPEG around quality 0.82-0.85 before upload. Aim for 4 MB or less,
+  while treating the server's 10 MB and 13,000,000-pixel limits as final safety
+  bounds. HEIC-to-JPEG conversion remains frontend work because the current
+  backend accepts only JPEG and PNG.
+- TODO: Add the remaining negative-path cover-image tests for storage-unavailable
+  API responses. Current automated tests cover invalid/oversized input,
+  source-dimension rejection, non-host modification, failed-deletion queueing,
+  scheduled retry, and cleanup after a real transaction rollback.
 - Schedule voting candidate dates are stored as separate rows during meeting
   creation. The candidate date range and count limit are deferred until product
   policy is confirmed; the current meeting creation request does

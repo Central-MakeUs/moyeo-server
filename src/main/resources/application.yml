@@ -3,8 +3,8 @@ spring:
     name: moyeo-server
   servlet:
     multipart:
-      max-file-size: 5MB
-      max-request-size: 6MB
+      max-file-size: 10MB
+      max-request-size: 12MB
   jpa:
     open-in-view: false
 
@@ -89,7 +89,12 @@ moyeo:
     bucket: ${MEETING_COVER_S3_BUCKET:}
     region: ${AWS_REGION:ap-northeast-2}
     cleanup-retry-delay: ${MEETING_COVER_CLEANUP_RETRY_DELAY:5m}
-    max-upload-size: 5MB
+    orphan-scan-delay: ${MEETING_COVER_ORPHAN_SCAN_DELAY:24h}
+    orphan-grace-period: ${MEETING_COVER_ORPHAN_GRACE_PERIOD:24h}
+    max-upload-size: 10MB
     max-width: 1280
     max-height: 720
+    max-source-width: ${MEETING_COVER_MAX_SOURCE_WIDTH:8000}
+    max-source-height: ${MEETING_COVER_MAX_SOURCE_HEIGHT:8000}
+    max-source-pixels: ${MEETING_COVER_MAX_SOURCE_PIXELS:13000000}
     jpeg-quality: 0.85

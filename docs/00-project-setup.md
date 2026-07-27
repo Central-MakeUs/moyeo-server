@@ -102,8 +102,23 @@ Finalize decision
   `scripts/db/2026-07-27-meeting-deadline-nullable.sql` so
   `meetings.deadline_at` accepts null for meetings without a participation
   deadline.
-- Account-withdrawal cover cleanup retries every five minutes by default.
+- Account withdrawal, cover replacement, and cover deletion store their cleanup
+  tasks in the same database transaction as the local change, so a process
+  restart cannot lose the object key after commit. A transaction-rollback
+  callback immediately deletes a newly uploaded object and queues a failed
+  deletion when that callback runs. Pending tasks retry every five minutes by
+  default.
   `MEETING_COVER_CLEANUP_RETRY_DELAY` may override the Spring duration value.
+- Once per day, scan `meeting-covers/` and delete objects older than 24 hours
+  only when no meeting row references the key. This recovers objects left by a
+  process or instance failure between S3 upload and transaction completion.
+  `MEETING_COVER_ORPHAN_SCAN_DELAY` and `MEETING_COVER_ORPHAN_GRACE_PERIOD`
+  override those temporary operational values. The EC2 role therefore needs
+  bucket-list permission in addition to object read/write/delete permission.
+- Before decoding an uploaded cover, reject a source wider or taller than 8,000
+  pixels or containing more than 13,000,000 pixels. The encoded upload limit is
+  10 MB. Override these temporary limits with `MEETING_COVER_MAX_SOURCE_WIDTH`,
+  `MEETING_COVER_MAX_SOURCE_HEIGHT`, and `MEETING_COVER_MAX_SOURCE_PIXELS`.
 - Hibernate `ddl-auto=update` does not remove tables for deleted entities. The
   former `login_accounts` table may therefore remain physically in an existing
   dev database after social-only authentication is deployed, although the
@@ -204,6 +219,25 @@ current RFC 9457-based error response policy, and documented working rules.
   control.
 - Use Amazon ECR for private Docker image storage.
 - Use GitHub Actions for build, test, image push, and EC2 deployment automation.
+- After a new dev application container becomes healthy, retain only its local
+  Docker image and the immediately previous application image. Remove older
+  local `moyeo-server` images without touching MySQL, Caddy, or Docker volumes.
+  Store the rollback image reference as `MOYEO_PREVIOUS_IMAGE` in the EC2
+  runtime `.env`.
+- A failed candidate deployment restores both runtime image selections and
+  recreates the former healthy application. Only a candidate that passes the
+  Compose health wait replaces `MOYEO_PREVIOUS_IMAGE`, so a failed image never
+  becomes the rollback target.
+- Run the candidate Compose commands with a temporary `MOYEO_IMAGE` environment
+  value; write the runtime `.env` only after the candidate becomes healthy.
+  After a successful restoration, also remove the failed candidate image so
+  repeated failed deployments cannot fill the already constrained EC2 disk.
+- Poll SSM command status for up to 225 seconds, longer than the 150-second
+  Compose health wait, and print the final invocation output on failure.
+- Run `sudo /home/ubuntu/moyeo/rollback-dev.sh` on EC2 to swap the current and
+  previous application images and recreate the Compose services with a health
+  check. This is an application-image rollback mechanism, not a database backup
+  or schema rollback.
 - Use `ohujj/MOYEO` as the sole dev deployment source. Keep the deployment
   workflow file mirrored to `Central-MakeUs/moyeo-server`, but skip its deploy
   job there so a mirrored push cannot deploy the same EC2 instance twice.
@@ -292,6 +326,42 @@ current RFC 9457-based error response policy, and documented working rules.
 - Repository mirrors: push verified `main` changes to both `origin` and `cmc`
   while the personal and CMC repositories are maintained together. The CMC
   mirror runs CI only; it does not deploy the dev server.
+
+### Observed Dev Runtime Sizing
+
+- This is a development-server observation, not an approved production sizing
+  or capacity contract.
+- On 2026-07-27, the EC2 host reported 911 MiB total memory, 187 MiB available
+  memory, and 1,023 MiB swap with 454 MiB in use. These available/used values
+  are a point-in-time snapshot and will vary with workload.
+- The `moyeo-server` container had no explicit Docker memory limit
+  (`HostConfig.Memory=0`, cgroup `memory.max=max`).
+- The application process was started as `java -jar app.jar` without an
+  explicit `-Xmx`. Java 21 ergonomics in the same running container estimated
+  a maximum heap of 220.44 MiB.
+- At the same observation point, the application process RSS was 292,116 KiB
+  (about 285 MiB). RSS includes non-heap and native memory, so it must not be
+  compared with the Java maximum heap as if they were the same measurement.
+- The EC2 root volume was 91% full: 17 GiB used with 1.7 GiB available on a
+  19 GiB filesystem. Docker reported 79 images using 12.83 GB, of which
+  10.11 GB was reclaimable, and `/var/lib/containerd` occupied about 12 GB.
+  Application logs occupied about 2.3 MB and `/var/log` about 135 MB, so old
+  SHA-tagged ECR application images were the main cause rather than cover
+  uploads or logs.
+- The dev deployment now removes older SHA-tagged application images only after
+  the new Compose services become healthy, retaining the current and immediately
+  previous images for rollback. MySQL, Caddy, and Docker volumes are outside the
+  cleanup target.
+- The temporary 10 MB cover upload limit aligns with common event-image upload
+  limits. A 13,000,000-pixel decoded image can still require roughly 37-50 MiB
+  for its primary RGB pixel buffer alone, before resize output, decoder buffers,
+  request data, and normal application heap are included.
+- The 13,000,000-pixel cover limit has an automated two-request concurrent
+  near-limit processing test. It passed with `-Xmx220m`, matching the observed
+  dev JVM maximum heap; rerun that constrained test before increasing the limit.
+  The frontend should normally send a 2,560-pixel-or-smaller long edge and aim
+  for 4 MB or less, so the 10 MB and 13,000,000-pixel server limits remain safety
+  bounds rather than normal upload targets.
 
 ### Sign in with Apple
 
