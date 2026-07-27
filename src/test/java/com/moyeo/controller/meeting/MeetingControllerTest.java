@@ -1615,6 +1615,7 @@ class MeetingControllerTest {
                         org.hamcrest.Matchers.is("발달상권"),
                         org.hamcrest.Matchers.is("관광특구")
                 )))
+                .andExpect(jsonPath("$.recommendations.length()").value(7))
                 .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").isNumber());
     }
 

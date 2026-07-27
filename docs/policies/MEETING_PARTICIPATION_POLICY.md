@@ -254,8 +254,11 @@ general best practice into domain policy.
 - VIEW-01-B place recommendations before final confirmation do not call
   external travel-time APIs.
 - Before final confirmation, middle-point place recommendation is a preview
-  based on simple latitude/longitude distance from saved participant departure
-  snapshots.
+  based on saved participant departure snapshots. For each commercial area,
+  multiply straight-line distance by the participant transportation weight
+  (`CAR` 1.0, `PUBLIC_TRANSIT` 0.9), then sort by the lowest
+  weighted-distance average plus weighted-distance maximum. Return up to seven
+  preliminary candidates.
 - Pre-confirmation commercial-area candidates use the persistent
   `commercial_areas` table. The initial recommendation dataset is the 255 Seoul
   areas from the confirmed source selection: 249 development areas and six

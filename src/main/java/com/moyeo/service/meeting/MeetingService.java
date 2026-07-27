@@ -398,7 +398,7 @@ public class MeetingService {
                 .map(area -> scoreArea(area, coordinateParticipants))
                 .sorted(Comparator.comparingLong(ScoredCommercialArea::score)
                         .thenComparing(scoredArea -> scoredArea.area().areaName()))
-                .limit(5)
+                .limit(7)
                 .map(scoredArea -> recommendation(
                         scoredArea.area(),
                         0,
@@ -707,17 +707,21 @@ public class MeetingService {
     }
 
     private ScoredCommercialArea scoreArea(CommercialArea area, List<MeetingParticipant> participants) {
-        List<Long> distances = participants.stream()
-                .map(participant -> Math.round(distanceMeters(
-                        participant.getDepartureLatitude().doubleValue(),
-                        participant.getDepartureLongitude().doubleValue(),
-                        area.latitude().doubleValue(),
-                        area.longitude().doubleValue()
-                )))
-                .toList();
-        long averageDistanceMeters = Math.round(distances.stream().mapToLong(Long::longValue).average().orElse(0));
-        long maxDistanceMeters = distances.stream().mapToLong(Long::longValue).max().orElse(0);
-        return new ScoredCommercialArea(area, averageDistanceMeters, maxDistanceMeters, averageDistanceMeters + maxDistanceMeters);
+        CommercialAreaPreliminaryScoreCalculator.Score score = CommercialAreaPreliminaryScoreCalculator.calculate(
+                area,
+                participants.stream()
+                        .map(participant -> new CommercialAreaPreliminaryScoreCalculator.ParticipantDeparture(
+                                participant.getDepartureLatitude(),
+                                participant.getDepartureLongitude(),
+                                participant.getTransportationMode()
+                        ))
+                        .toList()
+        );
+        return new ScoredCommercialArea(
+                area,
+                score.averageStraightDistanceMeters(),
+                score.score()
+        );
     }
 
     private List<PlaceViewResult.Recommendation> rankRecommendations(List<PlaceViewResult.Recommendation> recommendations) {
@@ -757,19 +761,6 @@ public class MeetingService {
                 area.dongName(),
                 averageStraightDistanceMeters
         );
-    }
-
-    private double distanceMeters(double latitude1, double longitude1, double latitude2, double longitude2) {
-        double earthRadiusMeters = 6_371_000;
-        double lat1 = Math.toRadians(latitude1);
-        double lat2 = Math.toRadians(latitude2);
-        double deltaLat = Math.toRadians(latitude2 - latitude1);
-        double deltaLon = Math.toRadians(longitude2 - longitude1);
-        double a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2)
-                + Math.cos(lat1) * Math.cos(lat2)
-                * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return earthRadiusMeters * c;
     }
 
     private void saveHostScheduleCandidates(Meeting meeting, List<LocalDate> scheduleCandidateDates) {
@@ -970,7 +961,6 @@ public class MeetingService {
     private record ScoredCommercialArea(
             CommercialArea area,
             long averageStraightDistanceMeters,
-            long maxStraightDistanceMeters,
             long score
     ) {
     }
