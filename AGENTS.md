@@ -128,6 +128,9 @@ explicitly report why no update was needed.
   `chore:`, or `test:`.
 - Write the commit subject/body content in Korean unless the user explicitly
   requests another language.
+- End Korean commit subjects with a concise noun phrase, such as
+  `모임 커버 업로드와 배포 복구 보강`, rather than a declarative form such as
+  `모임 커버 업로드와 배포 복구를 보강한다`.
 
 ## Verification Before Completion
 
