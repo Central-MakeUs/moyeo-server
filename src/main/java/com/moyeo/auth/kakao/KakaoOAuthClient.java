@@ -59,10 +59,11 @@ class KakaoOAuthClient {
             }
             return response.accessToken();
         } catch (RestClientResponseException exception) {
-            if (isInvalidAuthorizationCode(exception)) {
+            KakaoErrorResponse providerError = parseErrorResponse(exception);
+            if (isInvalidAuthorizationCode(providerError)) {
                 throw KakaoOAuthException.failed();
             }
-            log.warn("Kakao token exchange failed with provider status {}.", exception.getStatusCode().value());
+            logProviderFailure("token exchange", exception, providerError);
             throw KakaoOAuthException.unavailable();
         } catch (RestClientException exception) {
             log.warn("Kakao token exchange request failed: {}", exception.getClass().getSimpleName());
@@ -85,15 +86,20 @@ class KakaoOAuthClient {
             }
             return response.id().toString();
         } catch (RestClientResponseException exception) {
-            if (isIpRestrictionFailure(exception)) {
-                log.warn("Kakao user information request was rejected by the provider IP restriction.");
+            KakaoErrorResponse providerError = parseErrorResponse(exception);
+            if (isIpRestrictionFailure(providerError)) {
+                log.warn(
+                        "Kakao user information request was rejected by the provider IP restriction: "
+                                + "status={}, providerCode={}.",
+                        exception.getStatusCode().value(),
+                        providerError.code()
+                );
                 throw KakaoOAuthException.unavailable();
             }
             if (exception.getStatusCode().value() == HttpStatus.UNAUTHORIZED.value()) {
                 throw KakaoOAuthException.failed();
             }
-            log.warn("Kakao user information request failed with provider status {}.",
-                    exception.getStatusCode().value());
+            logProviderFailure("user information request", exception, providerError);
             throw KakaoOAuthException.unavailable();
         } catch (RestClientException exception) {
             log.warn("Kakao user information request failed: {}", exception.getClass().getSimpleName());
@@ -122,10 +128,11 @@ class KakaoOAuthClient {
                 throw KakaoOAuthException.unavailable();
             }
         } catch (RestClientResponseException exception) {
-            if (isAlreadyUnlinked(exception)) {
+            KakaoErrorResponse providerError = parseErrorResponse(exception);
+            if (isAlreadyUnlinked(providerError)) {
                 return;
             }
-            log.warn("Kakao unlink request failed with provider status {}.", exception.getStatusCode().value());
+            logProviderFailure("unlink request", exception, providerError);
             throw KakaoOAuthException.unavailable();
         } catch (RestClientException exception) {
             log.warn("Kakao unlink request failed: {}", exception.getClass().getSimpleName());
@@ -139,20 +146,12 @@ class KakaoOAuthClient {
         }
     }
 
-    private boolean isInvalidAuthorizationCode(RestClientResponseException exception) {
-        try {
-            KakaoErrorResponse response = objectMapper.readValue(
-                    exception.getResponseBodyAsByteArray(),
-                    KakaoErrorResponse.class
-            );
-            if (response == null || !"invalid_grant".equals(response.error())) {
-                return false;
-            }
-            return "KOE320".equals(response.errorCode())
-                    || containsAuthorizationCodeNotFound(response.errorDescription());
-        } catch (Exception parsingException) {
+    private boolean isInvalidAuthorizationCode(KakaoErrorResponse response) {
+        if (response == null || !"invalid_grant".equals(response.error())) {
             return false;
         }
+        return "KOE320".equals(response.errorCode())
+                || containsAuthorizationCodeNotFound(response.errorDescription());
     }
 
     private boolean containsAuthorizationCodeNotFound(String errorDescription) {
@@ -160,31 +159,41 @@ class KakaoOAuthClient {
                 && errorDescription.toLowerCase(Locale.ROOT).contains("authorization code not found");
     }
 
-    private boolean isIpRestrictionFailure(RestClientResponseException exception) {
+    private boolean isIpRestrictionFailure(KakaoErrorResponse response) {
+        return response != null
+                && Integer.valueOf(-401).equals(response.code())
+                && response.message() != null
+                && response.message().toLowerCase(Locale.ROOT).contains("ip mismatched");
+    }
+
+    private boolean isAlreadyUnlinked(KakaoErrorResponse response) {
+        return response != null && Integer.valueOf(-101).equals(response.code());
+    }
+
+    private KakaoErrorResponse parseErrorResponse(RestClientResponseException exception) {
         try {
-            KakaoErrorResponse response = objectMapper.readValue(
+            return objectMapper.readValue(
                     exception.getResponseBodyAsByteArray(),
                     KakaoErrorResponse.class
             );
-            return response != null
-                    && Integer.valueOf(-401).equals(response.code())
-                    && response.message() != null
-                    && response.message().toLowerCase(Locale.ROOT).contains("ip mismatched");
         } catch (Exception parsingException) {
-            return false;
+            return null;
         }
     }
 
-    private boolean isAlreadyUnlinked(RestClientResponseException exception) {
-        try {
-            KakaoErrorResponse response = objectMapper.readValue(
-                    exception.getResponseBodyAsByteArray(),
-                    KakaoErrorResponse.class
-            );
-            return response != null && Integer.valueOf(-101).equals(response.code());
-        } catch (Exception parsingException) {
-            return false;
-        }
+    private void logProviderFailure(
+            String operation,
+            RestClientResponseException exception,
+            KakaoErrorResponse providerError
+    ) {
+        log.warn(
+                "Kakao {} failed: status={}, providerError={}, providerErrorCode={}, providerCode={}.",
+                operation,
+                exception.getStatusCode().value(),
+                providerError == null ? null : providerError.error(),
+                providerError == null ? null : providerError.errorCode(),
+                providerError == null ? null : providerError.code()
+        );
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
