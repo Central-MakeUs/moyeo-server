@@ -113,6 +113,11 @@ Finalize decision
   explicit SQL-apply procedure above. When the source dataset changes,
   regenerate the production SQL and local/dev TSV together:
   `python scripts/import-commercial-areas.py <source.dbf> scripts/db/2026-07-27-commercial-areas-seoul.sql src/main/resources/commercial-areas-seoul.tsv`.
+- Actual-time place reranking uses `KAKAO_ROUTE_REST_API_KEY` (falling back to
+  `KAKAO_LOCAL_REST_API_KEY`) for Kakao Map public-transit and Kakao Mobility
+  driving directions. Keep this key only in the runtime environment. The
+  preliminary candidate count, returned recommendation count, and cooldown are
+  configurable through `MEETING_ACTUAL_ROUTE_*` environment values.
 - Account withdrawal, cover replacement, and cover deletion store their cleanup
   tasks in the same database transaction as the local change, so a process
   restart cannot lose the object key after commit. A transaction-rollback

@@ -85,6 +85,15 @@ moyeo:
     rest-api-key: ${KAKAO_LOCAL_REST_API_KEY:}
     connect-timeout: 2s
     read-timeout: 3s
+  actual-route:
+    map-base-url: https://dapi.kakao.com
+    navi-base-url: https://apis-navi.kakaomobility.com
+    rest-api-key: ${KAKAO_ROUTE_REST_API_KEY:${KAKAO_LOCAL_REST_API_KEY:}}
+    preliminary-candidate-count: ${MEETING_ACTUAL_ROUTE_PRELIMINARY_CANDIDATE_COUNT:7}
+    final-recommendation-count: ${MEETING_ACTUAL_ROUTE_FINAL_RECOMMENDATION_COUNT:3}
+    cooldown: ${MEETING_ACTUAL_ROUTE_COOLDOWN:5m}
+    connect-timeout: 2s
+    read-timeout: 5s
   meeting-cover:
     bucket: ${MEETING_COVER_S3_BUCKET:}
     region: ${AWS_REGION:ap-northeast-2}

@@ -62,7 +62,11 @@ public enum MeetingErrorCode implements ErrorCode {
             "invalid-meeting-participation-input",
             "모임 참여 입력 오류",
             "모임 참여 입력 값이 모임 설정과 맞지 않습니다."
-    );
+    ),
+    ACTUAL_ROUTE_RECOMMENDATION_FORBIDDEN(HttpStatus.FORBIDDEN, "ACTUAL_ROUTE_RECOMMENDATION_FORBIDDEN", "actual-route-recommendation-forbidden", "실제시간 추천 권한 없음", "방장만 실제시간 장소 추천을 계산할 수 있습니다."),
+    ACTUAL_ROUTE_RECOMMENDATION_NOT_READY(HttpStatus.CONFLICT, "ACTUAL_ROUTE_RECOMMENDATION_NOT_READY", "actual-route-recommendation-not-ready", "실제시간 추천 준비 안 됨", "모든 참여자의 출발지와 이동수단 입력 후 계산할 수 있습니다."),
+    ACTUAL_ROUTE_RECOMMENDATION_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "ACTUAL_ROUTE_RECOMMENDATION_COOLDOWN", "actual-route-recommendation-cooldown", "실제시간 추천 재호출 제한", "잠시 후 다시 계산할 수 있습니다."),
+    ACTUAL_ROUTE_RECOMMENDATION_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "ACTUAL_ROUTE_RECOMMENDATION_UNAVAILABLE", "actual-route-recommendation-unavailable", "실제시간 추천 사용 불가", "카카오 경로 조회를 완료하지 못했습니다.");
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";
 

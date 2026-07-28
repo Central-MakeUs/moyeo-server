@@ -14,6 +14,7 @@ import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.commercial.CommercialAreaSource;
 import com.moyeo.domain.commercial.CommercialAreaType;
 import com.moyeo.global.security.JwtTokenProvider;
+import com.moyeo.route.KakaoRouteClient;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,6 +93,9 @@ class MeetingControllerTest {
 
     @MockitoBean
     private KakaoLoginService kakaoLoginService;
+
+    @MockitoBean
+    private KakaoRouteClient kakaoRouteClient;
 
     @Test
     void localProfileLoadsConfirmedCommercialAreaCatalog() {
@@ -1650,6 +1655,80 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.center").doesNotExist())
                 .andExpect(jsonPath("$.departureRespondedParticipantCount").doesNotExist())
                 .andExpect(jsonPath("$.recommendations").isEmpty());
+    }
+
+    @Test
+    void hostCanCalculateActualTravelTimeRecommendations() throws Exception {
+        String accessToken = signupAndGetAccessToken("actual-route-host", "actual-route-host");
+        String inviteCode = createMeetingAndGetInviteCode(accessToken, defaultCreateMeetingRequest(6));
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenReturn(1_200L);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meetingId").isNumber())
+                .andExpect(jsonPath("$.recommendations.length()").value(3))
+                .andExpect(jsonPath("$.recommendations[0].rank").value(1))
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
+    }
+
+    @Test
+    void nonHostCannotCalculateActualTravelTimeRecommendations() throws Exception {
+        String hostToken = signupAndGetAccessToken("actual-route-owner", "actual-route-owner");
+        String otherToken = signupAndGetAccessToken("actual-route-other", "actual-route-other");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACTUAL_ROUTE_RECOMMENDATION_FORBIDDEN"));
+    }
+
+    @Test
+    void actualTravelTimeCalculationRequiresEveryParticipantDeparture() throws Exception {
+        String token = signupAndGetAccessToken("actual-route-pending", "actual-route-pending");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        jdbcTemplate.update("update meeting_participants set departure_latitude = null where meeting_id = (select id from meetings where invite_code = ?)", inviteCode);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACTUAL_ROUTE_RECOMMENDATION_NOT_READY"));
+    }
+
+    @Test
+    void actualTravelTimeCalculationAppliesMeetingCooldown() throws Exception {
+        String token = signupAndGetAccessToken("actual-route-cooldown", "actual-route-cooldown");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenReturn(1_200L);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("ACTUAL_ROUTE_RECOMMENDATION_COOLDOWN"));
+    }
+
+    @Test
+    void actualTravelTimeCalculationFailsWhenKakaoRouteLookupFails() throws Exception {
+        String token = signupAndGetAccessToken("actual-route-unavailable", "actual-route-unavailable");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenThrow(new com.moyeo.route.KakaoRouteUnavailableException(null));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/view/places/actual-time", inviteCode)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("ACTUAL_ROUTE_RECOMMENDATION_UNAVAILABLE"));
     }
 
     private String signupAndGetAccessToken(String loginId, String nickname) throws Exception {

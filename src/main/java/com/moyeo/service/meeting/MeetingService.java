@@ -14,6 +14,7 @@ import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
+import com.moyeo.route.KakaoRouteProperties;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
@@ -62,6 +63,7 @@ public class MeetingService {
     private final MeetingCoverStorage meetingCoverStorage;
     private final MeetingCoverProcessor meetingCoverProcessor;
     private final MeetingCoverCleanupProcessor meetingCoverCleanupProcessor;
+    private final KakaoRouteProperties kakaoRouteProperties;
 
     public MeetingService(
             MeetingRepository meetingRepository,
@@ -75,7 +77,8 @@ public class MeetingService {
             PasswordEncoder passwordEncoder,
             MeetingCoverStorage meetingCoverStorage,
             MeetingCoverProcessor meetingCoverProcessor,
-            MeetingCoverCleanupProcessor meetingCoverCleanupProcessor
+            MeetingCoverCleanupProcessor meetingCoverCleanupProcessor,
+            KakaoRouteProperties kakaoRouteProperties
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
@@ -89,6 +92,7 @@ public class MeetingService {
         this.meetingCoverStorage = meetingCoverStorage;
         this.meetingCoverProcessor = meetingCoverProcessor;
         this.meetingCoverCleanupProcessor = meetingCoverCleanupProcessor;
+        this.kakaoRouteProperties = kakaoRouteProperties;
     }
 
     @Transactional
@@ -398,7 +402,7 @@ public class MeetingService {
                 .map(area -> scoreArea(area, coordinateParticipants))
                 .sorted(Comparator.comparingLong(ScoredCommercialArea::score)
                         .thenComparing(scoredArea -> scoredArea.area().areaName()))
-                .limit(7)
+                .limit(kakaoRouteProperties.preliminaryCandidateCount())
                 .map(scoredArea -> recommendation(
                         scoredArea.area(),
                         0,

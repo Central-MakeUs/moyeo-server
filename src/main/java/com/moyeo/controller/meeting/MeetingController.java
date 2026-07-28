@@ -3,6 +3,7 @@ package com.moyeo.controller.meeting;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.meeting.MeetingService;
+import com.moyeo.service.meeting.ActualRouteRecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -38,9 +39,11 @@ import org.springframework.web.multipart.MultipartFile;
 public class MeetingController {
 
     private final MeetingService meetingService;
+    private final ActualRouteRecommendationService actualRouteRecommendationService;
 
-    public MeetingController(MeetingService meetingService) {
+    public MeetingController(MeetingService meetingService, ActualRouteRecommendationService actualRouteRecommendationService) {
         this.meetingService = meetingService;
+        this.actualRouteRecommendationService = actualRouteRecommendationService;
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -1210,4 +1213,13 @@ public class MeetingController {
         );
     }
 
+    @PostMapping("/invitations/{inviteCode}/view/places/actual-time")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "방장 실제 이동시간 장소 추천", description = "방장만 실행할 수 있습니다. 예비 후보를 카카오 실제 이동시간으로 재정렬해 반환하며 결과는 아직 확정 저장하지 않습니다.")
+    public ActualRouteRecommendationResponse calculateActualRouteRecommendation(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @PathVariable String inviteCode
+    ) {
+        return ActualRouteRecommendationResponse.from(actualRouteRecommendationService.calculate(inviteCode, member));
+    }
 }

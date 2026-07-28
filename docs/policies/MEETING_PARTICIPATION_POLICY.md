@@ -269,8 +269,13 @@ general best practice into domain policy.
   commercial-area catalog for each view request before selecting up to five
   candidates.
 - Actual travel-time based reranking and final place result storage should be
-  handled in the later final-confirmation flow, not on every pre-confirmation
-  status view request.
+  handled through the host-only actual-time calculation endpoint, not on every
+  pre-confirmation status view request. It calls Kakao only for the preliminary
+  candidates (default seven), requires every current participant departure and
+  transportation mode, and returns the default top three by the lowest actual
+  travel-time average plus maximum. A Kakao failure fails the entire calculation;
+  it never mixes partial results. Calculation results are not persisted and are
+  distinct from the later host final-confirmation and history flow.
 
 ## Departure Place Search
 
