@@ -110,6 +110,40 @@ class MeetingControllerTest {
     }
 
     @Test
+    void homeListsHostNicknameAndMeetingDetailMarksCurrentParticipant() throws Exception {
+        String hostToken = signupAndGetAccessToken("home-detail-host", "homehost");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        Long meetingId = jdbcTemplate.queryForObject(
+                "select id from meetings where invite_code = ?",
+                Long.class,
+                inviteCode
+        );
+        String memberToken = signupAndGetAccessToken("home-detail-member", "homemember");
+        joinMember(inviteCode, memberToken, "member-in-meeting");
+
+        mockMvc.perform(get("/api/meetings/me")
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planningMeetings[0].hostNickname").value("homehost"))
+                .andExpect(jsonPath("$.planningMeetings[0].role").value("HOST"));
+
+        mockMvc.perform(get("/api/meetings/{meetingId}", meetingId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meetingId").value(meetingId))
+                .andExpect(jsonPath("$.hostNickname").value("homehost"))
+                .andExpect(jsonPath("$.participants.length()").value(2))
+                .andExpect(jsonPath("$.participants[0].isMe").value(false))
+                .andExpect(jsonPath("$.participants[1].isMe").value(true));
+
+        String outsiderToken = signupAndGetAccessToken("home-detail-outsider", "outsider");
+        mockMvc.perform(get("/api/meetings/{meetingId}", meetingId)
+                        .header("Authorization", "Bearer " + outsiderToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEETING_NOT_FOUND"));
+    }
+
+    @Test
     void createMeetingReturnsMeetingAndInvitationInformation() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost1", "host1");
 

@@ -378,6 +378,14 @@ general best practice into domain policy.
   deadline, nearest open deadline, then no deadline. Confirmed order is upcoming
   schedule then past schedules. Place-only hides schedule and schedule-only hides
   place.
+- Each home card exposes the host nickname and the current user's `HOST` or
+  `MEMBER` role. User profile images are deferred because the current User model
+  has no profile-image policy or field.
+- An authenticated host or member may retrieve a home-card meeting by
+  `meetingId`. The detail response includes the meeting description, confirmed
+  schedule/place fields, and its participant list; exactly the linked current
+  user is marked with `isMe = true`. Non-participants receive
+  `MEETING_NOT_FOUND` so the endpoint does not reveal another meeting.
 - TODO: After the MVP creation flow is stable, decide whether to remove the
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.

@@ -276,7 +276,8 @@ public class MeetingService {
                     LocalDateTime scheduledAt = meeting.getConfirmedScheduleDate() == null ? null
                             : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
                     return new MyMeetingListResult.Item(meeting.getId(), meeting.getName(), MeetingCoverUrl.from(meeting),
-                            participant.getParticipantType().name(), (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
+                            meeting.getHostUser().getNickname(), participant.getParticipantType().name(),
+                            (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
                             meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt,
                             meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime(), meeting.getConfirmedEndTime(), meeting.getConfirmedPlaceName());
                 }).toList();
@@ -292,6 +293,32 @@ public class MeetingService {
         confirmed.addAll(confirmedItems.stream().filter(item -> item.scheduledAt() == null)
                 .sorted(Comparator.comparing(MyMeetingListResult.Item::confirmedAt).reversed()).toList());
         return new MyMeetingListResult(planning, confirmed);
+    }
+
+    public MyMeetingDetailResult getMyMeetingDetail(Long meetingId, AuthenticatedMember member) {
+        MeetingParticipant currentParticipant = meetingParticipantRepository.findByMeetingIdAndUserId(meetingId, member.userId())
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        Meeting meeting = currentParticipant.getMeeting();
+        List<MyMeetingDetailResult.Participant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meetingId).stream()
+                .map(participant -> new MyMeetingDetailResult.Participant(
+                        participant.getId(),
+                        participant.getNickname(),
+                        participant.getParticipantType().name(),
+                        member.userId().equals(participant.getUser() == null ? null : participant.getUser().getId())
+                ))
+                .toList();
+        return new MyMeetingDetailResult(
+                meeting.getId(),
+                meeting.getName(),
+                meeting.getDescription(),
+                MeetingCoverUrl.from(meeting),
+                meeting.getHostUser().getNickname(),
+                meeting.getConfirmedScheduleDate(),
+                meeting.getConfirmedStartTime(),
+                meeting.getConfirmedEndTime(),
+                meeting.getConfirmedPlaceName(),
+                participants
+        );
     }
 
     public ScheduleViewResult getScheduleView(String inviteCode, String sort) {

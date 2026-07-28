@@ -53,6 +53,25 @@ public class MeetingController {
         return MyMeetingListResponse.from(meetingService.getMyMeetings(member));
     }
 
+    @GetMapping("/{meetingId}")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "내 모임 상세 조회",
+            description = "로그인 회원이 방장 또는 회원 참여자로 속한 모임의 상세 정보를 반환합니다. 참여자 목록의 isMe로 현재 사용자를 표시합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "내 모임 상세 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 필요"),
+            @ApiResponse(responseCode = "404", description = "참여 중인 모임을 찾을 수 없음")
+    })
+    public MyMeetingDetailResponse getMyMeetingDetail(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        return MyMeetingDetailResponse.from(meetingService.getMyMeetingDetail(meetingId, member));
+    }
+
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Hidden
