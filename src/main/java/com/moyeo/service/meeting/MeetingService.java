@@ -269,7 +269,9 @@ public class MeetingService {
         List<MyMeetingListResult.Item> items = meetingParticipantRepository.findAllByUserIdWithMeeting(member.userId()).stream()
                 .map(participant -> {
                     Meeting meeting = participant.getMeeting();
-                    String deadlineStatus = meeting.getDeadlineAt() == null ? "NO_DEADLINE"
+                    String deadlineStatus = meeting.getStatus() == com.moyeo.domain.meeting.MeetingStatus.CONFIRMED
+                            ? "CLOSED"
+                            : meeting.getDeadlineAt() == null ? "NO_DEADLINE"
                             : meeting.getDeadlineAt().isAfter(now) ? "OPEN" : "CLOSED";
                     LocalDateTime scheduledAt = meeting.getConfirmedScheduleDate() == null ? null
                             : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
