@@ -249,7 +249,7 @@ class AuthControllerTest {
         mockMvc.perform(put("/api/users/me/onboarding")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of("nickname", "다른 이름"))))
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "다른이름"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ONBOARDING_ALREADY_COMPLETED"));
     }
