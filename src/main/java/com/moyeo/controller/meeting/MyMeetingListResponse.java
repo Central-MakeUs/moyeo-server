@@ -1,6 +1,7 @@
 package com.moyeo.controller.meeting;
 
 import com.moyeo.service.meeting.MyMeetingListResult;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -11,7 +12,8 @@ public record MyMeetingListResponse(List<Item> planningMeetings, List<Item> conf
         return new MyMeetingListResponse(result.planningMeetings().stream().map(Item::from).toList(), result.confirmedMeetings().stream().map(Item::from).toList());
     }
     public record Item(Long meetingId, String name, String coverImageUrl, String role, int participantCount,
-                       int maxParticipants, String deadlineStatus, LocalDateTime deadlineAt,
+                       int maxParticipants, String deadlineStatus,
+                       @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime deadlineAt,
                        LocalDate confirmedScheduleDate, LocalTime confirmedStartTime, String confirmedPlaceName) {
         static Item from(MyMeetingListResult.Item item) { return new Item(item.meetingId(), item.name(), item.coverImageUrl(), item.role(), item.participantCount(), item.maxParticipants(), item.deadlineStatus(), item.deadlineAt(), item.confirmedScheduleDate(), item.confirmedStartTime(), item.confirmedPlaceName()); }
     }
