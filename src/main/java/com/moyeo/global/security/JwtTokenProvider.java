@@ -24,6 +24,8 @@ public class JwtTokenProvider {
     private static final String TOKEN_TYPE = "JWT";
     private static final String ALGORITHM = "HS256";
     private static final String ROLE_USER = "USER";
+    private static final Instant DEVELOPMENT_TEST_TOKEN_ISSUED_AT = Instant.parse("2026-01-01T00:00:00Z");
+    private static final Instant DEVELOPMENT_TEST_TOKEN_EXPIRES_AT = Instant.parse("2099-01-01T00:00:00Z");
 
     private final JwtProperties jwtProperties;
     private final ObjectMapper objectMapper;
@@ -41,8 +43,20 @@ public class JwtTokenProvider {
     }
 
     public String createAccessToken(AuthenticatedMember member) {
-        Instant now = Instant.now(clock);
-        Instant expiresAt = now.plusSeconds(jwtProperties.accessTokenValiditySeconds());
+        Instant issuedAt = Instant.now(clock);
+        return createToken(member, issuedAt, issuedAt.plusSeconds(jwtProperties.accessTokenValiditySeconds()));
+    }
+
+    /**
+     * Generates the deterministic token used only by the local/dev fixed test accounts.
+     * The controller exposing it is profile-restricted; production authentication always
+     * uses {@link #createAccessToken(AuthenticatedMember)}.
+     */
+    public String createDevelopmentTestToken(AuthenticatedMember member) {
+        return createToken(member, DEVELOPMENT_TEST_TOKEN_ISSUED_AT, DEVELOPMENT_TEST_TOKEN_EXPIRES_AT);
+    }
+
+    private String createToken(AuthenticatedMember member, Instant issuedAt, Instant expiresAt) {
 
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("typ", TOKEN_TYPE);
@@ -51,7 +65,7 @@ public class JwtTokenProvider {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", String.valueOf(member.userId()));
         payload.put("role", ROLE_USER);
-        payload.put("iat", now.getEpochSecond());
+        payload.put("iat", issuedAt.getEpochSecond());
         payload.put("exp", expiresAt.getEpochSecond());
 
         String unsignedToken = encodeJson(header) + "." + encodeJson(payload);

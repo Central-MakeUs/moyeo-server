@@ -114,7 +114,9 @@ accounts and exposes one token endpoint:
 - `POST /api/auth/dev/tokens`
 
 The endpoint requires no request body and returns the Access JWT responses for
-two fixed direct users. It is not registered in the `prod` profile.
+two fixed direct users. The returned development tokens are deterministic and
+expire on 2099-01-01, so they remain usable after a dev-server restart while
+the JWT secret is unchanged. It is not registered in the `prod` profile.
 
 Login responses include an Access JWT.
 Protected APIs use the `Authorization: Bearer {accessToken}` header.

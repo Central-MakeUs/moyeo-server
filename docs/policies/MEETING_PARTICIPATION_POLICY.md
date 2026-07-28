@@ -95,12 +95,12 @@ general best practice into domain policy.
   image header before full decode. These are configuration values, not final
   product policy; revisit format, size, crop, compression, visibility, source
   dimensions, and deletion retention after MVP feedback.
-- Frontend integration direction: after the user selects a cover, preserve its
+- TODO (frontend implementation): after the user selects a cover, preserve its
   orientation, offer a 16:9 crop, resize the long edge to at most 2,560 pixels,
   and encode JPEG around quality 0.82-0.85 before upload. Aim for 4 MB or less,
   while treating the server's 10 MB and 13,000,000-pixel limits as final safety
-  bounds. HEIC-to-JPEG conversion remains frontend work because the current
-  backend accepts only JPEG and PNG.
+  bounds. Convert HEIC to JPEG because the current backend accepts only JPEG
+  and PNG.
 - TODO: Add the remaining negative-path cover-image tests for storage-unavailable
   API responses. Current automated tests cover invalid/oversized input,
   source-dimension rejection, non-host modification, failed-deletion queueing,

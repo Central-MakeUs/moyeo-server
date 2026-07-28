@@ -37,6 +37,6 @@ class DevAuthController {
 
     private AuthResponse issueToken(DevTestAccount account) {
         AuthenticatedMember member = devTestAccountService.getOrCreate(account);
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+        return AuthResponse.of(jwtTokenProvider.createDevelopmentTestToken(member), member);
     }
 }

@@ -187,7 +187,10 @@ the `prod` profile.
 - The test-account token endpoint is available only when the `local` or `dev`
   profile is active.
 - It may issue Access JWTs without a password only for the two fixed test
-  accounts, and returns both accounts in one response.
+  accounts, and returns both accounts in one response. These deterministic test
+  tokens have a fixed `iat` of `2026-01-01T00:00:00Z` and expire on
+  `2099-01-01T00:00:00Z`, so the same account and unchanged JWT secret produce
+  the same token after a development-server restart.
 - The endpoint is a temporary development convenience and must not be used as
   a production authentication mechanism.
 

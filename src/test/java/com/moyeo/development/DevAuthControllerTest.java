@@ -10,6 +10,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.time.Instant;
+import java.util.Base64;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -49,5 +51,21 @@ class DevAuthControllerTest {
         AuthResponse authResponse = objectMapper.readValue(response, DevAuthTokensResponse.class).userOne();
         assertThat(jwtTokenProvider.parse(authResponse.accessToken()).userId())
                 .isEqualTo(authResponse.user().id());
+
+        String secondResponse = mockMvc.perform(post("/api/auth/dev/tokens"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        AuthResponse secondUserOne = objectMapper.readValue(secondResponse, DevAuthTokensResponse.class).userOne();
+
+        assertThat(secondUserOne.accessToken()).isEqualTo(authResponse.accessToken());
+        assertThat(tokenExpiration(authResponse.accessToken())).isEqualTo(Instant.parse("2099-01-01T00:00:00Z"));
+    }
+
+    private Instant tokenExpiration(String token) throws Exception {
+        String payload = token.split("\\.")[1];
+        long expiration = objectMapper.readTree(Base64.getUrlDecoder().decode(payload)).get("exp").asLong();
+        return Instant.ofEpochSecond(expiration);
     }
 }
