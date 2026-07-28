@@ -288,18 +288,23 @@ public class Meeting {
     public java.math.BigDecimal getConfirmedPlaceLongitude() { return confirmedPlaceLongitude; }
     public String getConfirmedCommercialAreaCode() { return confirmedCommercialAreaCode; }
 
-    public void confirm(LocalDate scheduleDate, LocalTime startTime, LocalTime endTime,
-                        String placeName, String placeAddress, java.math.BigDecimal placeLatitude,
-                        java.math.BigDecimal placeLongitude, String commercialAreaCode) {
-        this.status = MeetingStatus.CONFIRMED;
-        this.confirmedAt = LocalDateTime.now();
+    public void confirmSchedule(LocalDate scheduleDate, LocalTime startTime, LocalTime endTime) {
         this.confirmedScheduleDate = scheduleDate;
         this.confirmedStartTime = startTime;
         this.confirmedEndTime = endTime;
+    }
+
+    public void confirmPlace(String placeName, String placeAddress, java.math.BigDecimal placeLatitude,
+                             java.math.BigDecimal placeLongitude, String commercialAreaCode) {
         this.confirmedPlaceName = placeName;
         this.confirmedPlaceAddress = placeAddress;
         this.confirmedPlaceLatitude = placeLatitude;
         this.confirmedPlaceLongitude = placeLongitude;
         this.confirmedCommercialAreaCode = commercialAreaCode;
+    }
+
+    public void completeConfirmation() {
+        this.status = MeetingStatus.CONFIRMED;
+        this.confirmedAt = LocalDateTime.now();
     }
 }

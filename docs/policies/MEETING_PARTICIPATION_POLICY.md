@@ -362,14 +362,17 @@ general best practice into domain policy.
 
 ## Final Confirmation and Home (2026-07-28)
 
-- A meeting begins in `PLANNING`. Only the host may transition it to immutable
-  `CONFIRMED`, and confirmation requires at least two active participants.
+- A meeting begins in `PLANNING`. Only the host may independently confirm the
+  schedule and place, and each confirmed selection is immutable. Confirmation
+  requires at least two active participants.
 - Confirmation can occur before or after `deadlineAt`. Preserve `deadlineAt` as
   the original input cutoff; `CONFIRMED` separately blocks new participant and
   participation-input writes.
-- `SCHEDULE_AND_PLACE` requires both selections. `DATE_ONLY` stores a candidate
-  date only, while `DATE_AND_TIME` stores a candidate date plus start/end time.
-  The host may choose a candidate that is unavailable to some participants.
+- `SCHEDULE_AND_PLACE` becomes `CONFIRMED` only after both selections are
+  confirmed. `SCHEDULE_ONLY` and `PLACE_ONLY` become `CONFIRMED` after their
+  applicable selection. `DATE_ONLY` stores a candidate date only, while
+  `DATE_AND_TIME` stores a candidate date plus start/end time. The host may
+  choose a candidate that is unavailable to some participants.
 - A place selection must be from the current preliminary recommendation or its
   actual-route reranking. Store commercial-area name and coordinates; address is
   nullable because the catalog has no road address.

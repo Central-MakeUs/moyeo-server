@@ -1230,14 +1230,25 @@ public class MeetingController {
         return ActualRouteRecommendationResponse.from(actualRouteRecommendationService.calculate(inviteCode, member));
     }
 
-    @PostMapping("/{meetingId}/confirmation")
+    @PostMapping("/{meetingId}/schedule-confirmation")
     @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "모임 최종 확정", description = "방장만 실행할 수 있습니다. 확정 후에는 참여와 응답이 차단되며 확정 내용은 변경할 수 없습니다.")
-    public MeetingConfirmationResponse confirmMeeting(
+    @Operation(summary = "일정 확정", description = "방장만 실행할 수 있습니다. 일정과 장소가 모두 확정되면 모임이 최종 확정됩니다.")
+    public MeetingConfirmationResponse confirmSchedule(
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
             @PathVariable Long meetingId,
-            @Valid @RequestBody ConfirmMeetingRequest request
+            @Valid @RequestBody ConfirmScheduleRequest request
     ) {
-        return MeetingConfirmationResponse.from(meetingService.confirmMeeting(meetingId, member, request.toCommand()));
+        return MeetingConfirmationResponse.from(meetingService.confirmSchedule(meetingId, member, request.toCommand()));
+    }
+
+    @PostMapping("/{meetingId}/place-confirmation")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "장소 확정", description = "방장만 실행할 수 있습니다. 일정과 장소가 모두 확정되면 모임이 최종 확정됩니다.")
+    public MeetingConfirmationResponse confirmPlace(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @PathVariable Long meetingId,
+            @Valid @RequestBody ConfirmPlaceRequest request
+    ) {
+        return MeetingConfirmationResponse.from(meetingService.confirmPlace(meetingId, member, request.toCommand()));
     }
 }
