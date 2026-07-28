@@ -42,7 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = {
         "moyeo.cors.allowed-origins=http://localhost:3000,https://moyeo-web.vercel.app,"
                 + "https://moyeo-dev.vercel.app,http://172.30.1.36:3000",
-        "moyeo.cors.allowed-origin-patterns=https://moyeo-*-hyeonjirohs-projects.vercel.app"
+        "moyeo.cors.allowed-origin-patterns=https://moyeo-*-hyeonjirohs-projects.vercel.app,"
+                + "http://192.168.26.*:3000,http://192.168.219.*:3000"
 })
 class AuthControllerTest {
 
@@ -331,6 +332,8 @@ class AuthControllerTest {
     @ValueSource(strings = {
             "http://localhost:3000",
             "http://172.30.1.36:3000",
+            "http://192.168.26.10:3000",
+            "http://192.168.219.10:3000",
             "https://moyeo-web.vercel.app",
             "https://moyeo-dev.vercel.app",
             "https://moyeo-pr-check-hyeonjirohs-projects.vercel.app"

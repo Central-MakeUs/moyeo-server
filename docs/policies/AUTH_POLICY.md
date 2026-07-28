@@ -204,6 +204,9 @@ the `prod` profile.
   deployment URLs are decided.
 - The dev profile also allows Vercel PR Preview origins matching
   `https://moyeo-*-hyeonjirohs-projects.vercel.app`.
+- The dev and production profiles allow HTTP frontend origins on port 3000 from
+  the private `192.168.26.*` and `192.168.219.*` networks for local-device
+  development.
 - Expose the `X-Trace-Id` response header so browser clients can correlate an
   API response with server logs.
 - If `CORS_ALLOWED_ORIGINS` exists in the runtime environment, it overrides the
