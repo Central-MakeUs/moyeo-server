@@ -14,7 +14,8 @@ public record MyMeetingListResponse(List<Item> planningMeetings, List<Item> conf
     public record Item(Long meetingId, String name, String coverImageUrl, String role, int participantCount,
                        int maxParticipants, String deadlineStatus,
                        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime deadlineAt,
-                       LocalDate confirmedScheduleDate, LocalTime confirmedStartTime, String confirmedPlaceName) {
-        static Item from(MyMeetingListResult.Item item) { return new Item(item.meetingId(), item.name(), item.coverImageUrl(), item.role(), item.participantCount(), item.maxParticipants(), item.deadlineStatus(), item.deadlineAt(), item.confirmedScheduleDate(), item.confirmedStartTime(), item.confirmedPlaceName()); }
+                       LocalDate confirmedScheduleDate, LocalTime confirmedStartTime, LocalTime confirmedEndTime,
+                       String confirmedPlaceName) {
+        static Item from(MyMeetingListResult.Item item) { return new Item(item.meetingId(), item.name(), item.coverImageUrl(), item.role(), item.participantCount(), item.maxParticipants(), item.deadlineStatus(), item.deadlineAt(), item.confirmedScheduleDate(), item.confirmedStartTime(), item.confirmedEndTime(), item.confirmedPlaceName()); }
     }
 }

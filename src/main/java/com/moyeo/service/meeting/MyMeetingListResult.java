@@ -9,6 +9,6 @@ public record MyMeetingListResult(List<Item> planningMeetings, List<Item> confir
     public record Item(Long meetingId, String name, String coverImageUrl, String role, int participantCount,
                        int maxParticipants, String deadlineStatus, LocalDateTime deadlineAt,
                        LocalDateTime confirmedAt, LocalDateTime scheduledAt,
-                       LocalDate confirmedScheduleDate, LocalTime confirmedStartTime,
+                       LocalDate confirmedScheduleDate, LocalTime confirmedStartTime, LocalTime confirmedEndTime,
                        String confirmedPlaceName) { }
 }
