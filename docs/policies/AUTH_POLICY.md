@@ -87,6 +87,8 @@ entry.
 - Other member-authenticated APIs return `403 ONBOARDING_REQUIRED` until the
   nickname is registered. Guest and invite-code flows remain unchanged.
 - `PUT /api/users/me/onboarding` registers the initial nickname.
+- A nickname consists of 2 to 10 Korean Hangul syllables or English letters;
+  whitespace, numbers, and special characters are not allowed.
 - Repeating that request with the same nickname is idempotent and returns
   success. A different nickname after completion returns
   `409 ONBOARDING_ALREADY_COMPLETED`.

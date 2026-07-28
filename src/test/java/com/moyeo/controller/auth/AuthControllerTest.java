@@ -254,6 +254,26 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.code").value("ONBOARDING_ALREADY_COMPLETED"));
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "가",
+            "가나다라마바사아자차카",
+            "Test1",
+            "모 여",
+            "모여!"
+    })
+    void onboardingValidatesNicknameAsTwoToTenKoreanOrEnglishLetters(String nickname) throws Exception {
+        String accessToken = testMemberFactory.createPendingAccessToken();
+
+        mockMvc.perform(put("/api/users/me/onboarding")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", nickname))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
     @Test
     void pendingUserCannotCallOtherMemberApis() throws Exception {
         String accessToken = testMemberFactory.createPendingAccessToken();
