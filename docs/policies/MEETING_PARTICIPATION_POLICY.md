@@ -360,6 +360,27 @@ general best practice into domain policy.
 
 ## Deferred Policies
 
+## Final Confirmation and Home (2026-07-28)
+
+- A meeting begins in `PLANNING`. Only the host may transition it to immutable
+  `CONFIRMED`, and confirmation requires at least two active participants.
+- Confirmation can occur before or after `deadlineAt`. Preserve `deadlineAt` as
+  the original input cutoff; `CONFIRMED` separately blocks new participant and
+  participation-input writes.
+- `SCHEDULE_AND_PLACE` requires both selections. `DATE_ONLY` stores a candidate
+  date only, while `DATE_AND_TIME` stores a candidate date plus start/end time.
+  The host may choose a candidate that is unavailable to some participants.
+- A place selection must be from the current preliminary recommendation or its
+  actual-route reranking. Store commercial-area name and coordinates; address is
+  nullable because the catalog has no road address.
+- Home lists account-linked host/member meetings only. Planning order is closed
+  deadline, nearest open deadline, then no deadline. Confirmed order is upcoming
+  schedule then past schedules. Place-only hides schedule and schedule-only hides
+  place.
+- On non-host user withdrawal, delete the participant row and its availability
+  and departure data. The withdrawn participant is excluded from all lists and
+  counts, and the freed capacity may be reused.
+
 - TODO: After the MVP creation flow is stable, decide whether to remove the
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.

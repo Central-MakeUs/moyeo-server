@@ -93,6 +93,7 @@ public class MemberWithdrawalService {
         List<Long> coverCleanupTaskIds = createCoverCleanupTasks(coverImageKeys);
 
         deleteHostedMeetings(hostedMeetings);
+        deleteMemberParticipations(userId);
         deleteMemberOwnedData(userId);
         user.withdraw();
         userRepository.flush();
@@ -178,6 +179,18 @@ public class MemberWithdrawalService {
         savedPlaceRepository.flush();
         socialAccountRepository.deleteAllByUserId(userId);
         socialAccountRepository.flush();
+    }
+
+    private void deleteMemberParticipations(Long userId) {
+        List<MeetingParticipant> participations = meetingParticipantRepository.findAllByUserIdWithMeeting(userId);
+        for (MeetingParticipant participant : participations) {
+            scheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+            scheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+        }
+        scheduleDateAvailabilityRepository.flush();
+        scheduleAvailabilityRepository.flush();
+        meetingParticipantRepository.deleteAll(participations);
+        meetingParticipantRepository.flush();
     }
 
     private void deleteSearchHistory(List<DeparturePlaceSearch> searches) {

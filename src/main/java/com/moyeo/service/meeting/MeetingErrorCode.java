@@ -7,6 +7,11 @@ import java.net.URI;
 
 public enum MeetingErrorCode implements ErrorCode {
 
+    MEETING_CONFIRMATION_FORBIDDEN(HttpStatus.FORBIDDEN, "MEETING_CONFIRMATION_FORBIDDEN", "meeting-confirmation-forbidden", "Meeting confirmation forbidden", "Only the host can confirm the meeting."),
+    MEETING_ALREADY_CONFIRMED(HttpStatus.CONFLICT, "MEETING_ALREADY_CONFIRMED", "meeting-already-confirmed", "Meeting already confirmed", "A confirmed meeting cannot be changed."),
+    MEETING_CONFIRMATION_NOT_READY(HttpStatus.CONFLICT, "MEETING_CONFIRMATION_NOT_READY", "meeting-confirmation-not-ready", "Meeting confirmation not ready", "At least two active participants and valid candidates are required."),
+    INVALID_MEETING_CONFIRMATION_INPUT(HttpStatus.BAD_REQUEST, "INVALID_MEETING_CONFIRMATION_INPUT", "invalid-meeting-confirmation-input", "Invalid meeting confirmation input", "The selected schedule or place is not a current candidate."),
+
     MEETING_NOT_FOUND(
             HttpStatus.NOT_FOUND,
             "MEETING_NOT_FOUND",

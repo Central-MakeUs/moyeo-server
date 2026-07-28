@@ -86,6 +86,16 @@ Table meetings {
   cover_image_key varchar(500) [note: "S3에 저장하는 모임 커버 이미지 객체 키"]
   deadline_at datetime [note: "모임 참여/응답 마감 일시. null이면 마감 없음"]
   invite_code varchar(20) [not null, unique, note: "초대 링크에 사용하는 고유 코드"]
+  meeting_status varchar(20) [not null, note: "모임 상태: PLANNING/CONFIRMED"]
+  confirmed_at datetime [note: "방장이 최종 확정한 일시"]
+  confirmed_schedule_date date [note: "확정 일정 날짜"]
+  confirmed_start_time time [note: "DATE_AND_TIME 확정 시작 시간"]
+  confirmed_end_time time [note: "DATE_AND_TIME 확정 종료 시간"]
+  confirmed_place_name varchar(255) [note: "확정 상권명 스냅샷"]
+  confirmed_place_address varchar(255) [note: "확정 장소 주소 스냅샷. null 허용"]
+  confirmed_place_latitude decimal(10,7) [note: "확정 장소 위도 스냅샷"]
+  confirmed_place_longitude decimal(10,7) [note: "확정 장소 경도 스냅샷"]
+  confirmed_commercial_area_code varchar(30) [note: "확정한 상권 후보 코드"]
   created_at datetime [not null, note: "모임 생성 일시"]
   updated_at datetime [not null, note: "모임 수정 일시"]
 
@@ -202,6 +212,11 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 ```
 
 ## Notes
+
+- Final-confirmation implementation adds `meetings.meeting_status` (`PLANNING`/
+  `CONFIRMED`), `confirmed_at`, selected schedule date/start/end fields, and
+  nullable confirmed commercial-area snapshot fields (name, address, coordinates,
+  and area code). Confirmation preserves `deadline_at`.
 
 - `users` is the service user table.
 - `users.nickname` is null while a newly registered social user has not

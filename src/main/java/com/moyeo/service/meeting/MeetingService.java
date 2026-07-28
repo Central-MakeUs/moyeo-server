@@ -264,6 +264,33 @@ public class MeetingService {
         );
     }
 
+    public MyMeetingListResult getMyMeetings(AuthenticatedMember member) {
+        LocalDateTime now = LocalDateTime.now();
+        List<MyMeetingListResult.Item> items = meetingParticipantRepository.findAllByUserIdWithMeeting(member.userId()).stream()
+                .map(participant -> {
+                    Meeting meeting = participant.getMeeting();
+                    String deadlineStatus = meeting.getDeadlineAt() == null ? "NO_DEADLINE"
+                            : meeting.getDeadlineAt().isAfter(now) ? "OPEN" : "CLOSED";
+                    LocalDateTime scheduledAt = meeting.getConfirmedScheduleDate() == null ? null
+                            : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
+                    return new MyMeetingListResult.Item(meeting.getId(), meeting.getName(), MeetingCoverUrl.from(meeting),
+                            participant.getParticipantType().name(), (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
+                            meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt, meeting.getConfirmedPlaceName());
+                }).toList();
+        List<MyMeetingListResult.Item> planning = items.stream().filter(item -> item.confirmedAt() == null)
+                .sorted(Comparator.comparing((MyMeetingListResult.Item item) -> !"CLOSED".equals(item.deadlineStatus()))
+                        .thenComparing(item -> item.deadlineAt() == null ? LocalDateTime.MAX : item.deadlineAt())).toList();
+        List<MyMeetingListResult.Item> confirmedItems = items.stream().filter(item -> item.confirmedAt() != null).toList();
+        List<MyMeetingListResult.Item> confirmed = new ArrayList<>();
+        confirmed.addAll(confirmedItems.stream().filter(item -> item.scheduledAt() != null && !item.scheduledAt().isBefore(now))
+                .sorted(Comparator.comparing(MyMeetingListResult.Item::scheduledAt)).toList());
+        confirmed.addAll(confirmedItems.stream().filter(item -> item.scheduledAt() != null && item.scheduledAt().isBefore(now))
+                .sorted(Comparator.comparing(MyMeetingListResult.Item::scheduledAt).reversed()).toList());
+        confirmed.addAll(confirmedItems.stream().filter(item -> item.scheduledAt() == null)
+                .sorted(Comparator.comparing(MyMeetingListResult.Item::confirmedAt).reversed()).toList());
+        return new MyMeetingListResult(planning, confirmed);
+    }
+
     public ScheduleViewResult getScheduleView(String inviteCode, String sort) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
@@ -423,6 +450,67 @@ public class MeetingService {
     }
 
     @Transactional
+    public MeetingConfirmationResult confirmMeeting(Long meetingId, AuthenticatedMember member, ConfirmMeetingCommand command) {
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getHostUser().getId().equals(member.userId())) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_CONFIRMATION_FORBIDDEN);
+        }
+        if (meeting.getStatus() == com.moyeo.domain.meeting.MeetingStatus.CONFIRMED) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_ALREADY_CONFIRMED);
+        }
+        if (meetingParticipantRepository.countByMeetingId(meetingId) < 2) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_CONFIRMATION_NOT_READY);
+        }
+
+        LocalDate scheduleDate = null;
+        LocalTime startTime = null;
+        LocalTime endTime = null;
+        if (meeting.getScheduleInputType() != ScheduleInputType.NONE) {
+            if (command.scheduleDate() == null || !meetingScheduleCandidateRepository
+                    .findAllByMeetingIdOrderByCandidateDateAsc(meetingId).stream()
+                    .anyMatch(candidate -> candidate.getCandidateDate().equals(command.scheduleDate()))) {
+                throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+            }
+            scheduleDate = command.scheduleDate();
+            if (meeting.getScheduleInputType() == ScheduleInputType.DATE_AND_TIME) {
+                if (command.startTime() == null || command.endTime() == null
+                        || !command.startTime().isBefore(command.endTime())
+                        || command.startTime().isBefore(meeting.getAvailableStartTime())
+                        || command.endTime().isAfter(meeting.getAvailableEndTime())) {
+                    throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+                }
+                startTime = command.startTime();
+                endTime = command.endTime();
+            } else if (command.startTime() != null || command.endTime() != null) {
+                throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+            }
+        } else if (command.scheduleDate() != null || command.startTime() != null || command.endTime() != null) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+        }
+
+        PlaceViewResult.Recommendation place = null;
+        if (meeting.getPlaceMode() == PlaceMode.RECOMMEND) {
+            if (command.commercialAreaCode() == null || command.commercialAreaCode().isBlank()) {
+                throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+            }
+            place = getPlaceView(meeting.getInviteCode()).recommendations().stream()
+                    .filter(recommendation -> recommendation.areaCode().equals(command.commercialAreaCode()))
+                    .findFirst().orElseThrow(() -> new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT));
+        } else if (command.commercialAreaCode() != null && !command.commercialAreaCode().isBlank()) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_CONFIRMATION_INPUT);
+        }
+
+        meeting.confirm(scheduleDate, startTime, endTime,
+                place != null ? place.areaName() : null, null,
+                place != null ? place.latitude() : null, place != null ? place.longitude() : null,
+                place != null ? place.areaCode() : null);
+        return new MeetingConfirmationResult(meeting.getId(), meeting.getStatus().name(), meeting.getConfirmedAt(),
+                meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime(), meeting.getConfirmedEndTime(),
+                meeting.getConfirmedPlaceName());
+    }
+
+    @Transactional
     public ParticipantJoinResult joinGuest(
             String inviteCode,
             String nickname,
@@ -546,6 +634,9 @@ public class MeetingService {
     }
 
     private void validateJoinOpen(Meeting meeting) {
+        if (meeting.getStatus() == com.moyeo.domain.meeting.MeetingStatus.CONFIRMED) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPATION_CLOSED);
+        }
         if (meeting.getDeadlineAt() != null && !meeting.getDeadlineAt().isAfter(LocalDateTime.now())) {
             throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPATION_CLOSED);
         }

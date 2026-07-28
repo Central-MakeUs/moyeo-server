@@ -46,6 +46,13 @@ public class MeetingController {
         this.actualRouteRecommendationService = actualRouteRecommendationService;
     }
 
+    @GetMapping("/me")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "내 모임 홈 목록", description = "로그인 회원이 방장 또는 회원 참여자로 속한 진행 중 및 확정 모임을 반환합니다.")
+    public MyMeetingListResponse getMyMeetings(@Parameter(hidden = true) @CurrentMember AuthenticatedMember member) {
+        return MyMeetingListResponse.from(meetingService.getMyMeetings(member));
+    }
+
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     @Hidden
@@ -1221,5 +1228,16 @@ public class MeetingController {
             @PathVariable String inviteCode
     ) {
         return ActualRouteRecommendationResponse.from(actualRouteRecommendationService.calculate(inviteCode, member));
+    }
+
+    @PostMapping("/{meetingId}/confirmation")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "모임 최종 확정", description = "방장만 실행할 수 있습니다. 확정 후에는 참여와 응답이 차단되며 확정 내용은 변경할 수 없습니다.")
+    public MeetingConfirmationResponse confirmMeeting(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @PathVariable Long meetingId,
+            @Valid @RequestBody ConfirmMeetingRequest request
+    ) {
+        return MeetingConfirmationResponse.from(meetingService.confirmMeeting(meetingId, member, request.toCommand()));
     }
 }

@@ -19,6 +19,7 @@ import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Comment;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
@@ -105,6 +106,37 @@ public class Meeting {
     @Column(name = "invite_code", nullable = false, length = 20)
     @Comment("초대 링크에 사용하는 고유 코드")
     private String inviteCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "meeting_status", nullable = false, length = 20)
+    private MeetingStatus status = MeetingStatus.PLANNING;
+
+    @Column(name = "confirmed_at")
+    private LocalDateTime confirmedAt;
+
+    @Column(name = "confirmed_schedule_date")
+    private LocalDate confirmedScheduleDate;
+
+    @Column(name = "confirmed_start_time")
+    private LocalTime confirmedStartTime;
+
+    @Column(name = "confirmed_end_time")
+    private LocalTime confirmedEndTime;
+
+    @Column(name = "confirmed_place_name", length = 255)
+    private String confirmedPlaceName;
+
+    @Column(name = "confirmed_place_address", length = 255)
+    private String confirmedPlaceAddress;
+
+    @Column(name = "confirmed_place_latitude", precision = 10, scale = 7)
+    private java.math.BigDecimal confirmedPlaceLatitude;
+
+    @Column(name = "confirmed_place_longitude", precision = 10, scale = 7)
+    private java.math.BigDecimal confirmedPlaceLongitude;
+
+    @Column(name = "confirmed_commercial_area_code", length = 30)
+    private String confirmedCommercialAreaCode;
 
     @Column(nullable = false)
     @Comment("모임 생성 일시")
@@ -243,5 +275,31 @@ public class Meeting {
 
     public String getInviteCode() {
         return inviteCode;
+    }
+
+    public MeetingStatus getStatus() { return status; }
+    public LocalDateTime getConfirmedAt() { return confirmedAt; }
+    public LocalDate getConfirmedScheduleDate() { return confirmedScheduleDate; }
+    public LocalTime getConfirmedStartTime() { return confirmedStartTime; }
+    public LocalTime getConfirmedEndTime() { return confirmedEndTime; }
+    public String getConfirmedPlaceName() { return confirmedPlaceName; }
+    public String getConfirmedPlaceAddress() { return confirmedPlaceAddress; }
+    public java.math.BigDecimal getConfirmedPlaceLatitude() { return confirmedPlaceLatitude; }
+    public java.math.BigDecimal getConfirmedPlaceLongitude() { return confirmedPlaceLongitude; }
+    public String getConfirmedCommercialAreaCode() { return confirmedCommercialAreaCode; }
+
+    public void confirm(LocalDate scheduleDate, LocalTime startTime, LocalTime endTime,
+                        String placeName, String placeAddress, java.math.BigDecimal placeLatitude,
+                        java.math.BigDecimal placeLongitude, String commercialAreaCode) {
+        this.status = MeetingStatus.CONFIRMED;
+        this.confirmedAt = LocalDateTime.now();
+        this.confirmedScheduleDate = scheduleDate;
+        this.confirmedStartTime = startTime;
+        this.confirmedEndTime = endTime;
+        this.confirmedPlaceName = placeName;
+        this.confirmedPlaceAddress = placeAddress;
+        this.confirmedPlaceLatitude = placeLatitude;
+        this.confirmedPlaceLongitude = placeLongitude;
+        this.confirmedCommercialAreaCode = commercialAreaCode;
     }
 }

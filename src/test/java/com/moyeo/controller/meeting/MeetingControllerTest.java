@@ -1124,7 +1124,7 @@ class MeetingControllerTest {
     }
 
     @Test
-    void withdrawnMemberRemainsMarkedInMeetingAndPlaceViews() throws Exception {
+    void withdrawnMemberIsDeletedFromMeetingAndPlaceViews() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("withdraw-view-host", "withdraw-view-host", 6);
         String memberToken = signupAndGetAccessToken("withdraw-view-member", "withdraw-view-member");
         Long memberUserId = jwtTokenProvider.parse(memberToken).userId();
@@ -1147,18 +1147,15 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.participantCount").value(2))
-                .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
-                .andExpect(jsonPath("$.participants[1].nickname").value("withdrawn-snapshot"))
-                .andExpect(jsonPath("$.participants[1].participantType").value("MEMBER"))
-                .andExpect(jsonPath("$.participants[1].withdrawn").value(true));
+                .andExpect(jsonPath("$.participantCount").value(1))
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].withdrawn").value(false));
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.participantCount").value(2))
-                .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
-                .andExpect(jsonPath("$.participants[1].nickname").value("withdrawn-snapshot"))
-                .andExpect(jsonPath("$.participants[1].withdrawn").value(true));
+                .andExpect(jsonPath("$.participantCount").value(1))
+                .andExpect(jsonPath("$.participants.length()").value(1))
+                .andExpect(jsonPath("$.participants[0].withdrawn").value(false));
     }
 
     @Test
