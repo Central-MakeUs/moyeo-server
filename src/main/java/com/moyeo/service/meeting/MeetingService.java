@@ -275,7 +275,8 @@ public class MeetingService {
                             : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
                     return new MyMeetingListResult.Item(meeting.getId(), meeting.getName(), MeetingCoverUrl.from(meeting),
                             participant.getParticipantType().name(), (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
-                            meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt, meeting.getConfirmedPlaceName());
+                            meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt,
+                            meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime(), meeting.getConfirmedPlaceName());
                 }).toList();
         List<MyMeetingListResult.Item> planning = items.stream().filter(item -> item.confirmedAt() == null)
                 .sorted(Comparator.comparing((MyMeetingListResult.Item item) -> !"CLOSED".equals(item.deadlineStatus()))
