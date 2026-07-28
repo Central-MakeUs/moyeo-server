@@ -53,7 +53,7 @@ general best practice into domain policy.
   it is not a configured Moyeo domain or an API contract. The frontend composes
   the final share URL from its deployed domain and `invitePath`.
 - When `noDeadline` is false or omitted, `deadlineMinutes` is required and is
-  accepted in 10-minute units from 10 minutes up to 72 hours. A zero-minute
+  accepted in 10-minute units from 10 minutes up to 7 days. A zero-minute
   deadline is not allowed. When `noDeadline=true`, `deadlineMinutes` is
   omitted or null.
 - For a deadline-bound meeting, `deadlineAt` is calculated from the server
@@ -142,23 +142,21 @@ general best practice into domain policy.
 - Meeting participant nickname duplication is checked only among guest
   participants inside the same meeting. Host/member nicknames may overlap with
   guest nicknames and with each other.
+- A guest nickname consists of 2 to 10 Korean Hangul syllables or English
+  letters, and a guest participation password consists of exactly four digits.
 - A service user should not be linked to the same meeting more than once; enforce
   this with a meeting-scoped uniqueness rule such as `unique(meeting_id, user_id)`.
 - Guest participants currently have nullable `user_id`, so multiple guest
   participants remain allowed.
 - Current participant behavior is defined for `HOST`, `MEMBER`, and `GUEST`.
-- When a service user withdraws, delete meetings hosted by that user. In meetings
-  hosted by another user, retain the withdrawing user's `MEMBER` participant row,
-  meeting-scoped nickname, schedule availability, and departure snapshot.
-- Participant-list responses expose `withdrawn = true` when the linked
-  `User.deletedAt` is present. Guest participants always return
-  `withdrawn = false`.
-- Temporary MVP policy: withdrawn member participants remain included in
-  participant counts, participant-limit checks, schedule availability
-  aggregation, and place recommendation calculations.
-- POLICY_UNDEFINED: Product confirmation is still required on whether withdrawn
-  member participants should later be excluded from those counts and
-  calculations.
+- When a service user withdraws, hard-delete every meeting hosted by that user,
+  including participants, schedule candidates and availabilities, meeting-linked
+  departure search history, and its stored cover image.
+- In meetings hosted by another user, hard-delete the withdrawing user's `MEMBER`
+  participant row, including its meeting-scoped nickname, schedule availability,
+  and departure snapshot. The withdrawn user is excluded from participant lists,
+  counts, schedule availability aggregation, and place recommendation
+  calculations; the freed capacity may be reused.
 
 ## Invite and Guest Join
 
@@ -380,10 +378,6 @@ general best practice into domain policy.
   deadline, nearest open deadline, then no deadline. Confirmed order is upcoming
   schedule then past schedules. Place-only hides schedule and schedule-only hides
   place.
-- On non-host user withdrawal, delete the participant row and its availability
-  and departure data. The withdrawn participant is excluded from all lists and
-  counts, and the freed capacity may be reused.
-
 - TODO: After the MVP creation flow is stable, decide whether to remove the
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.

@@ -830,8 +830,8 @@ public class MeetingController {
                                             description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 생성된 후보일과 17:00~23:00 범위 안에서 가능한 날짜·시간대를 선택합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구 1",
-                                              "password": "moyeo2026!",
+                                              "nickname": "민지친구",
+                                              "password": "1234",
                                               "scheduleResponse": {
                                                 "availableTimeRanges": [
                                                 {
@@ -861,8 +861,8 @@ public class MeetingController {
                                             description = "날짜와 장소를 함께 정하는 모임입니다. 방장이 만든 후보 날짜 중 가능한 날짜와 출발지를 입력합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구 2",
-                                              "password": "moyeo2026!",
+                                              "nickname": "민지친구",
+                                              "password": "1234",
                                               "scheduleResponse": {
                                                 "availableDates": ["2026-07-10", "2026-07-11"]
                                               },
@@ -881,8 +881,8 @@ public class MeetingController {
                                             description = "날짜만 정하는 일정 모임입니다. 방장이 만든 후보 날짜 중 가능한 날짜만 입력합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구",
-                                              "password": "moyeo2026!",
+                                              "nickname": "민지친구",
+                                              "password": "1234",
                                               "scheduleResponse": {
                                                 "availableDates": ["2026-07-10", "2026-07-11"]
                                               }
@@ -894,8 +894,8 @@ public class MeetingController {
                                             description = "일정과 시간을 정하는 일정 모임입니다. 방장이 만든 후보 날짜 안에서 가능한 시간대를 입력합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구 시간",
-                                              "password": "moyeo2026!",
+                                              "nickname": "민지친구",
+                                              "password": "1234",
                                               "scheduleResponse": {
                                                 "availableTimeRanges": [
                                                   {"candidateDate": "2026-07-10", "startTime": "18:00", "endTime": "20:00"}
@@ -909,8 +909,8 @@ public class MeetingController {
                                             description = "모임 생성의 PLACE_ONLY 예시와 연결됩니다. 출발지만 입력하고 scheduleResponse는 포함하지 않습니다. departure.name은 선택 입력이며 생략하면 출발지 주소가 표시됩니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 친구",
-                                              "password": "moyeo2026!",
+                                              "nickname": "민지친구",
+                                              "password": "1234",
                                               "departure": {
                                                 "address": "서울 강남구 테헤란로 123",
                                                 "latitude": 37.498095,

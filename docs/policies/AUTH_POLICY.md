@@ -175,9 +175,11 @@ AUTH-005: An authenticated service user may withdraw through
   deleting a hosted meeting. Attempt S3 deletion immediately after commit and
   retain failed tasks for scheduled retry so a transient failure or process
   restart does not lose the cleanup target.
-- Keep the user's participant row and submitted participation snapshots in
-  meetings hosted by other users. Participant responses expose whether the
-  linked service user has withdrawn.
+- In meetings hosted by other users, hard-delete every participant row linked to
+  the withdrawing user, including schedule availability and the departure
+  snapshot stored on that row. The user no longer appears in participant lists,
+  counts, schedule aggregation, or place calculations, and the freed capacity
+  may be reused.
 
 ## Development Test Accounts
 
@@ -189,7 +191,7 @@ the `prod` profile.
 - The test-account token endpoint is available only when the `local` or `dev`
   profile is active.
 - It may issue Access JWTs without a password only for the two fixed test
-  accounts, and returns both accounts in one response. These deterministic test
+  accounts (`슈퍼토큰유저` and `개발 사용자 2`), and returns both accounts in one response. These deterministic test
   tokens have a fixed `iat` of `2026-01-01T00:00:00Z` and expire on
   `2099-01-01T00:00:00Z`, so the same account and unchanged JWT secret produce
   the same token after a development-server restart.

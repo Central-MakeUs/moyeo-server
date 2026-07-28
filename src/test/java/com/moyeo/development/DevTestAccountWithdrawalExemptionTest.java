@@ -27,7 +27,7 @@ class DevTestAccountWithdrawalExemptionTest {
     @Test
     void rejectsUnpersistedUserRegistration() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> exemption.register(new User("개발 사용자 1")));
+                .isThrownBy(() -> exemption.register(new User("슈퍼토큰유저")));
     }
 
     private User userWithId(Long id) {

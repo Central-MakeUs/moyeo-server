@@ -25,7 +25,7 @@ class LocalDevAuthControllerTest {
         mockMvc.perform(post("/api/auth/dev/tokens"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userOne.accessToken").isString())
-                .andExpect(jsonPath("$.userOne.user.nickname").value("개발 사용자 1"))
+                .andExpect(jsonPath("$.userOne.user.nickname").value("슈퍼토큰유저"))
                 .andExpect(jsonPath("$.userTwo.accessToken").isString())
                 .andExpect(jsonPath("$.userTwo.user.nickname").value("개발 사용자 2"));
 

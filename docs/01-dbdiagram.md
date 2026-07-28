@@ -245,7 +245,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
   change. Transaction-rollback callbacks also queue failed immediate deletions.
   A successful idempotent S3 deletion removes the task; failed attempts remain
   for scheduled retry.
-- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
+- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 7 days.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `meeting_participant_schedule_availabilities` stores participant-selected availability slots. For `DATE_AND_TIME`, meeting creation saves the host-selected ranges in the same transaction as the meeting and host row.

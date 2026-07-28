@@ -180,6 +180,58 @@ class MemberWithdrawalControllerTest {
     }
 
     @Test
+    void withdrawalHardDeletesNonHostParticipationAndParticipationData() throws Exception {
+        String hostAccessToken = testMemberFactory.createAccessToken("withdraw-nonhost-owner");
+        JsonNode hostedMeeting = createMeeting(hostAccessToken, "withdraw-nhost");
+        long meetingId = hostedMeeting.path("meetingId").asLong();
+        String inviteCode = hostedMeeting.path("inviteCode").asText();
+
+        String memberAccessToken = testMemberFactory.createAccessToken("withdraw-nonhost-member");
+        Long memberUserId = jwtTokenProvider.parse(memberAccessToken).userId();
+        insertSocialAccount(memberUserId, AuthProvider.KAKAO, "withdraw-nonhost-provider");
+        LocalDate candidateDate = LocalDate.now().plusDays(1);
+        String joinResponse = mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", bearer(memberAccessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "withdraw-member",
+                                "scheduleResponse", Map.of(
+                                        "availableTimeRanges", List.of(Map.of(
+                                                "candidateDate", candidateDate.toString(),
+                                                "startTime", "09:00",
+                                                "endTime", "10:00"
+                                        ))
+                                ),
+                                "departure", Map.of(
+                                        "name", "member-home",
+                                        "address", "Seoul",
+                                        "latitude", 37.5,
+                                        "longitude", 127.0,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long participantId = objectMapper.readTree(joinResponse).path("participantId").asLong();
+
+        assertThat(count("meeting_participants", "id", participantId)).isEqualTo(1);
+        assertThat(count("meeting_participant_schedule_availabilities", "participant_id", participantId))
+                .isEqualTo(1);
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(memberAccessToken)))
+                .andExpect(status().isNoContent());
+
+        assertThat(count("meetings", "id", meetingId)).isEqualTo(1);
+        assertThat(count("meeting_participants", "meeting_id", meetingId)).isEqualTo(1);
+        assertThat(count("meeting_participants", "id", participantId)).isZero();
+        assertThat(count("meeting_participant_schedule_availabilities", "participant_id", participantId))
+                .isZero();
+    }
+
+    @Test
     void pendingOnboardingUserCanWithdraw() throws Exception {
         String accessToken = testMemberFactory.createPendingAccessToken();
         Long userId = jwtTokenProvider.parse(accessToken).userId();
@@ -201,11 +253,11 @@ class MemberWithdrawalControllerTest {
     @Test
     void fixedDevelopmentTestAccountCanWithdrawWithoutSocialReauthentication() throws Exception {
         Long userId = jdbcTemplate.queryForObject(
-                "select id from users where nickname = '개발 사용자 1' and deleted_at is null order by id limit 1",
+                "select id from users where nickname = '슈퍼토큰유저' and deleted_at is null order by id limit 1",
                 Long.class
         );
         String accessToken = jwtTokenProvider.createAccessToken(
-                new AuthenticatedMember(userId, "개발 사용자 1", false)
+                new AuthenticatedMember(userId, "슈퍼토큰유저", false)
         );
 
         mockMvc.perform(delete("/api/users/me")

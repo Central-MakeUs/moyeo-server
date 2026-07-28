@@ -180,6 +180,33 @@ class MeetingControllerTest {
     }
 
     @Test
+    void createMeetingAllowsDeadlineUpToSevenDays() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-seven-day-deadline", "host-seven-day-deadline");
+        ObjectNode sevenDayDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        sevenDayDeadline.put("deadlineMinutes", 10_080);
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(sevenDayDeadline)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createMeetingRejectsDeadlineBeyondSevenDays() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-over-seven-day-deadline", "host-over-seven-day-deadline");
+        ObjectNode overSevenDayDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        overSevenDayDeadline.put("deadlineMinutes", 10_090);
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(overSevenDayDeadline)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void createMeetingValidatesDeadlineFieldsAccordingToNoDeadline() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost-no-deadline-validation", "host-no-deadline-validation");
 
@@ -759,7 +786,7 @@ class MeetingControllerTest {
 
         String response = mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guest", "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guest", "1234"))))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.meetingId").isNumber())
@@ -772,8 +799,8 @@ class MeetingControllerTest {
 
         Long participantId = objectMapper.readTree(response).get("participantId").asLong();
         var participant = meetingParticipantRepository.findById(participantId).orElseThrow();
-        assertThat(participant.getPasswordHash()).isNotEqualTo("guestpass123");
-        assertThat(passwordEncoder.matches("guestpass123", participant.getPasswordHash())).isTrue();
+        assertThat(participant.getPasswordHash()).isNotEqualTo("1234");
+        assertThat(passwordEncoder.matches("1234", participant.getPasswordHash())).isTrue();
         assertThat(participant.getDepartureName()).isEqualTo("company");
         assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isEqualTo(1);
     }
@@ -785,8 +812,8 @@ class MeetingControllerTest {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "invalid-guest",
-                                "password", "guestpass123",
+                                "nickname", "invalid",
+                                "password", "1234",
                                 "scheduleResponse", Map.of(
                                         "availableTimeRanges", List.of(Map.of(
                                                 "candidateDate", "2026-07-01",
@@ -815,11 +842,11 @@ class MeetingControllerTest {
     @Test
     void joinGuestRejectsDuplicatedNicknameInSameMeeting() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost5", "host5", 6);
-        joinGuest(inviteCode, "duplicated-guest");
+        joinGuest(inviteCode, "duplicate");
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("duplicated-guest", "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("duplicate", "1234"))))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("DUPLICATE_MEETING_PARTICIPANT_NICKNAME"));
@@ -839,13 +866,13 @@ class MeetingControllerTest {
 
     @Test
     void joinGuestAllowsHostNicknameInSameMeeting() throws Exception {
-        String inviteCode = createMeetingAndGetInviteCode("meetinghost6", "host-nickname", 6);
+        String inviteCode = createMeetingAndGetInviteCode("meetinghost6", "hostname", 6);
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("host-nickname", "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("hostname", "1234"))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.nickname").value("host-nickname"))
+                .andExpect(jsonPath("$.nickname").value("hostname"))
                 .andExpect(jsonPath("$.participantType").value("GUEST"));
     }
 
@@ -856,7 +883,7 @@ class MeetingControllerTest {
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guest-limit-new", "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guestlimit", "1234"))))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("MEETING_PARTICIPANT_LIMIT_EXCEEDED"));
@@ -869,7 +896,7 @@ class MeetingControllerTest {
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guest-deadline", "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest("guestclose", "1234"))))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("MEETING_PARTICIPATION_CLOSED"));
@@ -887,6 +914,23 @@ class MeetingControllerTest {
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void joinGuestValidatesNicknameAndFourDigitPassword() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("meetinghost-guest-validation", "hostguestvalidation", 6);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "Test1", "password", "1234"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "guest", "password", "abcd"))))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
     }
 
@@ -1116,7 +1160,7 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.responseRate").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].participantType").value("HOST"))
                 .andExpect(jsonPath("$.participants[0].withdrawn").value(false))
-                .andExpect(jsonPath("$.participants[1].nickname").value("guest-view"))
+                .andExpect(jsonPath("$.participants[1].nickname").value("guestview"))
                 .andExpect(jsonPath("$.participants[1].withdrawn").value(false))
                 .andExpect(jsonPath("$.participants[0].scheduleResponded").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].placeResponded").doesNotExist())
@@ -1434,8 +1478,8 @@ class MeetingControllerTest {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "date-only-guest",
-                                "password", "guestpass123",
+                                "nickname", "dateguest",
+                                "password", "1234",
                                 "scheduleResponse", Map.of(
                                         "availableDates", List.of("2026-07-02")
                                 )
@@ -1494,8 +1538,8 @@ class MeetingControllerTest {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "date-place-guest",
-                                "password", "guestpass123",
+                                "nickname", "placeguest",
+                                "password", "1234",
                                 "scheduleResponse", Map.of(
                                         "availableDates", List.of("2026-07-02")
                                 ),
@@ -1554,8 +1598,8 @@ class MeetingControllerTest {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "invalid-date-guest",
-                                "password", "guestpass123",
+                                "nickname", "invalid",
+                                "password", "1234",
                                 "scheduleResponse", Map.of(
                                         "availableDates", List.of("2026-07-03")
                                 )
@@ -1865,7 +1909,7 @@ class MeetingControllerTest {
     private void joinGuest(String inviteCode, String nickname) throws Exception {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest(nickname, "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest(normalizeGuestNickname(nickname), "1234"))))
                 .andExpect(status().isCreated());
     }
 
@@ -1880,7 +1924,7 @@ class MeetingControllerTest {
     private Long joinGuestAndGetParticipantId(String inviteCode, String nickname) throws Exception {
         String response = mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest(nickname, "guestpass123"))))
+                        .content(objectMapper.writeValueAsString(defaultGuestJoinRequest(normalizeGuestNickname(nickname), "1234"))))
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -1931,6 +1975,17 @@ class MeetingControllerTest {
 
     private Map<String, Object> defaultGuestJoinRequest(String nickname, String password) {
         return defaultJoinRequest(nickname, password);
+    }
+
+    private String normalizeGuestNickname(String nickname) {
+        String normalized = nickname
+                .replace('0', 'a')
+                .replace('1', 'b')
+                .replace('2', 'c')
+                .replaceAll("[^A-Za-z]", "");
+        return normalized.length() <= 10
+                ? normalized
+                : normalized.substring(0, 9) + normalized.charAt(normalized.length() - 1);
     }
 
     private Map<String, Object> defaultMemberJoinRequest(String nickname) {
