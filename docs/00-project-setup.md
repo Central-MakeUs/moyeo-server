@@ -417,10 +417,10 @@ current RFC 9457-based error response policy, and documented working rules.
   `https://moyeo-web.vercel.app/auth/callback/apple`.
 - The dev profile allows Vercel PR Preview origins matching
   `https://moyeo-*-hyeonjirohs-projects.vercel.app` through CORS.
-- The production profile allows `https://moyeo-web.vercel.app` and
-  `http://192.168.219.59:3000` through CORS by default. Override the full
-  origin list with `CORS_ALLOWED_ORIGINS` when the production frontend domain
-  changes.
+- The production profile allows `https://moyeo-web.vercel.app`,
+  `http://192.168.219.59:3000`, and `http://172.30.1.36:3000` through CORS by
+  default. Override the full origin list with `CORS_ALLOWED_ORIGINS` when the
+  production frontend domain changes.
 - Docker Compose passes Apple configuration from the EC2 runtime `.env` into
   the application container. Apple secrets must never be committed or logged.
 
