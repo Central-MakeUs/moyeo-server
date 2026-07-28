@@ -29,6 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -287,6 +288,43 @@ class AuthControllerTest {
     }
 
     @Test
+    void completedUserCanUpdateDefaultNickname() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("before");
+
+        mockMvc.perform(patch("/api/users/me/nickname")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "after"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("after"))
+                .andExpect(jsonPath("$.onboardingCompleted").value(true));
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("after"));
+    }
+
+    @Test
+    void defaultNicknameUpdateRequiresCompletedOnboardingAndValidNickname() throws Exception {
+        String completedToken = testMemberFactory.createAccessToken("before");
+        mockMvc.perform(patch("/api/users/me/nickname")
+                        .header("Authorization", "Bearer " + completedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "Test1"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+
+        String pendingToken = testMemberFactory.createPendingAccessToken();
+        mockMvc.perform(patch("/api/users/me/nickname")
+                        .header("Authorization", "Bearer " + pendingToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nickname", "after"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+    }
+
+    @Test
     void swaggerDocumentsSocialLoginOnboardingAndSharedOnboardingError() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
@@ -299,6 +337,9 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/auth/login']").doesNotExist())
                 .andExpect(jsonPath(
                         "$['paths']['/api/me/places']['get']['responses']['403']['content']['application/problem+json']['example']['code']"
+                ).value("ONBOARDING_REQUIRED"))
+                .andExpect(jsonPath(
+                        "$['paths']['/api/users/me/nickname']['patch']['responses']['403']['content']['application/problem+json']['example']['code']"
                 ).value("ONBOARDING_REQUIRED"))
                 .andExpect(jsonPath("$['paths']['/api/auth/me']['get']['responses']['403']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/users/me/onboarding']['put']['responses']['403']").doesNotExist());

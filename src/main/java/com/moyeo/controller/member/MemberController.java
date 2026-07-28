@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -42,34 +43,22 @@ public class MemberController {
     @Operation(
             summary = "최초 닉네임 등록",
             description = """
-                    소셜 가입 직후 온보딩이 끝나지 않은 사용자의 닉네임을 최초 1회 등록합니다.
-                    같은 닉네임으로 다시 요청하면 성공하며, 다른 닉네임으로 변경하는 기능은 추후 별도 API로 제공합니다.
+                    소셜 가입 직후 기본 닉네임이 없는 사용자의 닉네임을 최초 1회 등록합니다.
+                    같은 닉네임으로 다시 요청하면 성공하며, 다른 닉네임으로 변경하는 기능은 별도 API로 제공합니다.
                     """
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "닉네임 등록 성공 또는 같은 요청의 재시도 성공"),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "닉네임 검증 실패",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
-                            """))
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Access Token 없음, 만료 또는 유효하지 않음",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
-                            """))
-            ),
-            @ApiResponse(
-                    responseCode = "409",
-                    description = "이미 다른 닉네임으로 온보딩 완료",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "ONBOARDING_ALREADY_COMPLETED", "status": 409 }
-                            """))
-            )
+            @ApiResponse(responseCode = "200", description = "닉네임 등록 성공 또는 같은 요청 재시도 성공"),
+            @ApiResponse(responseCode = "400", description = "닉네임 검증 실패", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "409", description = "이미 다른 닉네임으로 온보딩 완료", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "ONBOARDING_ALREADY_COMPLETED", "status": 409 }
+                    """)))
     })
     public AuthUserResponse completeOnboarding(
             @Parameter(hidden = true)
@@ -79,42 +68,59 @@ public class MemberController {
         return AuthUserResponse.from(memberOnboardingService.complete(member.userId(), request.nickname()));
     }
 
+    @PatchMapping("/nickname")
+    @Operation(
+            summary = "기본 닉네임 수정",
+            description = """
+                    현재 사용자의 기본 닉네임을 수정합니다.
+                    모임 안에서 이미 사용 중인 방장·회원 참여자 닉네임은 변경하지 않습니다.
+                    """
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "기본 닉네임 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "닉네임 검증 실패"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "최초 닉네임 온보딩이 완료되지 않은 사용자입니다. 먼저 PUT /api/users/me/onboarding으로 기본 닉네임을 등록해야 합니다.",
+                    content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                            { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                            """))
+            )
+    })
+    public AuthUserResponse updateNickname(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @Valid @RequestBody UpdateNicknameRequest request
+    ) {
+        return AuthUserResponse.from(memberOnboardingService.updateNickname(member.userId(), request.nickname()));
+    }
+
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             summary = "회원 탈퇴",
             description = """
                     현재 회원을 탈퇴 처리하고 본인이 생성한 모든 모임과 개인 소유 데이터를 삭제합니다.
-                    별도 소셜 재로그인 없이 저장된 연결 정보로 Apple 토큰 철회 또는 Kakao 연결 해제를 완료합니다.
-                    제공자 연결 해제에 실패하면 로컬 계정은 유지됩니다.
-                    다른 회원이 생성한 모임의 참여 기록은 유지되며 참가자 조회에서 탈퇴 회원으로 표시됩니다.
+                    별도 소셜 로그인 없이 저장된 연결 정보로 Apple 토큰 철회 또는 Kakao 연결 해제를 완료합니다.
+                    방장인 모임은 참여자·일정 후보·일정 가능 정보·모임 출발지 검색 이력·커버 이미지까지 삭제합니다.
+                    다른 회원이 생성한 모임에서는 본인의 참여 행과 일정·출발지 정보를 모두 삭제합니다.
+                    따라서 탈퇴 회원은 해당 모임의 참여자 목록, 인원 수, 일정 및 장소 계산에 포함되지 않습니다.
                     닉네임 온보딩을 완료하지 않은 회원도 탈퇴할 수 있습니다.
                     """
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "소셜 연결 해제 및 회원 탈퇴 성공"),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Access Token 없음, 만료 또는 유효하지 않음",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
-                            """))
-            ),
-            @ApiResponse(
-                    responseCode = "503",
-                    description = "저장된 Apple 토큰을 사용할 수 없거나 소셜 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
-                            """))
-            ),
-            @ApiResponse(
-                    responseCode = "500",
-                    description = "활성 운영 계정의 소셜 연결 정보가 일관되지 않음",
-                    content = @Content(examples = @ExampleObject(value = """
-                            { "code": "COMMON_INTERNAL_SERVER_ERROR", "status": 500 }
-                            """))
-            )
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "503", description = "소셜 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
+                    """))),
+            @ApiResponse(responseCode = "500", description = "활성 계정의 소셜 연결 정보가 없음", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "COMMON_INTERNAL_SERVER_ERROR", "status": 500 }
+                    """)))
     })
     public void withdraw(
             @Parameter(hidden = true)

@@ -94,8 +94,11 @@ entry.
   `409 ONBOARDING_ALREADY_COMPLETED`.
 - Do not delete a user merely because nickname onboarding was abandoned.
   A later social login resumes the same user.
-- Nickname editing is a separate future feature and is not provided by the
-  onboarding API.
+- `PATCH /api/users/me/nickname` changes the completed user's default nickname
+  using the same validation rule. It does not change existing meeting-scoped
+  host/member participant nicknames.
+- TODO(POLICY_UNDEFINED): Decide whether service users can select or upload a
+  profile image. The current User model and APIs have no profile-image field.
 
 ## Access JWT
 

@@ -28,4 +28,12 @@ public class MemberOnboardingService {
         }
         return AuthenticatedMember.from(user, false);
     }
+
+    @Transactional
+    public AuthenticatedMember updateNickname(Long userId, String nickname) {
+        User user = userRepository.findActiveByIdForUpdate(userId)
+                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
+        user.changeNickname(nickname);
+        return AuthenticatedMember.from(user, false);
+    }
 }

@@ -72,6 +72,10 @@ public class User {
         return nickname != null;
     }
 
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
     public void withdraw() {
         this.nickname = null;
         this.deletedAt = LocalDateTime.now();
