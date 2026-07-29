@@ -61,6 +61,20 @@ public enum MeetingErrorCode implements ErrorCode {
             "모임 참여자 없음",
             "해당 모임의 참여자를 찾을 수 없습니다."
     ),
+    MEETING_DELETION_FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "MEETING_DELETION_FORBIDDEN",
+            "meeting-deletion-forbidden",
+            "모임 삭제 권한 없음",
+            "모임을 생성한 방장만 삭제할 수 있습니다."
+    ),
+    MEETING_PARTICIPANT_LEAVE_FORBIDDEN(
+            HttpStatus.FORBIDDEN,
+            "MEETING_PARTICIPANT_LEAVE_FORBIDDEN",
+            "meeting-participant-leave-forbidden",
+            "모임 나가기 권한 없음",
+            "방장은 모임을 나갈 수 없으며, 생성한 모임을 삭제해야 합니다."
+    ),
     INVALID_MEETING_PARTICIPATION_INPUT(
             HttpStatus.BAD_REQUEST,
             "INVALID_MEETING_PARTICIPATION_INPUT",

@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -70,6 +71,100 @@ public class MeetingController {
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
     ) {
         return MyMeetingDetailResponse.from(meetingService.getMyMeetingDetail(meetingId, member));
+    }
+
+    @DeleteMapping("/{meetingId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "방장 모임 삭제", description = "방장은 진행 중·확정 모임을 포함해 자신이 생성한 모임을 삭제할 수 있습니다. 참여자, 일정 응답·후보, 모임 출발지 검색 이력과 커버 이미지도 함께 삭제합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "모임 삭제 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 미완료 또는 방장이 아님", content = @Content(mediaType = "application/problem+json", examples = {
+                    @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
+                            { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                            """),
+                    @ExampleObject(name = "MEETING_DELETION_FORBIDDEN", value = """
+                            { "code": "MEETING_DELETION_FORBIDDEN", "status": 403 }
+                            """)
+            })),
+            @ApiResponse(responseCode = "404", description = "모임 없음", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "MEETING_NOT_FOUND", "status": 404 }
+                    """)))
+    })
+    public void deleteMeeting(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        meetingService.deleteMeeting(meetingId, member);
+    }
+
+    @DeleteMapping("/{meetingId}/participation")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "회원 모임 나가기", description = "로그인 회원 참여자(MEMBER)는 상태와 무관하게 본인 참여를 취소할 수 있습니다. 참여자 행과 일정 응답·출발지 정보는 hard delete됩니다. 방장은 이 API 대신 모임 삭제를 사용합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "모임 나가기 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 미완료 또는 방장 참여자", content = @Content(mediaType = "application/problem+json", examples = {
+                    @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
+                            { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                            """),
+                    @ExampleObject(name = "MEETING_PARTICIPANT_LEAVE_FORBIDDEN", value = """
+                            { "code": "MEETING_PARTICIPANT_LEAVE_FORBIDDEN", "status": 403 }
+                            """)
+            })),
+            @ApiResponse(responseCode = "404", description = "모임 또는 본인 참여 정보 없음", content = @Content(mediaType = "application/problem+json", examples = {
+                    @ExampleObject(name = "MEETING_NOT_FOUND", value = """
+                            { "code": "MEETING_NOT_FOUND", "status": 404 }
+                            """),
+                    @ExampleObject(name = "MEETING_PARTICIPANT_NOT_FOUND", value = """
+                            { "code": "MEETING_PARTICIPANT_NOT_FOUND", "status": 404 }
+                            """)
+            }))
+    })
+    public void leaveMeeting(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        meetingService.leaveMeeting(meetingId, member);
+    }
+
+    @PatchMapping("/{meetingId}/participants/me/nickname")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "모임 내 본인 닉네임 수정", description = "방장 또는 로그인 회원이 해당 모임에서 표시되는 본인 닉네임만 수정합니다. 기본 프로필 닉네임은 변경하지 않으며, 회원·방장 닉네임 중복은 허용됩니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "모임 내 닉네임 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "닉네임 검증 실패", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 미완료", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "모임 또는 본인 참여 정보 없음", content = @Content(mediaType = "application/problem+json", examples = {
+                    @ExampleObject(name = "MEETING_NOT_FOUND", value = """
+                            { "code": "MEETING_NOT_FOUND", "status": 404 }
+                            """),
+                    @ExampleObject(name = "MEETING_PARTICIPANT_NOT_FOUND", value = """
+                            { "code": "MEETING_PARTICIPANT_NOT_FOUND", "status": 404 }
+                            """)
+            }))
+    })
+    public MeetingParticipantNicknameResponse updateMeetingParticipantNickname(
+            @PathVariable Long meetingId,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @Valid @RequestBody UpdateMeetingParticipantNicknameRequest request
+    ) {
+        return MeetingParticipantNicknameResponse.from(
+                meetingService.updateMeetingParticipantNickname(meetingId, member, request.nickname())
+        );
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)

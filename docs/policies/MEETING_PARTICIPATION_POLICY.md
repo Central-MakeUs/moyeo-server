@@ -157,6 +157,19 @@ general best practice into domain policy.
   and departure snapshot. The withdrawn user is excluded from participant lists,
   counts, schedule availability aggregation, and place recommendation
   calculations; the freed capacity may be reused.
+- A host may hard-delete a meeting they created regardless of whether it is in
+  `PLANNING` or `CONFIRMED`. Delete all participants, participant schedule
+  responses, schedule candidates, meeting-linked departure search history, and
+  the stored cover image with the meeting.
+- A logged-in `MEMBER` may leave a meeting regardless of its status. Hard-delete
+  only that member's participant row, meeting-scoped nickname, schedule
+  responses, and departure snapshot; the freed capacity may be reused. A host
+  cannot leave and must delete the hosted meeting instead. Guest leave remains
+  deferred until guest re-entry authentication is defined.
+- A `HOST` or `MEMBER` may change only their own meeting-scoped nickname using
+  the same Korean/English 2-10-character rule as join. This does not change the
+  user's default nickname. Nickname duplication remains prohibited only between
+  guests in the same meeting.
 
 ## Invite and Guest Join
 

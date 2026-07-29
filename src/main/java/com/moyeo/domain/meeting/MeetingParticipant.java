@@ -159,6 +159,10 @@ public class MeetingParticipant {
         this.transportationMode = transportationMode;
     }
 
+    public void changeNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();

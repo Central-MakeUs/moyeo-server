@@ -44,6 +44,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -1202,6 +1203,164 @@ class MeetingControllerTest {
     }
 
     @Test
+    void hostCanDeleteConfirmedMeetingAndAllMeetingData() throws Exception {
+        String hostToken = signupAndGetAccessToken("meeting-delete-host", "host-delete");
+        String otherToken = signupAndGetAccessToken("meeting-delete-other", "other-delete");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        joinGuest(inviteCode, "delete-guest");
+        confirmMeeting(meetingId, inviteCode, hostToken);
+        List<Long> participantIds = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meetingId).stream()
+                .map(participant -> participant.getId())
+                .toList();
+        jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", "meeting-covers/delete-test.jpg", meetingId);
+        jdbcTemplate.update(
+                """
+                insert into departure_place_searches(meeting_id, keyword, provider, execution_path, created_at)
+                values (?, 'delete-search', 'KAKAO_LOCAL', 'KEYWORD', current_timestamp)
+                """,
+                meetingId
+        );
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}", meetingId)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MEETING_DELETION_FORBIDDEN"));
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}", meetingId)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEETING_INVITATION_NOT_FOUND"));
+
+        assertThat(countRows("meeting_participants", "meeting_id", meetingId)).isZero();
+        assertThat(countRows("meeting_schedule_candidates", "meeting_id", meetingId)).isZero();
+        assertThat(countRows("departure_place_searches", "meeting_id", meetingId)).isZero();
+        assertThat(participantIds).allSatisfy(participantId ->
+                assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isZero()
+        );
+        verify(meetingCoverStorage).delete("meeting-covers/delete-test.jpg");
+    }
+
+    @Test
+    void memberCanLeaveMeetingButHostCannot() throws Exception {
+        String hostToken = signupAndGetAccessToken("meeting-leave-host", "host-leave");
+        String memberToken = signupAndGetAccessToken("meeting-leave-member", "member-leave");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        joinMember(inviteCode, memberToken, "member-room");
+        confirmMeeting(meetingId, inviteCode, hostToken);
+        Long memberParticipantId = meetingParticipantRepository.findByMeetingIdAndUserId(
+                meetingId,
+                jwtTokenProvider.parse(memberToken).userId()
+        ).orElseThrow().getId();
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}/participation", meetingId)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPANT_LEAVE_FORBIDDEN"));
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}/participation", meetingId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(1))
+                .andExpect(jsonPath("$.participants[0].participantType").value("HOST"));
+
+        mockMvc.perform(get("/api/meetings/{meetingId}", meetingId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEETING_NOT_FOUND"));
+
+        assertThat(countRows("meeting_participants", "meeting_id", meetingId)).isEqualTo(1L);
+        assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(memberParticipantId)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from meeting_participant_schedule_availabilities availability
+                join meeting_participants participant on participant.id = availability.participant_id
+                where participant.meeting_id = ?
+                """,
+                Long.class,
+                meetingId
+        )).isEqualTo(1L);
+    }
+
+    @Test
+    void memberLeavingConfirmedDateOnlyMeetingDeletesDateAvailability() throws Exception {
+        String hostToken = signupAndGetAccessToken("date-only-leave-host", "date-host");
+        String memberToken = signupAndGetAccessToken("date-only-leave-member", "date-member");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, dateOnlyCreateMeetingRequest());
+        Long meetingId = getMeetingId(inviteCode);
+        joinDateOnlyMember(inviteCode, memberToken, "date-member-room");
+        confirmDateOnlyMeeting(meetingId, hostToken);
+        Long memberParticipantId = meetingParticipantRepository.findByMeetingIdAndUserId(
+                meetingId,
+                jwtTokenProvider.parse(memberToken).userId()
+        ).orElseThrow().getId();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from meeting_participant_schedule_date_availabilities where participant_id = ?",
+                Long.class,
+                memberParticipantId
+        )).isEqualTo(1L);
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}/participation", meetingId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbcTemplate.queryForObject(
+                "select count(*) from meeting_participant_schedule_date_availabilities where participant_id = ?",
+                Long.class,
+                memberParticipantId
+        )).isZero();
+    }
+
+    @Test
+    void hostAndMemberCanChangeOnlyTheirOwnMeetingNicknameWithDuplicatesAllowed() throws Exception {
+        String hostToken = signupAndGetAccessToken("meeting-nickname-host", "host-default");
+        String memberToken = signupAndGetAccessToken("meeting-nickname-member", "member-default");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        joinMember(inviteCode, memberToken, "member-room");
+
+        mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"same\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("same"));
+
+        mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"same\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("same"));
+
+        mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nickname\":\"same1\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participants[0].nickname").value("same"))
+                .andExpect(jsonPath("$.participants[1].nickname").value("same"));
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("member-default"));
+    }
+
+    @Test
     void withdrawnMemberIsDeletedFromMeetingAndPlaceViews() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("withdraw-view-host", "withdraw-view-host", 6);
         String memberToken = signupAndGetAccessToken("withdraw-view-member", "withdraw-view-member");
@@ -1419,7 +1578,17 @@ class MeetingControllerTest {
                         .getResponse()
                         .getContentAsString());
         var paths = openApi.path("paths");
-        assertThat(paths.has("/api/meetings/{meetingId}/participation")).isFalse();
+        assertThat(paths.path("/api/meetings/{meetingId}/participation").has("post")).isFalse();
+        assertThat(paths.path("/api/meetings/{meetingId}/participation").has("delete")).isTrue();
+        assertThat(paths.path("/api/meetings/{meetingId}/participants/me/nickname").has("patch")).isTrue();
+        var leaveNotFoundExamples = paths.path("/api/meetings/{meetingId}/participation").path("delete")
+                .path("responses").path("404").path("content").path("application/problem+json").path("examples");
+        var nicknameNotFoundExamples = paths.path("/api/meetings/{meetingId}/participants/me/nickname").path("patch")
+                .path("responses").path("404").path("content").path("application/problem+json").path("examples");
+        assertThat(leaveNotFoundExamples.has("MEETING_NOT_FOUND")).isTrue();
+        assertThat(leaveNotFoundExamples.has("MEETING_PARTICIPANT_NOT_FOUND")).isTrue();
+        assertThat(nicknameNotFoundExamples.has("MEETING_NOT_FOUND")).isTrue();
+        assertThat(nicknameNotFoundExamples.has("MEETING_PARTICIPANT_NOT_FOUND")).isTrue();
 
         var guestExamples = paths.path("/api/meetings/invitations/{inviteCode}/guests")
                 .path("post").path("requestBody").path("content")
@@ -1829,6 +1998,67 @@ class MeetingControllerTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response).get("inviteCode").asText();
+    }
+
+    private Long getMeetingId(String inviteCode) throws Exception {
+        String response = mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return objectMapper.readTree(response).get("meetingId").asLong();
+    }
+
+    private void confirmMeeting(Long meetingId, String inviteCode, String hostToken) throws Exception {
+        mockMvc.perform(post("/api/meetings/{meetingId}/schedule-confirmation", meetingId)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduleDate\":\"2026-07-01\",\"startTime\":\"09:00\",\"endTime\":\"10:00\"}"))
+                .andExpect(status().isOk());
+
+        String placeView = mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String commercialAreaCode = objectMapper.readTree(placeView).get("recommendations").get(0).get("areaCode").asText();
+        mockMvc.perform(post("/api/meetings/{meetingId}/place-confirmation", meetingId)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("commercialAreaCode", commercialAreaCode))))
+                .andExpect(status().isOk());
+
+        assertThat(jdbcTemplate.queryForObject("select meeting_status from meetings where id = ?", String.class, meetingId))
+                .isEqualTo("CONFIRMED");
+    }
+
+    private void joinDateOnlyMember(String inviteCode, String accessToken, String nickname) throws Exception {
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", nickname,
+                                "scheduleResponse", Map.of("availableDates", List.of("2026-07-01"))
+                        ))))
+                .andExpect(status().isCreated());
+    }
+
+    private void confirmDateOnlyMeeting(Long meetingId, String hostToken) throws Exception {
+        mockMvc.perform(post("/api/meetings/{meetingId}/schedule-confirmation", meetingId)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduleDate\":\"2026-07-01\"}"))
+                .andExpect(status().isOk());
+        assertThat(jdbcTemplate.queryForObject("select meeting_status from meetings where id = ?", String.class, meetingId))
+                .isEqualTo("CONFIRMED");
+    }
+
+    private long countRows(String tableName, String foreignKeyColumn, Long id) {
+        return jdbcTemplate.queryForObject(
+                "select count(*) from " + tableName + " where " + foreignKeyColumn + " = ?",
+                Long.class,
+                id
+        );
     }
 
     private Long createMeetingAndGetMeetingId(String accessToken, CreateMeetingRequest request) throws Exception {

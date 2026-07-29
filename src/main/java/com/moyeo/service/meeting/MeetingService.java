@@ -1,6 +1,7 @@
 package com.moyeo.service.meeting;
 
 import com.moyeo.domain.member.User;
+import com.moyeo.domain.departure.DeparturePlaceSearch;
 import com.moyeo.domain.meeting.ParticipantType;
 import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
@@ -16,6 +17,7 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.route.KakaoRouteProperties;
 import com.moyeo.repository.member.UserRepository;
+import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
@@ -56,6 +58,7 @@ public class MeetingService {
     private final MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository;
     private final MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
+    private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final UserRepository userRepository;
     private final CommercialAreaCatalog commercialAreaCatalog;
     private final InviteCodeGenerator inviteCodeGenerator;
@@ -71,6 +74,7 @@ public class MeetingService {
             MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository,
             MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
+            DeparturePlaceSearchRepository departurePlaceSearchRepository,
             UserRepository userRepository,
             CommercialAreaCatalog commercialAreaCatalog,
             InviteCodeGenerator inviteCodeGenerator,
@@ -85,6 +89,7 @@ public class MeetingService {
         this.meetingParticipantScheduleDateAvailabilityRepository = meetingParticipantScheduleDateAvailabilityRepository;
         this.meetingParticipantScheduleAvailabilityRepository = meetingParticipantScheduleAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
+        this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.userRepository = userRepository;
         this.commercialAreaCatalog = commercialAreaCatalog;
         this.inviteCodeGenerator = inviteCodeGenerator;
@@ -177,6 +182,53 @@ public class MeetingService {
         processCleanupTaskAfterCommit(cleanupTaskId);
     }
 
+    @Transactional
+    public void deleteMeeting(Long meetingId, AuthenticatedMember member) {
+        findActiveUserForUpdate(member.userId());
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        if (!meeting.getHostUser().getId().equals(member.userId())) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_DELETION_FORBIDDEN);
+        }
+
+        Long cleanupTaskId = meetingCoverCleanupProcessor.createDeletionTask(meeting.getCoverImageKey());
+        deleteMeetingSearchHistory(meeting.getId());
+        deleteMeetingParticipants(meeting.getId());
+        meetingScheduleCandidateRepository.deleteAllByMeetingId(meeting.getId());
+        meetingScheduleCandidateRepository.flush();
+        meetingRepository.delete(meeting);
+        meetingRepository.flush();
+        processCleanupTaskAfterCommit(cleanupTaskId);
+    }
+
+    @Transactional
+    public void leaveMeeting(Long meetingId, AuthenticatedMember member) {
+        findActiveUserForUpdate(member.userId());
+        meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        MeetingParticipant participant = meetingParticipantRepository.findByMeetingIdAndUserId(meetingId, member.userId())
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+        if (participant.getParticipantType() != ParticipantType.MEMBER) {
+            throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_LEAVE_FORBIDDEN);
+        }
+        deleteParticipant(participant);
+    }
+
+    @Transactional
+    public MeetingParticipantNicknameResult updateMeetingParticipantNickname(
+            Long meetingId,
+            AuthenticatedMember member,
+            String nickname
+    ) {
+        findActiveUserForUpdate(member.userId());
+        meetingRepository.findByIdForUpdate(meetingId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
+        MeetingParticipant participant = meetingParticipantRepository.findByMeetingIdAndUserId(meetingId, member.userId())
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+        participant.changeNickname(normalizeRequired(nickname));
+        return new MeetingParticipantNicknameResult(meetingId, participant.getId(), participant.getNickname());
+    }
+
     public MeetingCoverStorage.CoverObject getCoverImage(String inviteCode) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         if (meeting.getCoverImageKey() == null) {
@@ -197,6 +249,30 @@ public class MeetingService {
         if (!meeting.getHostUser().getId().equals(member.userId())) {
             throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_MODIFICATION_FORBIDDEN);
         }
+    }
+
+    private void deleteMeetingSearchHistory(Long meetingId) {
+        List<DeparturePlaceSearch> searches = departurePlaceSearchRepository.findAllByMeetingIdIn(List.of(meetingId));
+        if (!searches.isEmpty()) {
+            departurePlaceSearchRepository.deleteAll(searches);
+            departurePlaceSearchRepository.flush();
+        }
+    }
+
+    private void deleteMeetingParticipants(Long meetingId) {
+        List<MeetingParticipant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meetingId);
+        for (MeetingParticipant participant : participants) {
+            deleteParticipant(participant);
+        }
+    }
+
+    private void deleteParticipant(MeetingParticipant participant) {
+        meetingParticipantScheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+        meetingParticipantScheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+        meetingParticipantScheduleDateAvailabilityRepository.flush();
+        meetingParticipantScheduleAvailabilityRepository.flush();
+        meetingParticipantRepository.delete(participant);
+        meetingParticipantRepository.flush();
     }
 
     private void deleteUploadedObjectOnRollback(String objectKey) {
