@@ -106,9 +106,8 @@ general best practice into domain policy.
   source-dimension rejection, non-host modification, failed-deletion queueing,
   scheduled retry, and cleanup after a real transaction rollback.
 - Schedule voting candidate dates are stored as separate rows during meeting
-  creation. The candidate date range and count limit are deferred until product
-  policy is confirmed; the current meeting creation request does
-  not impose a date-count limit.
+  creation. The host may submit at most seven candidate dates. Duplicate dates
+  are normalized into one date before storage.
 - `DATE_AND_TIME` applies the same available time range to every selected
   candidate date. Its common range and participant ranges are currently accepted
   in 1-hour units.
@@ -257,9 +256,18 @@ general best practice into domain policy.
 - For `DATE_ONLY`, VIEW-01-A aggregates availability by date and returns null
   `startTime`/`endTime`. For `DATE_AND_TIME`, it expands saved ranges into 1-hour
   units before calculating availability, then merges consecutive units with the
-  same available participant set. The first P0 implementation returns up to three
-  candidates sorted by availability count/longest-meeting preference or
-  earliest-date preference.
+  same available participant set. It returns every merged availability block with
+  its available-participant count so the client can calculate the response-rate
+  color from that count and the meeting participant count.
+- VIEW-01-A first finds the maximum simultaneous available-participant count. If
+  that maximum is below two, it returns no best-schedule candidates. Otherwise it
+  returns up to five candidates having that maximum: `LONGEST_MEETING` sorts by
+  duration descending then date/start time ascending, and `EARLIEST_DATE` sorts by
+  date/start time ascending. The default sort is `EARLIEST_DATE`.
+- Each best-schedule candidate includes the meeting-scoped participant IDs and
+  nicknames that are available for that candidate. VIEW-01 remains invite-link
+  readable without login, so this candidate-specific availability list is also
+  visible to an invite-link visitor.
 - VIEW-01-A accepts only `LONGEST_MEETING` and `EARLIEST_DATE` as the schedule
   sorting value. Unsupported values return the common invalid-request error.
 - VIEW-01-B place recommendations before final confirmation do not call

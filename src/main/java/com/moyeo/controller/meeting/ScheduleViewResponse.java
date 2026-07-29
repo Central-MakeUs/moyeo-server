@@ -12,17 +12,20 @@ public record ScheduleViewResponse(
         @Schema(description = "모임 ID", example = "1")
         Long meetingId,
 
-        @Schema(description = "일정 참여 입력 유형입니다. 장소만 정하는 모임은 NONE입니다.", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
+        @Schema(description = "일정 참여 입력 유형", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
         String scheduleInputType,
 
-        @Schema(description = "적용된 정렬 방식", example = "LONGEST_MEETING", allowableValues = {"LONGEST_MEETING", "EARLIEST_DATE"})
+        @Schema(description = "적용된 정렬 방식", example = "EARLIEST_DATE", allowableValues = {"LONGEST_MEETING", "EARLIEST_DATE"})
         String sort,
 
         @Schema(description = "현재 참여 인원. 방장을 포함합니다.", example = "4")
         long participantCount,
 
-        @Schema(description = "일정 후보 목록. 적용된 정렬 방식에 따라 최대 3개를 반환합니다. 후보가 없으면 빈 배열입니다.")
-        List<CandidateResponse> candidates
+        @Schema(description = "동시 참여 가능 인원이 최대인 일정 후보입니다. 2명 이상 겹치는 시간이 없으면 빈 배열이며, 정렬 방식에 따라 최대 5개를 반환합니다.")
+        List<CandidateResponse> candidates,
+
+        @Schema(description = "일정 응답 현황 블록입니다. DATE_ONLY는 날짜별 블록이며 시작·종료 시간은 null입니다. DATE_AND_TIME은 같은 가능 참여자 집합의 연속 1시간 슬롯을 합쳐 반환합니다. 클라이언트는 availableParticipantCount / participantCount 비율로 화면 색상을 표시합니다.")
+        List<AvailabilityStatusResponse> availabilityStatuses
 ) {
 
     public static ScheduleViewResponse from(ScheduleViewResult result) {
@@ -31,11 +34,12 @@ public record ScheduleViewResponse(
                 result.scheduleInputType(),
                 result.sort(),
                 result.participantCount(),
-                result.candidates().stream().map(CandidateResponse::from).toList()
+                result.candidates().stream().map(CandidateResponse::from).toList(),
+                result.availabilityStatuses().stream().map(AvailabilityStatusResponse::from).toList()
         );
     }
 
-    @Schema(description = "일정 후보")
+    @Schema(description = "최적 일정 후보")
     public record CandidateResponse(
             @Schema(description = "후보 날짜", example = "2026-07-12")
             LocalDate candidateDate,
@@ -47,7 +51,10 @@ public record ScheduleViewResponse(
             LocalTime endTime,
 
             @Schema(description = "해당 날짜 또는 시간에 참여 가능한 인원 수", example = "3")
-            long availableParticipantCount
+            long availableParticipantCount,
+
+            @Schema(description = "해당 후보 시간에 가능한 참여자 목록입니다. 링크로 조회한 비로그인 사용자에게도 공개됩니다.")
+            List<AvailableParticipantResponse> availableParticipants
     ) {
 
         private static CandidateResponse from(ScheduleViewResult.Candidate candidate) {
@@ -55,8 +62,36 @@ public record ScheduleViewResponse(
                     candidate.candidateDate(),
                     candidate.startTime(),
                     candidate.endTime(),
-                    candidate.availableParticipantCount()
+                    candidate.availableParticipantCount(),
+                    candidate.availableParticipants().stream().map(AvailableParticipantResponse::from).toList()
             );
+        }
+    }
+
+    @Schema(description = "일정 응답 현황 블록")
+    public record AvailabilityStatusResponse(
+            LocalDate candidateDate,
+            LocalTime startTime,
+            LocalTime endTime,
+            long availableParticipantCount
+    ) {
+        private static AvailabilityStatusResponse from(ScheduleViewResult.AvailabilityStatus status) {
+            return new AvailabilityStatusResponse(
+                    status.candidateDate(),
+                    status.startTime(),
+                    status.endTime(),
+                    status.availableParticipantCount()
+            );
+        }
+    }
+
+    @Schema(description = "일정 후보 참여 가능자")
+    public record AvailableParticipantResponse(
+            Long participantId,
+            String nickname
+    ) {
+        private static AvailableParticipantResponse from(ScheduleViewResult.AvailableParticipant participant) {
+            return new AvailableParticipantResponse(participant.participantId(), participant.nickname());
         }
     }
 }

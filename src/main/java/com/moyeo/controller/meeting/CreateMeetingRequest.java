@@ -84,6 +84,7 @@ public record CreateMeetingRequest(
         LocalTime availableEndTime,
 
         @Schema(description = "방장이 정한 일정 후보 날짜입니다. 일정 조율 모임에서 필수이며 PLACE_ONLY에서는 보내지 않습니다.")
+        @Size(max = 7)
         List<@NotNull LocalDate> scheduleCandidateDates,
 
         @Schema(description = "방장의 일정 응답입니다. DATE_AND_TIME에서 availableTimeRanges를 보내고 DATE_ONLY에서는 생략합니다.")

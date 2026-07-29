@@ -573,9 +573,9 @@ class MeetingControllerTest {
     }
 
     @Test
-    void createMeetingAllowsMoreThanTwentyOneScheduleCandidateDates() throws Exception {
+    void createMeetingRejectsMoreThanSevenScheduleCandidateDates() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost-many-dates", "host-many-dates");
-        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 22)
+        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 8)
                 .mapToObj(dayOffset -> LocalDate.of(2026, 7, 1).plusDays(dayOffset))
                 .toList();
 
@@ -595,7 +595,10 @@ class MeetingControllerTest {
                                 ),
                                 "deadlineMinutes", 1440
                         ))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.errors[0].field").value("scheduleCandidateDates"));
     }
 
     @Test
@@ -1413,6 +1416,9 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.candidates[0].startTime").value("09:00:00"))
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3))
+                .andExpect(jsonPath("$.candidates[0].availableParticipants.length()").value(3))
+                .andExpect(jsonPath("$.candidates[0].availableParticipants[0].nickname").value("host30"))
+                .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(3))
                 .andExpect(jsonPath("$.candidates[0].totalParticipantCount").doesNotExist())
                 .andExpect(jsonPath("$.emptyMessage").doesNotExist());
     }
@@ -1425,6 +1431,50 @@ class MeetingControllerTest {
                         "$.components.schemas.ScheduleViewResponse.properties.scheduleInputType.enum",
                         containsInAnyOrder("DATE_ONLY", "DATE_AND_TIME", "NONE")
                 ));
+    }
+
+    @Test
+    void getScheduleViewUsesEarliestDateByDefaultAndOmitsCandidatesWithoutOverlap() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("meetinghost-schedule-no-overlap", "host-no-overlap", 6);
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-no-overlap");
+        saveDefaultParticipation(inviteCode, participantId, "12:00", "13:00");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sort").value("EARLIEST_DATE"))
+                .andExpect(jsonPath("$.candidates").isEmpty())
+                .andExpect(jsonPath("$.availabilityStatuses.length()").value(2))
+                .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(1));
+    }
+
+    @Test
+    void getScheduleViewSortsLongestMeetingCandidatesByDuration() throws Exception {
+        String hostToken = signupAndGetAccessToken("schedule-duration-host", "schedule-duration-host");
+        CreateMeetingRequest request = new CreateMeetingRequest(
+                "sched-duration", "duration ordering", 6,
+                com.moyeo.domain.meeting.PlanningType.SCHEDULE_ONLY, ScheduleInputType.DATE_AND_TIME,
+                LocalTime.of(9, 0), LocalTime.of(18, 0), List.of(LocalDate.of(2026, 7, 1)),
+                new SaveParticipationRequest.ScheduleResponseRequest(
+                        null,
+                        List.of(new SaveParticipationRequest.ScheduleAvailabilityRequest(
+                                LocalDate.of(2026, 7, 1), LocalTime.of(9, 0), LocalTime.of(12, 0)
+                        ))
+                ),
+                null,
+                1440
+        );
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, request);
+        joinScheduleOnlyGuest(inviteCode, "durone", "09:00", "10:00");
+        joinScheduleOnlyGuest(inviteCode, "durtwo", "10:00", "12:00");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode)
+                        .param("sort", "LONGEST_MEETING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidates.length()").value(2))
+                .andExpect(jsonPath("$.candidates[0].startTime").value("10:00:00"))
+                .andExpect(jsonPath("$.candidates[0].endTime").value("12:00:00"))
+                .andExpect(jsonPath("$.candidates[1].startTime").value("09:00:00"))
+                .andExpect(jsonPath("$.candidates[1].endTime").value("10:00:00"));
     }
 
     @Test
@@ -1666,9 +1716,9 @@ class MeetingControllerTest {
 
             if ("SCHEDULE_AND_PLACE_DATE_AND_TIME".equals(exampleName)) {
                 mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode)
-                                .param("sort", "LONGEST_MEETING"))
+                        .param("sort", "LONGEST_MEETING"))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.candidates.length()").value(3));
+                        .andExpect(jsonPath("$.availabilityStatuses").isArray());
             }
         }
     }
@@ -1705,8 +1755,40 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates[0].startTime").doesNotExist())
                 .andExpect(jsonPath("$.candidates[0].endTime").doesNotExist())
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(2))
-                .andExpect(jsonPath("$.candidates[1].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.candidates[1].availableParticipantCount").value(1));
+                .andExpect(jsonPath("$.candidates[0].availableParticipants.length()").value(2))
+                .andExpect(jsonPath("$.candidates.length()").value(1))
+                .andExpect(jsonPath("$.availabilityStatuses[1].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.availabilityStatuses[1].availableParticipantCount").value(2));
+    }
+
+    @Test
+    void getScheduleViewReturnsAtMostFiveMaximumAvailabilityCandidates() throws Exception {
+        String hostToken = signupAndGetAccessToken("schedule-five-host", "schedule-five-host");
+        List<LocalDate> candidateDates = List.of(
+                LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2), LocalDate.of(2026, 7, 3),
+                LocalDate.of(2026, 7, 4), LocalDate.of(2026, 7, 5), LocalDate.of(2026, 7, 6)
+        );
+        CreateMeetingRequest request = new CreateMeetingRequest(
+                "schedule-five", "five schedule candidates", 6,
+                com.moyeo.domain.meeting.PlanningType.SCHEDULE_ONLY, ScheduleInputType.DATE_ONLY,
+                null, null, candidateDates, null, null, 1440
+        );
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, request);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "fiveguest",
+                                "password", "1234",
+                                "scheduleResponse", Map.of("availableDates", candidateDates.stream().map(LocalDate::toString).toList())
+                        ))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidates.length()").value(5))
+                .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.candidates[4].candidateDate").value("2026-07-05"));
     }
 
     @Test
@@ -2195,6 +2277,19 @@ class MeetingControllerTest {
                 .getContentAsString();
 
         return objectMapper.readTree(response).get("participantId").asLong();
+    }
+
+    private void joinScheduleOnlyGuest(String inviteCode, String nickname, String startTime, String endTime) throws Exception {
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", nickname,
+                                "password", "1234",
+                                "scheduleResponse", Map.of(
+                                        "availableTimeRanges", List.of(scheduleAvailability(startTime, endTime))
+                                )
+                        ))))
+                .andExpect(status().isCreated());
     }
 
     private void saveDefaultParticipation(String inviteCode, Long participantId, String startTime, String endTime) throws Exception {

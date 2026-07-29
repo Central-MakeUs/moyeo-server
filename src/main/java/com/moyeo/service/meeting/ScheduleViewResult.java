@@ -9,14 +9,27 @@ public record ScheduleViewResult(
         String scheduleInputType,
         String sort,
         long participantCount,
-        List<Candidate> candidates
+        List<Candidate> candidates,
+        List<AvailabilityStatus> availabilityStatuses
 ) {
 
     public record Candidate(
             LocalDate candidateDate,
             LocalTime startTime,
             LocalTime endTime,
+            long availableParticipantCount,
+            List<AvailableParticipant> availableParticipants
+    ) {
+    }
+
+    public record AvailabilityStatus(
+            LocalDate candidateDate,
+            LocalTime startTime,
+            LocalTime endTime,
             long availableParticipantCount
     ) {
+    }
+
+    public record AvailableParticipant(Long participantId, String nickname) {
     }
 }

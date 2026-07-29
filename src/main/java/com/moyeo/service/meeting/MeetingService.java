@@ -400,10 +400,13 @@ public class MeetingService {
     public ScheduleViewResult getScheduleView(String inviteCode, String sort) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
+        Map<Long, MeetingParticipant> participantsById = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meeting.getId())
+                .stream()
+                .collect(Collectors.toMap(MeetingParticipant::getId, Function.identity()));
         String resolvedSort = resolveScheduleSort(sort);
 
         if (meeting.getScheduleInputType() == ScheduleInputType.DATE_ONLY) {
-            return getDateOnlyScheduleView(meeting, participantCount, resolvedSort);
+            return getDateOnlyScheduleView(meeting, participantCount, participantsById, resolvedSort);
         }
 
         List<MeetingParticipantScheduleAvailability> availabilities = meetingParticipantScheduleAvailabilityRepository
@@ -415,25 +418,22 @@ public class MeetingService {
                         Collectors.mapping(ParticipantScheduleSlot::participantId, Collectors.toSet())
                 ));
 
-        Comparator<ScheduleViewResult.Candidate> comparator = scheduleCandidateComparator(resolvedSort);
-        List<ScheduleViewResult.Candidate> candidates = mergeConsecutiveScheduleCandidates(participantsBySlot)
-                .stream()
-                .sorted(comparator)
-                .limit(3)
-                .toList();
+        List<ScheduleViewResult.Candidate> availabilityBlocks = mergeConsecutiveScheduleCandidates(participantsBySlot, participantsById);
 
         return new ScheduleViewResult(
                 meeting.getId(),
                 meeting.getScheduleInputType().name(),
                 resolvedSort,
                 participantCount,
-                candidates
+                selectBestScheduleCandidates(availabilityBlocks, resolvedSort),
+                availabilityBlocks.stream().map(this::toAvailabilityStatus).toList()
         );
     }
 
     private ScheduleViewResult getDateOnlyScheduleView(
             Meeting meeting,
             long participantCount,
+            Map<Long, MeetingParticipant> participantsById,
             String resolvedSort
     ) {
         List<MeetingParticipantScheduleDateAvailability> availabilities =
@@ -447,19 +447,14 @@ public class MeetingService {
                         )
                 ));
 
-        Comparator<Map.Entry<LocalDate, Set<Long>>> comparator = "EARLIEST_DATE".equals(resolvedSort)
-                ? Map.Entry.comparingByKey()
-                : Comparator.<Map.Entry<LocalDate, Set<Long>>>comparingInt(entry -> entry.getValue().size())
-                        .reversed()
-                        .thenComparing(Map.Entry::getKey);
-        List<ScheduleViewResult.Candidate> candidates = participantsByDate.entrySet().stream()
-                .sorted(comparator)
-                .limit(3)
+        List<ScheduleViewResult.Candidate> availabilityBlocks = participantsByDate.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
                 .map(entry -> new ScheduleViewResult.Candidate(
                         entry.getKey(),
                         null,
                         null,
-                        entry.getValue().size()
+                        entry.getValue().size(),
+                        toAvailableParticipants(entry.getValue(), participantsById)
                 ))
                 .toList();
 
@@ -468,7 +463,8 @@ public class MeetingService {
                 meeting.getScheduleInputType().name(),
                 resolvedSort,
                 participantCount,
-                candidates
+                selectBestScheduleCandidates(availabilityBlocks, resolvedSort),
+                availabilityBlocks.stream().map(this::toAvailabilityStatus).toList()
         );
     }
 
@@ -806,7 +802,8 @@ public class MeetingService {
     }
 
     private List<ScheduleViewResult.Candidate> mergeConsecutiveScheduleCandidates(
-            Map<ScheduleSlot, Set<Long>> participantsBySlot
+            Map<ScheduleSlot, Set<Long>> participantsBySlot,
+            Map<Long, MeetingParticipant> participantsById
     ) {
         List<ScheduleSlotAvailability> slots = participantsBySlot.entrySet().stream()
                 .map(entry -> new ScheduleSlotAvailability(entry.getKey(), entry.getValue()))
@@ -832,11 +829,11 @@ public class MeetingService {
                 );
                 continue;
             }
-            candidates.add(toScheduleCandidate(currentSlot, currentParticipantIds));
+            candidates.add(toScheduleCandidate(currentSlot, currentParticipantIds, participantsById));
             currentSlot = next.slot();
             currentParticipantIds = next.participantIds();
         }
-        candidates.add(toScheduleCandidate(currentSlot, currentParticipantIds));
+        candidates.add(toScheduleCandidate(currentSlot, currentParticipantIds, participantsById));
         return candidates;
     }
 
@@ -869,13 +866,58 @@ public class MeetingService {
 
     private ScheduleViewResult.Candidate toScheduleCandidate(
             ScheduleSlot slot,
-            Set<Long> participantIds
+            Set<Long> participantIds,
+            Map<Long, MeetingParticipant> participantsById
     ) {
         return new ScheduleViewResult.Candidate(
                 slot.candidateDate(),
                 slot.startTime(),
                 slot.endTime(),
-                participantIds.size()
+                participantIds.size(),
+                toAvailableParticipants(participantIds, participantsById)
+        );
+    }
+
+    private List<ScheduleViewResult.Candidate> selectBestScheduleCandidates(
+            List<ScheduleViewResult.Candidate> availabilityBlocks,
+            String sort
+    ) {
+        long maxAvailableParticipantCount = availabilityBlocks.stream()
+                .mapToLong(ScheduleViewResult.Candidate::availableParticipantCount)
+                .max()
+                .orElse(0L);
+        if (maxAvailableParticipantCount < 2) {
+            return List.of();
+        }
+
+        return availabilityBlocks.stream()
+                .filter(candidate -> candidate.availableParticipantCount() == maxAvailableParticipantCount)
+                .sorted(scheduleCandidateComparator(sort))
+                .limit(5)
+                .toList();
+    }
+
+    private List<ScheduleViewResult.AvailableParticipant> toAvailableParticipants(
+            Set<Long> participantIds,
+            Map<Long, MeetingParticipant> participantsById
+    ) {
+        return participantIds.stream()
+                .sorted()
+                .map(participantsById::get)
+                .filter(java.util.Objects::nonNull)
+                .map(participant -> new ScheduleViewResult.AvailableParticipant(
+                        participant.getId(),
+                        participant.getNickname()
+                ))
+                .toList();
+    }
+
+    private ScheduleViewResult.AvailabilityStatus toAvailabilityStatus(ScheduleViewResult.Candidate candidate) {
+        return new ScheduleViewResult.AvailabilityStatus(
+                candidate.candidateDate(),
+                candidate.startTime(),
+                candidate.endTime(),
+                candidate.availableParticipantCount()
         );
     }
 
@@ -886,8 +928,12 @@ public class MeetingService {
                     .thenComparing(ScheduleViewResult.Candidate::endTime)
                     .thenComparing(ScheduleViewResult.Candidate::availableParticipantCount, Comparator.reverseOrder());
         }
-        return Comparator.comparing(ScheduleViewResult.Candidate::availableParticipantCount, Comparator.reverseOrder())
-                .thenComparing(candidate -> ChronoUnit.MINUTES.between(candidate.startTime(), candidate.endTime()), Comparator.reverseOrder())
+        return Comparator.comparing(
+                        (ScheduleViewResult.Candidate candidate) -> candidate.startTime() == null
+                                ? 0L
+                                : ChronoUnit.MINUTES.between(candidate.startTime(), candidate.endTime()),
+                        Comparator.reverseOrder()
+                )
                 .thenComparing(ScheduleViewResult.Candidate::candidateDate)
                 .thenComparing(ScheduleViewResult.Candidate::startTime);
     }
