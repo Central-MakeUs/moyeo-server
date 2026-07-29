@@ -47,11 +47,7 @@ general best practice into domain policy.
   request also receives `deadlineMinutes` and the server calculates and stores
   `deadlineAt`. When `noDeadline=true`, `deadlineMinutes` is omitted or null
   and `deadlineAt` is stored as null.
-- The meeting-creation success response returns `meetingId`, `inviteCode`, and
-  `invitePath` so the client can move directly to the link-sharing screen.
-- The `meetup.app` domain shown in the CRT-08 design is an illustration only;
-  it is not a configured Moyeo domain or an API contract. The frontend composes
-  the final share URL from its deployed domain and `invitePath`.
+- The meeting-creation success response returns `meetingId` and `inviteCode`.
 - When `noDeadline` is false or omitted, `deadlineMinutes` is required and is
   accepted in 10-minute units from 10 minutes up to 7 days. A zero-minute
   deadline is not allowed. When `noDeadline=true`, `deadlineMinutes` is
@@ -71,7 +67,7 @@ general best practice into domain policy.
 - Temporary MVP policy: the client keeps a selected cover file locally until the
   final meeting-creation request. That request may use multipart form data with
   the existing meeting JSON and an optional cover file; the response returns the
-  same `meetingId`, `inviteCode`, and `invitePath` as JSON creation. The server does
+  same `meetingId` and `inviteCode` as JSON creation. The server does
   not create temporary upload objects.
 - Temporary MVP policy: the host may later replace or delete the cover through a
   dedicated authenticated API. The invite-link meeting view may read the cover.
@@ -134,7 +130,7 @@ general best practice into domain policy.
   departure are saved in one transaction. Invalid host input must leave none of
   those rows behind.
 - There is no separate post-creation host participation API. A successful creation
-  returns `meetingId`, `inviteCode`, and `invitePath` for the link-sharing screen.
+  returns `meetingId` and `inviteCode`.
 
 ## Meeting Participant Identity
 

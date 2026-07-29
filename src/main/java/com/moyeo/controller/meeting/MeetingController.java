@@ -174,7 +174,7 @@ public class MeetingController {
             summary = "모임 생성",
             description = """
                     로그인한 사용자가 방장이 되어 모임 설정과 자신의 참여 정보를 한 요청으로 저장합니다.<br>
-                    생성 응답은 링크 공유에 사용할 meetingId, inviteCode, invitePath를 반환합니다.
+                    생성 응답은 meetingId와 inviteCode를 반환합니다.
                     <ul>
                       <li>SCHEDULE_ONLY: SCR-06 기본 정보 -> SCR-07 일정 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 일정 조율(VOTE)만 사용합니다.</li>
                       <li>PLACE_ONLY: SCR-06 기본 정보 -> SCR-08 장소 정하기 -> SCR-09 마감 시간 -> SCR-10 완료. 서버가 중간지점 장소 추천(RECOMMEND)으로 생성합니다.</li>
@@ -312,7 +312,7 @@ public class MeetingController {
                     `application/json` 타입의 Blob 파트여야 합니다.
 
                     `request`에는 모임 설정과 방장의 후보 날짜·가능 일정·출발지를 선택한 플로우에 맞게
-                    모두 담습니다. 성공 시 `meetingId`, `inviteCode`, `invitePath`를 반환합니다.
+                    모두 담습니다. 성공 시 `meetingId`, `inviteCode`를 반환합니다.
 
                     `FormData` 요청에서 `Content-Type` 헤더는 직접 설정하지 마세요. 브라우저 또는 curl이
                     multipart boundary를 자동으로 추가합니다.

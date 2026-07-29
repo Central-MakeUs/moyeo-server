@@ -155,9 +155,9 @@ class MeetingControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.meetingId").isNumber())
-                .andExpect(jsonPath("$.*").value(org.hamcrest.Matchers.hasSize(3)))
+                .andExpect(jsonPath("$.*").value(org.hamcrest.Matchers.hasSize(2)))
                 .andExpect(jsonPath("$.inviteCode").isString())
-                .andExpect(jsonPath("$.invitePath").isString());
+                .andExpect(jsonPath("$.invitePath").doesNotExist());
     }
 
     @Test
