@@ -706,6 +706,7 @@ public class MeetingService {
         if (requiresPlace) {
             SaveParticipationCommand.Departure departure = command.departure();
             String departureAddress = normalizeRequired(departure.address());
+            validateSupportedDepartureRegion(departureAddress);
             participant.updateDeparture(
                     normalizeOptional(departure.name()),
                     departureAddress,
@@ -1194,6 +1195,20 @@ public class MeetingService {
             return null;
         }
         return value.strip();
+    }
+
+    private void validateSupportedDepartureRegion(String address) {
+        if (address.equals("서울")
+                || address.startsWith("서울 ")
+                || address.equals("서울특별시")
+                || address.startsWith("서울특별시 ")
+                || address.equals("경기")
+                || address.startsWith("경기 ")
+                || address.equals("경기도")
+                || address.startsWith("경기도 ")) {
+            return;
+        }
+        throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
     }
 
     private boolean isHourUnit(LocalTime time) {

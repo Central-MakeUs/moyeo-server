@@ -102,7 +102,7 @@ general best practice into domain policy.
   source-dimension rejection, non-host modification, failed-deletion queueing,
   scheduled retry, and cleanup after a real transaction rollback.
 - Schedule voting candidate dates are stored as separate rows during meeting
-  creation. The host may submit at most seven candidate dates. Duplicate dates
+  creation. The host may submit at most 21 candidate dates. Duplicate dates
   are normalized into one date before storage.
 - `DATE_AND_TIME` applies the same available time range to every selected
   candidate date. Its common range and participant ranges are currently accepted
@@ -234,6 +234,7 @@ general best practice into domain policy.
 - Join requests save departure and transportation mode for
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
 - Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Departure `name` is optional; when omitted, the place-view response uses the saved departure address as its display name. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
+- The current MVP accepts place-coordination departure addresses only in Seoul or Gyeonggi. The server validates the normalized address prefix (`서울`, `서울특별시`, `경기`, or `경기도`) when creating or saving a host/member/guest participation snapshot.
 - Join rejects mismatched input, such as departure input for schedule-only
   meetings or schedule availability input for place-only meetings.
 
@@ -272,7 +273,7 @@ general best practice into domain policy.
   based on saved participant departure snapshots. For each commercial area,
   multiply straight-line distance by the participant transportation weight
   (`CAR` 1.0, `PUBLIC_TRANSIT` 0.9), then sort by the lowest
-  weighted-distance average plus weighted-distance maximum. Return up to seven
+  weighted-distance average plus weighted-distance maximum. Return up to three
   preliminary candidates.
 - Pre-confirmation commercial-area candidates use the persistent
   `commercial_areas` table. The initial recommendation dataset is the 255 Seoul
@@ -286,11 +287,25 @@ general best practice into domain policy.
 - Actual travel-time based reranking and final place result storage should be
   handled through the host-only actual-time calculation endpoint, not on every
   pre-confirmation status view request. It calls Kakao only for the preliminary
-  candidates (default seven), requires every current participant departure and
+  candidates (default three), requires every current participant departure and
   transportation mode, and returns the default top three by the lowest actual
   travel-time average plus maximum. A Kakao failure fails the entire calculation;
   it never mixes partial results. Calculation results are not persisted and are
   distinct from the later host final-confirmation and history flow.
+- Confirmed follow-up policy: when the active participant count reaches the
+  meeting capacity, automatically recalculate the actual-travel-time
+  recommendations from the completed participant departures. The current MVP
+  implementation remains the host's manual calculation endpoint until this
+  automatic trigger is implemented.
+- Confirmed policy: preliminary place recommendations remain visible and are
+  recalculated from the current departure snapshots while the meeting is open.
+  Actual-travel-time calculation may run only after every active participant
+  has completed the required departure input; the current manual endpoint
+  already enforces this condition.
+- `POLICY_UNDEFINED`: when the deadline arrives before the meeting reaches its
+  capacity, show a deadline-extension popup. Define the extension authority,
+  selectable duration, decline/close behavior, and the resulting
+  actual-travel-time calculation trigger before implementing that flow.
 
 ## Departure Place Search
 

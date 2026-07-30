@@ -204,7 +204,7 @@ class MemberWithdrawalControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "member-home",
-                                        "address", "Seoul",
+                                        "address", "서울 강남구",
                                         "latitude", 37.5,
                                         "longitude", 127.0,
                                         "transportationMode", "PUBLIC_TRANSIT"

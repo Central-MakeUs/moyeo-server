@@ -26,7 +26,7 @@ public record SaveParticipationRequest(
         @Schema(description = "참여자의 일정 응답입니다. 일정 입력 유형에 맞는 필드 하나만 사용합니다.")
         @Valid ScheduleResponseRequest scheduleResponse,
 
-        @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수이며, 주소 검색 또는 내 장소에서 선택한 값을 사용할 수 있습니다.")
+        @Schema(description = "참여자 출발지와 이동수단입니다. 장소 조율 모임에서 필수이며, 주소 검색 또는 내 장소에서 선택한 값을 사용할 수 있습니다. 현재 MVP에서는 서울특별시 또는 경기도 주소만 저장할 수 있습니다.")
         @Valid
         DepartureRequest departure
 ) {
@@ -92,7 +92,7 @@ public record SaveParticipationRequest(
             @Size(max = 30)
             String name,
 
-            @Schema(description = "출발지 주소입니다.", example = "서울 강남구 테헤란로 123", maxLength = 255)
+            @Schema(description = "출발지 주소입니다. 현재 MVP에서는 서울특별시 또는 경기도 주소만 허용합니다.", example = "서울 강남구 테헤란로 123", maxLength = 255)
             @NotBlank
             @Size(max = 255)
             String address,

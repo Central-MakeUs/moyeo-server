@@ -26,7 +26,7 @@ public record PlaceViewResponse(
         @Schema(description = "참여자별 출발지 정보")
         List<ParticipantDepartureResponse> participants,
 
-        @Schema(description = "추천 상권 목록. MIDDLE_POINT는 예비 후보를 최대 7개, RANDOM은 최대 5개 반환하며 추천이 없으면 빈 배열입니다.")
+        @Schema(description = "추천 상권 목록. MIDDLE_POINT는 예비 후보를 최대 3개, RANDOM은 최대 5개 반환하며 추천이 없으면 빈 배열입니다.")
         List<RecommendationResponse> recommendations
 ) {
 

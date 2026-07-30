@@ -83,8 +83,8 @@ public record CreateMeetingRequest(
         @Schema(description = "DATE_AND_TIME일 때 모든 후보 날짜에 공통으로 적용할 종료 시간입니다. 시작 시간보다 뒤여야 하고 1시간 단위이며 DATE_ONLY와 PLACE_ONLY에서는 보내지 않습니다.", example = "22:00")
         LocalTime availableEndTime,
 
-        @Schema(description = "방장이 정한 일정 후보 날짜입니다. 일정 조율 모임에서 필수이며 PLACE_ONLY에서는 보내지 않습니다.")
-        @Size(max = 7)
+        @Schema(description = "방장이 정한 일정 후보 날짜입니다. 일정 조율 모임에서 필수이며 최대 21개까지 보낼 수 있습니다. PLACE_ONLY에서는 보내지 않습니다.", maxLength = 21)
+        @Size(max = 21)
         List<@NotNull LocalDate> scheduleCandidateDates,
 
         @Schema(description = "방장의 일정 응답입니다. DATE_AND_TIME에서 availableTimeRanges를 보내고 DATE_ONLY에서는 생략합니다.")

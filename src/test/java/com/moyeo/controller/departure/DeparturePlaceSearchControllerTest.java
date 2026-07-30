@@ -202,7 +202,7 @@ class DeparturePlaceSearchControllerTest {
                 null,
                 new SaveParticipationRequest.DepartureRequest(
                         "company",
-                        "Seoul Gangnam",
+                        "서울 강남구",
                         BigDecimal.valueOf(37.498095),
                         BigDecimal.valueOf(127.027610),
                         TransportationMode.PUBLIC_TRANSIT

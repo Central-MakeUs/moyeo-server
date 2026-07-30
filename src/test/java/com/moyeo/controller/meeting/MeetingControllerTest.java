@@ -310,7 +310,7 @@ class MeetingControllerTest {
                                 "planningType", "PLACE_ONLY",
                                 "departure", Map.of(
                                         "name", "company",
-                                        "address", "Seoul",
+                                        "address", "서울 강남구",
                                         "transportationMode", "PUBLIC_TRANSIT"
                                 ),
                                 "deadlineMinutes", 1440
@@ -573,9 +573,35 @@ class MeetingControllerTest {
     }
 
     @Test
-    void createMeetingRejectsMoreThanSevenScheduleCandidateDates() throws Exception {
+    void createMeetingAcceptsTwentyOneScheduleCandidateDates() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-twenty-one-dates", "host-twenty-one-dates");
+        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 21)
+                .mapToObj(dayOffset -> LocalDate.of(2026, 7, 1).plusDays(dayOffset))
+                .toList();
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "three weeks",
+                                "maxParticipants", 6,
+                                "planningType", "SCHEDULE_ONLY",
+                                "scheduleInputType", "DATE_AND_TIME",
+                                "availableStartTime", "18:00",
+                                "availableEndTime", "22:00",
+                                "scheduleCandidateDates", candidateDates,
+                                "scheduleResponse", Map.of(
+                                        "availableTimeRanges", List.of(scheduleAvailability("18:00", "19:00"))
+                                ),
+                                "deadlineMinutes", 1440
+                        ))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void createMeetingRejectsMoreThanTwentyOneScheduleCandidateDates() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost-many-dates", "host-many-dates");
-        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 8)
+        List<LocalDate> candidateDates = java.util.stream.IntStream.range(0, 22)
                 .mapToObj(dayOffset -> LocalDate.of(2026, 7, 1).plusDays(dayOffset))
                 .toList();
 
@@ -728,6 +754,47 @@ class MeetingControllerTest {
     }
 
     @Test
+    void createMeetingAcceptsGyeonggiDepartureAndRejectsOtherRegions() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-departure-region", "host-departure-region");
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "gyeonggi",
+                                "maxParticipants", 6,
+                                "planningType", "PLACE_ONLY",
+                                "departure", Map.of(
+                                        "address", "경기도 성남시 분당구",
+                                        "latitude", 37.359571,
+                                        "longitude", 127.105399,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                ),
+                                "deadlineMinutes", 1440
+                        ))))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "outside",
+                                "maxParticipants", 6,
+                                "planningType", "PLACE_ONLY",
+                                "departure", Map.of(
+                                        "address", "부산광역시 해운대구",
+                                        "latitude", 35.163134,
+                                        "longitude", 129.163547,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                ),
+                                "deadlineMinutes", 1440
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
+    }
+
+    @Test
     void createMeetingRemovesDuplicatedScheduleCandidateDatesAndSortsThem() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost14", "host14");
 
@@ -861,7 +928,7 @@ class MeetingControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "company",
-                                        "address", "Seoul Gangnam",
+                                        "address", "서울 강남구",
                                         "latitude", 37.498095,
                                         "longitude", 127.027610,
                                         "transportationMode", "PUBLIC_TRANSIT"
@@ -1081,7 +1148,7 @@ class MeetingControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "company",
-                                        "address", "Seoul Gangnam",
+                                        "address", "서울 강남구",
                                         "latitude", 37.498095,
                                         "longitude", 127.027610,
                                         "transportationMode", "PUBLIC_TRANSIT"
@@ -1094,7 +1161,7 @@ class MeetingControllerTest {
 
         var participant = meetingParticipantRepository.findById(participantId).orElseThrow();
         assertThat(participant.getDepartureName()).isEqualTo("company");
-        assertThat(participant.getDepartureAddress()).isEqualTo("Seoul Gangnam");
+        assertThat(participant.getDepartureAddress()).isEqualTo("서울 강남구");
         assertThat(participant.getTransportationMode()).isEqualTo(com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT);
         assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isEqualTo(2);
     }
@@ -1129,7 +1196,7 @@ class MeetingControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "company",
-                                        "address", "Seoul Gangnam",
+                                        "address", "서울 강남구",
                                         "latitude", 37.498095,
                                         "longitude", 127.027610,
                                         "transportationMode", "PUBLIC_TRANSIT"
@@ -1171,7 +1238,7 @@ class MeetingControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "company",
-                                        "address", "Seoul Gangnam",
+                                        "address", "서울 강남구",
                                         "latitude", 37.498095,
                                         "longitude", 127.027610,
                                         "transportationMode", "PUBLIC_TRANSIT"
@@ -1806,7 +1873,7 @@ class MeetingControllerTest {
                 null,
                 new SaveParticipationRequest.DepartureRequest(
                         "host-company",
-                        "Seoul Gangnam",
+                        "서울 강남구",
                         BigDecimal.valueOf(37.498095),
                         BigDecimal.valueOf(127.027610),
                         com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT
@@ -1830,7 +1897,7 @@ class MeetingControllerTest {
                                 ),
                                 "departure", Map.of(
                                         "name", "guest-home",
-                                        "address", "Seoul Mapo",
+                                        "address", "서울 마포구",
                                         "latitude", 37.566500,
                                         "longitude", 126.978000,
                                         "transportationMode", "CAR"
@@ -1946,7 +2013,7 @@ class MeetingControllerTest {
                         org.hamcrest.Matchers.is("발달상권"),
                         org.hamcrest.Matchers.is("관광특구")
                 )))
-                .andExpect(jsonPath("$.recommendations.length()").value(7))
+                .andExpect(jsonPath("$.recommendations.length()").value(3))
                 .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").isNumber());
     }
 
@@ -1964,7 +2031,7 @@ class MeetingControllerTest {
                 null,
                 new SaveParticipationRequest.DepartureRequest(
                         "company",
-                        "Seoul Gangnam",
+                        "서울 강남구",
                         null,
                         null,
                         com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT
@@ -2192,7 +2259,7 @@ class MeetingControllerTest {
         SaveParticipationRequest.DepartureRequest departure = requiresPlace
                 ? new SaveParticipationRequest.DepartureRequest(
                         "company",
-                        "Seoul",
+                        "서울 강남구",
                         BigDecimal.valueOf(37.498095),
                         BigDecimal.valueOf(127.027610),
                         com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT
@@ -2323,7 +2390,7 @@ class MeetingControllerTest {
                                 .toList(),
                         new SaveParticipationCommand.Departure(
                                 "company",
-                                "Seoul Gangnam",
+                                "서울 강남구",
                                 BigDecimal.valueOf(37.498095),
                                 BigDecimal.valueOf(127.027610),
                                 com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT
@@ -2355,7 +2422,7 @@ class MeetingControllerTest {
                 ),
                 "departure", Map.of(
                         "name", "company",
-                        "address", "Seoul Gangnam",
+                        "address", "서울 강남구",
                         "latitude", 37.498095,
                         "longitude", 127.027610,
                         "transportationMode", "PUBLIC_TRANSIT"
@@ -2372,7 +2439,7 @@ class MeetingControllerTest {
                 ),
                 "departure", Map.of(
                         "name", "company",
-                        "address", "Seoul Gangnam",
+                        "address", "서울 강남구",
                         "latitude", 37.498095,
                         "longitude", 127.027610,
                         "transportationMode", "PUBLIC_TRANSIT"
