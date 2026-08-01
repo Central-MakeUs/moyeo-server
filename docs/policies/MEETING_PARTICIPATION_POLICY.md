@@ -175,8 +175,15 @@ general best practice into domain policy.
   violated, so a rare collision does not fail the user-visible creation flow.
 - INV-01 invite entry is currently implemented through invite-code lookup. It
   returns the current participation availability status for the entry screen.
-- If both the deadline and participant limit block joining, the deadline-passed
-  status takes priority in the entry response.
+- Invite-code lookup remains public without an `Authorization` header. When a
+  valid Access JWT is sent, it additionally identifies whether that member has
+  already joined, including before nickname onboarding is complete; an absent
+  header keeps the existing public lookup behavior.
+- The entry response returns `ALREADY_JOINED` with `canJoin = false` for an
+  already participating authenticated member. This status takes priority over
+  deadline and participant-limit statuses. If the member has not joined and
+  both the deadline and participant limit block joining, the deadline-passed
+  status takes priority.
 - Web invite-link entry supports both logged-in member join and guest join.
 - App invite-link entry supports logged-in member join only; guest join is not
   exposed in the app entry flow.

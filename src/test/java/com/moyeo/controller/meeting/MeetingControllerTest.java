@@ -851,6 +851,68 @@ class MeetingControllerTest {
     }
 
     @Test
+    void getInvitationReturnsAlreadyJoinedStatusForAuthenticatedParticipant() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-already-joined-host", "already-joined-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("ALREADY_JOINED"))
+                .andExpect(jsonPath("$.participationStatus.message").value("이미 참여 중인 모임이에요."));
+    }
+
+    @Test
+    void getInvitationPrioritizesAlreadyJoinedStatusOverDeadlineAndParticipantLimit() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-already-joined-priority-host", "already-joined-priority-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        joinGuest(inviteCode, "already-joined-priority-guest");
+        jdbcTemplate.update("update meetings set deadline_at = dateadd('second', -1, current_timestamp) where invite_code = ?", inviteCode);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("ALREADY_JOINED"));
+    }
+
+    @Test
+    void getInvitationKeepsAvailableStatusForAuthenticatedNonParticipant() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-non-participant-host", "non-participant-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        String otherToken = signupAndGetAccessToken("invitation-non-participant", "non-participant");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(true))
+                .andExpect(jsonPath("$.participationStatus.reason").value("AVAILABLE"));
+    }
+
+    @Test
+    void getInvitationAllowsPendingOnboardingUserWithAccessToken() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("invitation-pending-user-host", "pending-user-host", 6);
+        String pendingToken = testMemberFactory.createPendingAccessToken();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer " + pendingToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(true))
+                .andExpect(jsonPath("$.participationStatus.reason").value("AVAILABLE"));
+    }
+
+    @Test
+    void getInvitationRejectsInvalidAccessToken() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("invitation-invalid-token-host", "invalid-token-host", 6);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
     void getInvitationRejectsUnknownInviteCode() throws Exception {
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", "UNKNOWN123"))
                 .andExpect(status().isNotFound())

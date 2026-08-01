@@ -298,12 +298,14 @@ public class MeetingService {
         });
     }
 
-    public MeetingInvitationResult getInvitation(String inviteCode) {
+    public MeetingInvitationResult getInvitation(String inviteCode, AuthenticatedMember member) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
         List<MeetingScheduleCandidate> scheduleCandidates = meetingScheduleCandidateRepository
                 .findAllByMeetingIdOrderByCandidateDateAsc(meeting.getId());
-        return MeetingInvitationResult.from(meeting, participantCount, scheduleCandidates);
+        boolean alreadyJoined = member != null
+                && meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), member.userId());
+        return MeetingInvitationResult.from(meeting, participantCount, scheduleCandidates, alreadyJoined);
     }
 
     public Long validateInvitationExists(String inviteCode) {

@@ -86,6 +86,10 @@ entry.
   the first-nickname registration API among member-authenticated APIs.
 - Other member-authenticated APIs return `403 ONBOARDING_REQUIRED` until the
   nickname is registered. Guest and invite-code flows remain unchanged.
+- Public invite-code meeting lookup may optionally resolve a valid Access JWT,
+  including for an onboarding-incomplete user, only to return the current
+  member's participation status. It does not grant member-join or other
+  member-authenticated permissions before nickname registration.
 - `PUT /api/users/me/onboarding` registers the initial nickname.
 - A nickname consists of 2 to 10 Korean Hangul syllables or English letters;
   whitespace, numbers, and special characters are not allowed.
