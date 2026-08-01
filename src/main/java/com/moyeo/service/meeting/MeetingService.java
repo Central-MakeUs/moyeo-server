@@ -353,7 +353,7 @@ public class MeetingService {
                             : meeting.getDeadlineAt().isAfter(now) ? "OPEN" : "CLOSED";
                     LocalDateTime scheduledAt = meeting.getConfirmedScheduleDate() == null ? null
                             : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
-                    return new MyMeetingListResult.Item(meeting.getId(), meeting.getName(), MeetingCoverUrl.from(meeting),
+                    return new MyMeetingListResult.Item(meeting.getId(), meeting.getInviteCode(), meeting.getName(), MeetingCoverUrl.from(meeting),
                             meeting.getHostUser().getNickname(), participant.getParticipantType().name(),
                             (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
                             meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt,

@@ -6,7 +6,7 @@ import java.time.LocalTime;
 import java.util.List;
 
 public record MyMeetingListResult(List<Item> planningMeetings, List<Item> confirmedMeetings) {
-    public record Item(Long meetingId, String name, String coverImageUrl, String hostNickname, String role, int participantCount,
+    public record Item(Long meetingId, String inviteCode, String name, String coverImageUrl, String hostNickname, String role, int participantCount,
                        int maxParticipants, String deadlineStatus, LocalDateTime deadlineAt,
                        LocalDateTime confirmedAt, LocalDateTime scheduledAt,
                        LocalDate confirmedScheduleDate, LocalTime confirmedStartTime, LocalTime confirmedEndTime,

@@ -125,6 +125,7 @@ class MeetingControllerTest {
         mockMvc.perform(get("/api/meetings/me")
                         .header("Authorization", "Bearer " + hostToken))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planningMeetings[0].inviteCode").value(inviteCode))
                 .andExpect(jsonPath("$.planningMeetings[0].hostNickname").value("homehost"))
                 .andExpect(jsonPath("$.planningMeetings[0].role").value("HOST"));
 

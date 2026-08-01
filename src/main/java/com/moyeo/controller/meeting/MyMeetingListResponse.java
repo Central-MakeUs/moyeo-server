@@ -25,6 +25,7 @@ public record MyMeetingListResponse(
     @Schema(description = "홈 모임 카드")
     public record Item(
             @Schema(description = "모임 ID", example = "17") Long meetingId,
+            @Schema(description = "모임 초대 코드. 모임 현황 조회 API 경로에 사용합니다.", example = "ABCD234567") String inviteCode,
             @Schema(description = "모임명", example = "주말 저녁 모임") String name,
             @Schema(description = "커버 이미지 조회 API 경로. 없으면 null") String coverImageUrl,
             @Schema(description = "모임장 닉네임", example = "moyeo1") String hostNickname,
@@ -42,7 +43,7 @@ public record MyMeetingListResponse(
 
         static Item from(MyMeetingListResult.Item item) {
             return new Item(
-                    item.meetingId(), item.name(), item.coverImageUrl(), item.hostNickname(), item.role(),
+                    item.meetingId(), item.inviteCode(), item.name(), item.coverImageUrl(), item.hostNickname(), item.role(),
                     item.participantCount(), item.maxParticipants(), item.deadlineStatus(), item.deadlineAt(),
                     item.confirmedScheduleDate(), item.confirmedStartTime(), item.confirmedEndTime(), item.confirmedPlaceName()
             );
