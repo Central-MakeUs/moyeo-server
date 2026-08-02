@@ -2077,7 +2077,44 @@ class MeetingControllerTest {
                         org.hamcrest.Matchers.is("관광특구")
                 )))
                 .andExpect(jsonPath("$.recommendations.length()").value(3))
-                .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").isNumber());
+                .andExpect(jsonPath("$.recommendations[0].averageStraightDistanceMeters").isNumber())
+                .andExpect(jsonPath("$.recommendations[0].areaCode").value("3120189"))
+                .andExpect(jsonPath("$.recommendations[0].station.name").value("강남역"))
+                .andExpect(jsonPath("$.recommendations[0].station.name").isString())
+                .andExpect(jsonPath("$.recommendations[0].station.lineNames").value(
+                        org.hamcrest.Matchers.containsInAnyOrder("2호선", "신분당선")
+                ))
+                .andExpect(jsonPath("$.recommendations[0].subwayStations").doesNotExist());
+    }
+
+    @Test
+    void getPlaceViewReturnsNullStationForCommercialAreaWithoutStationMapping() throws Exception {
+        String hostToken = signupAndGetAccessToken("place-view-no-station-host", "no-station-host");
+        CreateMeetingRequest request = new CreateMeetingRequest(
+                "nonstationview",
+                null,
+                6,
+                com.moyeo.domain.meeting.PlanningType.PLACE_ONLY,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new SaveParticipationRequest.DepartureRequest(
+                        "host-location",
+                        "서울 종로구 종로 1",
+                        BigDecimal.valueOf(37.5741047),
+                        BigDecimal.valueOf(126.9810953),
+                        com.moyeo.domain.meeting.TransportationMode.PUBLIC_TRANSIT
+                ),
+                1440
+        );
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, request);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendations[0].areaCode").value("3120004"))
+                .andExpect(jsonPath("$.recommendations[0].station").value(org.hamcrest.Matchers.nullValue()));
     }
 
     @Test

@@ -7,6 +7,8 @@ import com.moyeo.repository.commercial.CommercialAreaRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import java.util.List;
 
 @Component
 @Profile({"local", "dev"})
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class LocalCommercialAreaDataInitializer implements ApplicationRunner {
 
     private static final String RESOURCE_PATH = "commercial-areas-seoul.tsv";

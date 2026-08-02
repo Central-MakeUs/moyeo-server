@@ -1,6 +1,8 @@
 package com.moyeo.service.meeting;
 
 import com.moyeo.domain.member.User;
+import com.moyeo.domain.commercial.CommercialAreaSource;
+import com.moyeo.domain.commercial.CommercialAreaStationLineEntity;
 import com.moyeo.domain.departure.DeparturePlaceSearch;
 import com.moyeo.domain.meeting.ParticipantType;
 import com.moyeo.domain.meeting.PlaceMode;
@@ -17,6 +19,7 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.route.KakaoRouteProperties;
 import com.moyeo.repository.member.UserRepository;
+import com.moyeo.repository.commercial.CommercialAreaStationLineRepository;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
@@ -61,6 +64,7 @@ public class MeetingService {
     private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final UserRepository userRepository;
     private final CommercialAreaCatalog commercialAreaCatalog;
+    private final CommercialAreaStationLineRepository commercialAreaStationLineRepository;
     private final InviteCodeGenerator inviteCodeGenerator;
     private final PasswordEncoder passwordEncoder;
     private final MeetingCoverStorage meetingCoverStorage;
@@ -77,6 +81,7 @@ public class MeetingService {
             DeparturePlaceSearchRepository departurePlaceSearchRepository,
             UserRepository userRepository,
             CommercialAreaCatalog commercialAreaCatalog,
+            CommercialAreaStationLineRepository commercialAreaStationLineRepository,
             InviteCodeGenerator inviteCodeGenerator,
             PasswordEncoder passwordEncoder,
             MeetingCoverStorage meetingCoverStorage,
@@ -92,6 +97,7 @@ public class MeetingService {
         this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.userRepository = userRepository;
         this.commercialAreaCatalog = commercialAreaCatalog;
+        this.commercialAreaStationLineRepository = commercialAreaStationLineRepository;
         this.inviteCodeGenerator = inviteCodeGenerator;
         this.passwordEncoder = passwordEncoder;
         this.meetingCoverStorage = meetingCoverStorage;
@@ -509,6 +515,7 @@ public class MeetingService {
                     .map(area -> recommendation(area, 0, null))
                     .toList();
             recommendations = rankRecommendations(recommendations);
+            recommendations = attachStation(recommendations);
             return new PlaceViewResult(
                     meeting.getId(),
                     strategy,
@@ -542,6 +549,7 @@ public class MeetingService {
                 .toList();
 
         recommendations = rankRecommendations(recommendations);
+        recommendations = attachStation(recommendations);
         return new PlaceViewResult(
                 meeting.getId(),
                 strategy,
@@ -1023,7 +1031,48 @@ public class MeetingService {
                 area.longitude(),
                 area.guName(),
                 area.dongName(),
-                averageStraightDistanceMeters
+                averageStraightDistanceMeters,
+                null
+        );
+    }
+
+    private List<PlaceViewResult.Recommendation> attachStation(
+            List<PlaceViewResult.Recommendation> recommendations
+    ) {
+        if (recommendations.isEmpty()) {
+            return recommendations;
+        }
+        Map<String, PlaceViewResult.Station> stationsByAreaCode = commercialAreaStationLineRepository
+                .findAllForCommercialAreaCodes(
+                        CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+                        recommendations.stream().map(PlaceViewResult.Recommendation::areaCode).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(
+                        stationLine -> stationLine.getCommercialArea().getExternalCode(),
+                        Collectors.collectingAndThen(Collectors.toList(), this::toStation)
+                ));
+        return recommendations.stream()
+                .map(recommendation -> new PlaceViewResult.Recommendation(
+                        recommendation.rank(),
+                        recommendation.areaCode(),
+                        recommendation.areaName(),
+                        recommendation.categoryName(),
+                        recommendation.latitude(),
+                        recommendation.longitude(),
+                        recommendation.guName(),
+                        recommendation.dongName(),
+                        recommendation.averageStraightDistanceMeters(),
+                        stationsByAreaCode.get(recommendation.areaCode())
+                ))
+                .toList();
+    }
+
+    private PlaceViewResult.Station toStation(List<CommercialAreaStationLineEntity> stationLines) {
+        CommercialAreaStationLineEntity stationLine = stationLines.getFirst();
+        return new PlaceViewResult.Station(
+                stationLine.getStationName(),
+                stationLines.stream().map(CommercialAreaStationLineEntity::getLineName).toList()
         );
     }
 

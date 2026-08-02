@@ -2,6 +2,7 @@ package com.moyeo.commercial;
 
 import com.moyeo.domain.commercial.CommercialAreaSource;
 import com.moyeo.repository.commercial.CommercialAreaRepository;
+import com.moyeo.repository.commercial.CommercialAreaStationLineRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,9 +23,15 @@ class DevCommercialAreaDataInitializerTest {
     @Autowired
     private CommercialAreaRepository commercialAreaRepository;
 
+    @Autowired
+    private CommercialAreaStationLineRepository commercialAreaStationLineRepository;
+
     @Test
     void devProfileLoadsTheConfirmedSeoulCommercialAreaSeed() {
         assertThat(commercialAreaRepository.countBySource(CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS))
                 .isEqualTo(255);
+        assertThat(commercialAreaStationLineRepository.countByCommercialArea_Source(
+                CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS
+        )).isEqualTo(242);
     }
 }

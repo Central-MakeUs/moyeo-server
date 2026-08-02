@@ -288,6 +288,15 @@ general best practice into domain policy.
   tourist-special areas. Each source record is imported once with its WGS84
   center coordinate; a later regional source uses the same table with its own
   source identifier and source-owned area code.
+- Seoul commercial-area subway labels use the separately persisted
+  `commercial_area_station_lines` mapping. A commercial area may expose multiple
+  rows for transfer lines. The mapping stores Kakao SW8-verified station name,
+  line name, station coordinate, and straight-line distance from the commercial
+  area center; it is static seed data and does not represent actual travel time.
+- VIEW-01-B returns static subway data for each recommendation as `station`.
+  It contains only the mapped station `name` and its `lineNames[]`; the value is
+  `null` when the commercial area has no persisted station-line mapping. It does
+  not expose the mapping distance or station coordinates.
 - The `RANDOM` place recommendation strategy shuffles the persistent
   commercial-area catalog for each view request before selecting up to five
   candidates.

@@ -105,14 +105,24 @@ Finalize decision
 - Before deploying persistent commercial-area recommendations to an existing
   production database, back up the target database and apply
   `scripts/db/2026-07-27-commercial-areas.sql`, then
-  `scripts/db/2026-07-27-commercial-areas-seoul.sql`.
+  `scripts/db/2026-07-27-commercial-areas-seoul.sql`. Apply the verified
+  Seoul station-line mapping immediately after those scripts through
+  `scripts/db/2026-08-02-commercial-area-station-lines.sql`, then
+  `scripts/db/2026-08-02-commercial-area-station-lines-seoul.sql`. A database
+  client that cannot run MySQL CLI `SOURCE` commands may execute the combined
+  `scripts/db/2026-08-02-commercial-area-station-lines-all.sql` instead.
 - The local and dev profiles load the same 255 Seoul commercial-area seed from
-  `src/main/resources/commercial-areas-seoul.tsv` after Hibernate creates or
-  updates the schema. If the Seoul source has a partial row count, startup
-  fails instead of serving incomplete recommendations. Production keeps the
-  explicit SQL-apply procedure above. When the source dataset changes,
-  regenerate the production SQL and local/dev TSV together:
+  `src/main/resources/commercial-areas-seoul.tsv` and 242 verified station-line
+  rows from `src/main/resources/commercial-area-station-lines-seoul.tsv` after
+  Hibernate creates or updates the schema. If either Seoul source has a partial
+  row count, startup fails instead of serving incomplete recommendations.
+  Production keeps the explicit SQL-apply procedure above. When the commercial
+  area source dataset changes, regenerate the production SQL and local/dev TSV
+  together:
   `python scripts/import-commercial-areas.py <source.dbf> scripts/db/2026-07-27-commercial-areas-seoul.sql src/main/resources/commercial-areas-seoul.tsv`.
+- When the verified station-line mapping changes, regenerate its production SQL
+  and local/dev TSV together from the checked-in verification source:
+  `python scripts/import-commercial-area-station-lines.py docs/data/commercial-area-station-api-verification.csv scripts/db/2026-08-02-commercial-area-station-lines-seoul.sql src/main/resources/commercial-area-station-lines-seoul.tsv`.
 - Actual-time place reranking uses `KAKAO_ROUTE_REST_API_KEY` (falling back to
   `KAKAO_LOCAL_REST_API_KEY`) for Kakao Map public-transit and Kakao Mobility
   driving directions. Keep this key only in the runtime environment. The

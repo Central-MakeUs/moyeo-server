@@ -120,7 +120,10 @@ public record PlaceViewResponse(
             String dongName,
 
             @Schema(description = "참여자 출발지에서 상권까지의 평균 직선거리 미터. 랜덤 추천이면 null입니다.", example = "3200")
-            Long averageStraightDistanceMeters
+            Long averageStraightDistanceMeters,
+
+            @Schema(description = "상권과 매핑된 지하철역 정보입니다. 매핑이 없으면 null이며, 거리·좌표는 노출하지 않습니다.")
+            StationResponse station
     ) {
 
         private static RecommendationResponse from(PlaceViewResult.Recommendation recommendation) {
@@ -133,8 +136,26 @@ public record PlaceViewResponse(
                     recommendation.longitude(),
                     recommendation.guName(),
                     recommendation.dongName(),
-                    recommendation.averageStraightDistanceMeters()
+                    recommendation.averageStraightDistanceMeters(),
+                    StationResponse.from(recommendation.station())
             );
+        }
+    }
+
+    @Schema(description = "상권과 매핑된 지하철역과 호선")
+    public record StationResponse(
+            @Schema(description = "지하철역명", example = "강남역")
+            String name,
+
+            @Schema(description = "해당 역의 호선명 목록", example = "[\"2호선\", \"신분당선\"]")
+            List<String> lineNames
+    ) {
+
+        private static StationResponse from(PlaceViewResult.Station station) {
+            if (station == null) {
+                return null;
+            }
+            return new StationResponse(station.name(), station.lineNames());
         }
     }
 }

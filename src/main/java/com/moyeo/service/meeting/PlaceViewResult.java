@@ -39,7 +39,14 @@ public record PlaceViewResult(
             BigDecimal longitude,
             String guName,
             String dongName,
-            Long averageStraightDistanceMeters
+            Long averageStraightDistanceMeters,
+            Station station
+        ) {
+    }
+
+    public record Station(
+            String name,
+            List<String> lineNames
     ) {
     }
 }
