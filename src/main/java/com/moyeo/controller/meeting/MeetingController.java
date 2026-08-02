@@ -921,7 +921,47 @@ public class MeetingController {
                     """
     )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "초대 코드 모임 조회 성공"),
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "초대 코드 모임 조회 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = MeetingInvitationResponse.class),
+                            examples = @ExampleObject(
+                                    name = "DATE_AND_TIME",
+                                    description = "참여자가 날짜별 공통 시간 범위 안에서 가능한 시간을 선택하는 모임입니다.",
+                                    value = """
+                                            {
+                                              "meetingId": 152,
+                                              "name": "일정 조율",
+                                              "description": "일정을 조율합니다.",
+                                              "coverImageUrl": null,
+                                              "maxParticipants": 6,
+                                              "planningType": "SCHEDULE_ONLY",
+                                              "scheduleMode": "VOTE",
+                                              "scheduleInputType": "DATE_AND_TIME",
+                                              "scheduleCandidateDates": [
+                                                {
+                                                  "candidateDate": "2026-08-02",
+                                                  "availableStartTime": "06:00:00",
+                                                  "availableEndTime": "12:00:00"
+                                                }
+                                              ],
+                                              "placeMode": "NONE",
+                                              "placeRecommendationStrategy": null,
+                                              "deadlineAt": "2026-08-03T07:42:11",
+                                              "participantCount": 1,
+                                              "hostNickname": "모모링",
+                                              "participationStatus": {
+                                                "canJoin": true,
+                                                "reason": "AVAILABLE",
+                                                "message": null
+                                              }
+                                            }
+                                            """
+                            )
+                    )
+            ),
             @ApiResponse(
                     responseCode = "404",
                     description = "초대 코드에 해당하는 모임 없음",

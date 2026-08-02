@@ -56,14 +56,11 @@ public record MeetingInvitationResponse(
         @Schema(description = "일정 참여 입력 유형입니다.", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
         String scheduleInputType,
 
-        @Schema(description = "일정 후보 날짜 목록. scheduleMode=VOTE일 때 사용하며, scheduleMode=NONE이면 빈 배열입니다.")
-        List<LocalDate> scheduleCandidateDates,
-
-        @Schema(description = "일정 조율 시작 시간. scheduleInputType=DATE_AND_TIME일 때만 값이 있습니다.", example = "18:00")
-        LocalTime availableStartTime,
-
-        @Schema(description = "일정 조율 종료 시간. scheduleInputType=DATE_AND_TIME일 때만 값이 있습니다.", example = "22:00")
-        LocalTime availableEndTime,
+        @Schema(
+                description = "일정 후보 목록입니다. DATE_AND_TIME이면 각 후보 날짜에 참여자가 선택할 수 있는 공통 시간 범위도 포함합니다. 일정 조율이 없으면 빈 배열입니다.",
+                example = "[{\"candidateDate\":\"2026-07-10\",\"availableStartTime\":\"18:00\",\"availableEndTime\":\"22:00\"}]"
+        )
+        List<ScheduleCandidateResponse> scheduleCandidateDates,
 
         @Schema(
                 description = """
@@ -103,10 +100,7 @@ public record MeetingInvitationResponse(
         String hostNickname,
 
         @Schema(description = "초대 링크 진입 시점의 참여 가능 상태. 참여하기 버튼 활성화와 안내 문구에 사용합니다.")
-        ParticipationStatusResponse participationStatus,
-
-        @Schema(description = "참여자가 선택할 수 있는 모임 공통 일정 범위입니다. 일정 조율이 없는 모임이면 null입니다.", nullable = true)
-        ScheduleResponse availableScheduleResponse
+        ParticipationStatusResponse participationStatus
 ) {
 
     public static MeetingInvitationResponse from(MeetingInvitationResult result) {
@@ -119,37 +113,28 @@ public record MeetingInvitationResponse(
                 result.planningType(),
                 result.scheduleMode(),
                 result.scheduleInputType(),
-                result.scheduleCandidateDates(),
-                result.availableStartTime(),
-                result.availableEndTime(),
+                result.scheduleCandidateDates().stream().map(ScheduleCandidateResponse::from).toList(),
                 result.placeMode(),
                 result.placeRecommendationStrategy(),
                 result.deadlineAt(),
                 result.participantCount(),
                 result.hostNickname(),
-                ParticipationStatusResponse.from(result.participationStatus()),
-                result.availableScheduleResponse() == null ? null : new ScheduleResponse(
-                        result.availableScheduleResponse().availableDates(),
-                        result.availableScheduleResponse().availableTimeRanges().stream()
-                                .map(slot -> new ScheduleAvailability(slot.candidateDate(), slot.startTime(), slot.endTime()))
-                                .toList()
-                )
+                ParticipationStatusResponse.from(result.participationStatus())
         );
     }
 
-    public record ScheduleResponse(
-            @Schema(description = "DATE_ONLY 모임에서 참여자가 선택할 수 있는 후보 날짜 목록입니다. 그 외에는 빈 배열입니다.")
-            List<LocalDate> availableDates,
-            @Schema(description = "DATE_AND_TIME 모임에서 참여자가 선택할 수 있는 날짜별 공통 시간 범위 목록입니다. 그 외에는 빈 배열입니다.")
-            List<ScheduleAvailability> availableTimeRanges
-    ) {
-    }
-
-    public record ScheduleAvailability(
+    public record ScheduleCandidateResponse(
             @Schema(description = "모임 후보 날짜", example = "2026-07-10") LocalDate candidateDate,
-            @Schema(description = "가능 시작 시간", example = "18:00") LocalTime startTime,
-            @Schema(description = "가능 종료 시간", example = "20:00") LocalTime endTime
+            @Schema(description = "참여자가 선택할 수 있는 시작 시간입니다. DATE_AND_TIME이 아니면 null입니다.", nullable = true, example = "18:00") LocalTime availableStartTime,
+            @Schema(description = "참여자가 선택할 수 있는 종료 시간입니다. DATE_AND_TIME이 아니면 null입니다.", nullable = true, example = "20:00") LocalTime availableEndTime
     ) {
+        private static ScheduleCandidateResponse from(MeetingInvitationResult.ScheduleCandidate candidate) {
+            return new ScheduleCandidateResponse(
+                    candidate.candidateDate(),
+                    candidate.availableStartTime(),
+                    candidate.availableEndTime()
+            );
+        }
     }
 
     @Schema(description = "초대 진입 참여 가능 상태")

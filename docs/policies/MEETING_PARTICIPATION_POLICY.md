@@ -192,11 +192,12 @@ general best practice into domain policy.
   valid Access JWT is sent, it additionally identifies whether that member has
   already joined, including before nickname onboarding is complete; an absent
   header keeps the existing public lookup behavior.
-- Invite-code lookup returns the meeting-owned schedule selection range for all
-  users. For `DATE_ONLY`, it returns candidate dates. For `DATE_AND_TIME`, it
-  returns the common available-time range for each candidate date. It returns
-  `null` for a meeting without schedule coordination; this range does not use
-  or expose any participant's saved schedule response.
+- Invite-code lookup returns `scheduleCandidateDates` as the meeting-owned
+  schedule selection list for all users. Each item always includes its candidate
+  date. For `DATE_AND_TIME`, each item also includes the common available-time
+  range; for `DATE_ONLY`, those time values are null. A meeting without schedule
+  coordination returns an empty list. This response does not use or expose any
+  participant's saved schedule response.
 - The entry response returns `ALREADY_JOINED` with `canJoin = false` for an
   already participating authenticated member. This status takes priority over
   deadline and participant-limit statuses. If the member has not joined and

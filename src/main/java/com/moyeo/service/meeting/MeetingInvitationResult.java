@@ -17,24 +17,20 @@ public record MeetingInvitationResult(
         String planningType,
         String scheduleMode,
         String scheduleInputType,
-        List<LocalDate> scheduleCandidateDates,
-        LocalTime availableStartTime,
-        LocalTime availableEndTime,
+        List<ScheduleCandidate> scheduleCandidateDates,
         String placeMode,
         String placeRecommendationStrategy,
         LocalDateTime deadlineAt,
         long participantCount,
         String hostNickname,
-        ParticipationStatus participationStatus,
-        ScheduleResponse availableScheduleResponse
+        ParticipationStatus participationStatus
 ) {
 
     public static MeetingInvitationResult from(
             Meeting meeting,
             long participantCount,
             List<MeetingScheduleCandidate> scheduleCandidates,
-            boolean alreadyJoined,
-            ScheduleResponse availableScheduleResponse
+            boolean alreadyJoined
     ) {
         ParticipationStatus participationStatus = ParticipationStatus.from(meeting, participantCount, alreadyJoined);
         return new MeetingInvitationResult(
@@ -46,29 +42,26 @@ public record MeetingInvitationResult(
                 meeting.getPlanningType().name(),
                 meeting.getScheduleMode().name(),
                 meeting.getScheduleInputType().name(),
-                scheduleCandidates.stream().map(MeetingScheduleCandidate::getCandidateDate).toList(),
-                meeting.getAvailableStartTime(),
-                meeting.getAvailableEndTime(),
+                scheduleCandidates.stream()
+                        .map(candidate -> new ScheduleCandidate(
+                                candidate.getCandidateDate(),
+                                meeting.getAvailableStartTime(),
+                                meeting.getAvailableEndTime()
+                        ))
+                        .toList(),
                 meeting.getPlaceMode().name(),
                 meeting.getPlaceRecommendationStrategy() != null ? meeting.getPlaceRecommendationStrategy().name() : null,
                 meeting.getDeadlineAt(),
                 participantCount,
                 meeting.getHostUser().getNickname(),
-                participationStatus,
-                availableScheduleResponse
+                participationStatus
         );
     }
 
-    public record ScheduleResponse(
-            List<LocalDate> availableDates,
-            List<ScheduleAvailability> availableTimeRanges
-    ) {
-    }
-
-    public record ScheduleAvailability(
+    public record ScheduleCandidate(
             LocalDate candidateDate,
-            LocalTime startTime,
-            LocalTime endTime
+            LocalTime availableStartTime,
+            LocalTime availableEndTime
     ) {
     }
 

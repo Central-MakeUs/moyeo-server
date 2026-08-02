@@ -353,40 +353,12 @@ public class MeetingService {
                 meeting,
                 participantCount,
                 scheduleCandidates,
-                alreadyJoined,
-                toAvailableScheduleResponse(meeting, scheduleCandidates)
+                alreadyJoined
         );
     }
 
     public Long validateInvitationExists(String inviteCode) {
         return findMeetingByInviteCode(inviteCode).getId();
-    }
-
-    private MeetingInvitationResult.ScheduleResponse toAvailableScheduleResponse(
-            Meeting meeting,
-            List<MeetingScheduleCandidate> scheduleCandidates
-    ) {
-        if (meeting.getScheduleInputType() == ScheduleInputType.NONE) {
-            return null;
-        }
-
-        return switch (meeting.getScheduleInputType()) {
-            case DATE_ONLY -> new MeetingInvitationResult.ScheduleResponse(
-                    scheduleCandidates.stream().map(MeetingScheduleCandidate::getCandidateDate).toList(),
-                    List.of()
-            );
-            case DATE_AND_TIME -> new MeetingInvitationResult.ScheduleResponse(
-                    List.of(),
-                    scheduleCandidates.stream()
-                            .map(candidate -> new MeetingInvitationResult.ScheduleAvailability(
-                                    candidate.getCandidateDate(),
-                                    meeting.getAvailableStartTime(),
-                                    meeting.getAvailableEndTime()
-                            ))
-                            .toList()
-            );
-            case NONE -> null;
-        };
     }
 
     public MeetingViewResult getMeetingView(String inviteCode) {
