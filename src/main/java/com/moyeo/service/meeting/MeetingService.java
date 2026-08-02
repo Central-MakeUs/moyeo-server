@@ -517,7 +517,7 @@ public class MeetingService {
                 meeting.getScheduleInputType().name(),
                 resolvedSort,
                 participantCount,
-                selectBestScheduleCandidates(availabilityBlocks, resolvedSort),
+                selectRecommendedScheduleCandidates(availabilityBlocks, resolvedSort),
                 availabilityBlocks.stream().map(this::toAvailabilityStatus).toList()
         );
     }
@@ -555,7 +555,7 @@ public class MeetingService {
                 meeting.getScheduleInputType().name(),
                 resolvedSort,
                 participantCount,
-                selectBestScheduleCandidates(availabilityBlocks, resolvedSort),
+                selectRecommendedScheduleCandidates(availabilityBlocks, resolvedSort),
                 availabilityBlocks.stream().map(this::toAvailabilityStatus).toList()
         );
     }
@@ -1093,21 +1093,16 @@ public class MeetingService {
         );
     }
 
-    private List<ScheduleViewResult.Candidate> selectBestScheduleCandidates(
+    private List<ScheduleViewResult.Candidate> selectRecommendedScheduleCandidates(
             List<ScheduleViewResult.Candidate> availabilityBlocks,
             String sort
     ) {
-        long maxAvailableParticipantCount = availabilityBlocks.stream()
-                .mapToLong(ScheduleViewResult.Candidate::availableParticipantCount)
-                .max()
-                .orElse(0L);
-        if (maxAvailableParticipantCount < 2) {
-            return List.of();
-        }
-
         return availabilityBlocks.stream()
-                .filter(candidate -> candidate.availableParticipantCount() == maxAvailableParticipantCount)
-                .sorted(scheduleCandidateComparator(sort))
+                .filter(candidate -> candidate.availableParticipantCount() >= 2)
+                .sorted(Comparator.comparing(
+                        ScheduleViewResult.Candidate::availableParticipantCount,
+                        Comparator.reverseOrder()
+                ).thenComparing(scheduleCandidateComparator(sort)))
                 .limit(5)
                 .toList();
     }

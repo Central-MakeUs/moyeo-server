@@ -2190,7 +2190,7 @@ class MeetingControllerTest {
     }
 
     @Test
-    void getScheduleViewReturnsAtMostFiveMaximumAvailabilityCandidates() throws Exception {
+    void getScheduleViewPrioritizesHigherAvailabilityAndLimitsCandidatesToFive() throws Exception {
         String hostToken = signupAndGetAccessToken("schedule-five-host", "schedule-five-host");
         List<LocalDate> candidateDates = List.of(
                 LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2), LocalDate.of(2026, 7, 3),
@@ -2212,11 +2212,24 @@ class MeetingControllerTest {
                         ))))
                 .andExpect(status().isCreated());
 
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", "fiveother",
+                                "password", "1234",
+                                "scheduleResponse", Map.of("availableDates", List.of("2026-07-01", "2026-07-02"))
+                        ))))
+                .andExpect(status().isCreated());
+
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.candidates.length()").value(5))
                 .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.candidates[4].candidateDate").value("2026-07-05"));
+                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3))
+                .andExpect(jsonPath("$.candidates[1].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.candidates[1].availableParticipantCount").value(3))
+                .andExpect(jsonPath("$.candidates[4].candidateDate").value("2026-07-05"))
+                .andExpect(jsonPath("$.candidates[4].availableParticipantCount").value(2));
     }
 
     @Test

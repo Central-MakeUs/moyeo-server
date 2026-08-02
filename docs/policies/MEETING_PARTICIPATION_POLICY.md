@@ -291,12 +291,12 @@ general best practice into domain policy.
   same available participant set. It returns every merged availability block with
   its available-participant count so the client can calculate the response-rate
   color from that count and the meeting participant count.
-- VIEW-01-A first finds the maximum simultaneous available-participant count. If
-  that maximum is below two, it returns no best-schedule candidates. Otherwise it
-  returns up to five candidates having that maximum: `LONGEST_MEETING` sorts by
-  duration descending then date/start time ascending, and `EARLIEST_DATE` sorts by
+- VIEW-01-A returns up to five schedule candidates with at least two simultaneous
+  available participants. It first sorts by available-participant count descending.
+  For candidates with the same count, `LONGEST_MEETING` sorts by duration
+  descending then date/start time ascending, and `EARLIEST_DATE` sorts by
   date/start time ascending. The default sort is `EARLIEST_DATE`.
-- Each best-schedule candidate includes the meeting-scoped participant IDs and
+- Each schedule candidate includes the meeting-scoped participant IDs and
   nicknames that are available for that candidate. VIEW-01 remains invite-link
   readable without login, so this candidate-specific availability list is also
   visible to an invite-link visitor.
