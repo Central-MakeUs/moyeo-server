@@ -12,6 +12,7 @@ import com.moyeo.domain.member.User;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
+import com.moyeo.repository.feedback.FeedbackRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
@@ -36,6 +37,7 @@ public class MemberWithdrawalService {
     private final UserRepository userRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final SavedPlaceRepository savedPlaceRepository;
+    private final FeedbackRepository feedbackRepository;
     private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
@@ -53,6 +55,7 @@ public class MemberWithdrawalService {
             UserRepository userRepository,
             SocialAccountRepository socialAccountRepository,
             SavedPlaceRepository savedPlaceRepository,
+            FeedbackRepository feedbackRepository,
             DeparturePlaceSearchRepository departurePlaceSearchRepository,
             MeetingRepository meetingRepository,
             MeetingParticipantRepository meetingParticipantRepository,
@@ -69,6 +72,7 @@ public class MemberWithdrawalService {
         this.userRepository = userRepository;
         this.socialAccountRepository = socialAccountRepository;
         this.savedPlaceRepository = savedPlaceRepository;
+        this.feedbackRepository = feedbackRepository;
         this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
@@ -182,6 +186,8 @@ public class MemberWithdrawalService {
         deleteSearchHistory(departurePlaceSearchRepository.findAllByUserId(userId));
         savedPlaceRepository.deleteAllByUserId(userId);
         savedPlaceRepository.flush();
+        feedbackRepository.deleteAllByUserId(userId);
+        feedbackRepository.flush();
         socialAccountRepository.deleteAllByUserId(userId);
         socialAccountRepository.flush();
     }

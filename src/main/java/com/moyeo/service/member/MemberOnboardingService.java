@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.User;
+import com.moyeo.domain.member.ProfileColor;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.UserRepository;
@@ -34,6 +35,14 @@ public class MemberOnboardingService {
         User user = userRepository.findActiveByIdForUpdate(userId)
                 .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
         user.changeNickname(nickname);
+        return AuthenticatedMember.from(user, false);
+    }
+
+    @Transactional
+    public AuthenticatedMember updateProfileColor(Long userId, ProfileColor profileColor) {
+        User user = userRepository.findActiveByIdForUpdate(userId)
+                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
+        user.changeProfileColor(profileColor);
         return AuthenticatedMember.from(user, false);
     }
 }

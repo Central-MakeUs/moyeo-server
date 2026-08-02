@@ -229,6 +229,49 @@ class AuthControllerTest {
     }
 
     @Test
+    void completedUserCanUpdateProfileColor() throws Exception {
+        String accessToken = testMemberFactory.createAccessToken("before");
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profile.type").value("COLOR"))
+                .andExpect(jsonPath("$.profile.color").value("GRAY"));
+
+        mockMvc.perform(patch("/api/users/me/profile-color")
+                        .header("Authorization", "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"color\":\"PURPLE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profile.type").value("COLOR"))
+                .andExpect(jsonPath("$.profile.color").value("PURPLE"));
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profile.color").value("PURPLE"));
+    }
+
+    @Test
+    void profileColorUpdateRequiresCompletedOnboardingAndAValidColor() throws Exception {
+        String pendingToken = testMemberFactory.createPendingAccessToken();
+        mockMvc.perform(patch("/api/users/me/profile-color")
+                        .header("Authorization", "Bearer " + pendingToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"color\":\"RED\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ONBOARDING_REQUIRED"));
+
+        String completedToken = testMemberFactory.createAccessToken("before");
+        mockMvc.perform(patch("/api/users/me/profile-color")
+                        .header("Authorization", "Bearer " + completedToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"color\":\"BLUE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_MALFORMED_REQUEST"));
+    }
+
+    @Test
     void pendingUserCanReadMeAndCompleteOnboardingIdempotently() throws Exception {
         String accessToken = testMemberFactory.createPendingAccessToken();
 
@@ -333,6 +376,10 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['401']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/onboarding']['put']['responses']['409']").exists())
+                .andExpect(jsonPath("$['paths']['/api/users/me/profile-color']['patch']['responses']['200']").exists())
+                .andExpect(jsonPath(
+                        "$['paths']['/api/users/me/profile-color']['patch']['responses']['403']['content']['application/problem+json']['example']['code']"
+                ).value("ONBOARDING_REQUIRED"))
                 .andExpect(jsonPath("$['paths']['/api/auth/signup']").doesNotExist())
                 .andExpect(jsonPath("$['paths']['/api/auth/login']").doesNotExist())
                 .andExpect(jsonPath(

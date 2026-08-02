@@ -2,6 +2,8 @@ package com.moyeo.domain.member;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -26,6 +28,11 @@ public class User {
     @Comment("사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료 또는 탈퇴 상태")
     private String nickname;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Comment("회원 기본 프로필 색상")
+    private ProfileColor profileColor;
+
     @Column(nullable = false)
     @Comment("사용자 생성 일시")
     private LocalDateTime createdAt;
@@ -42,6 +49,7 @@ public class User {
 
     public User(String nickname) {
         this.nickname = nickname;
+        this.profileColor = ProfileColor.GRAY;
     }
 
     public static User pendingOnboarding() {
@@ -70,6 +78,14 @@ public class User {
 
     public boolean isOnboardingCompleted() {
         return nickname != null;
+    }
+
+    public ProfileColor getProfileColor() {
+        return profileColor;
+    }
+
+    public void changeProfileColor(ProfileColor profileColor) {
+        this.profileColor = profileColor;
     }
 
     public void changeNickname(String nickname) {

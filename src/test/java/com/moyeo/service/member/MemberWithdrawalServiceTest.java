@@ -6,6 +6,7 @@ import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
+import com.moyeo.repository.feedback.FeedbackRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
@@ -45,6 +46,8 @@ class MemberWithdrawalServiceTest {
     @Mock
     private SavedPlaceRepository savedPlaceRepository;
     @Mock
+    private FeedbackRepository feedbackRepository;
+    @Mock
     private DeparturePlaceSearchRepository departurePlaceSearchRepository;
     @Mock
     private MeetingRepository meetingRepository;
@@ -77,6 +80,7 @@ class MemberWithdrawalServiceTest {
                 userRepository,
                 socialAccountRepository,
                 savedPlaceRepository,
+                feedbackRepository,
                 departurePlaceSearchRepository,
                 meetingRepository,
                 meetingParticipantRepository,
@@ -162,6 +166,23 @@ class MemberWithdrawalServiceTest {
 
         verifyNoInteractions(appleLoginService, kakaoLoginService);
         verify(userRepository).flush();
+    }
+
+    @Test
+    void withdrawalDeletesMembersFeedbackBeforeSocialAccountLink() {
+        User user = activeUser();
+        when(userRepository.findActiveByIdForUpdate(1L)).thenReturn(Optional.of(user));
+        when(socialAccountRepository.findAllByUserId(1L)).thenReturn(List.of());
+        when(exemption.appliesTo(user)).thenReturn(true);
+        when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
+        when(departurePlaceSearchRepository.findAllByUserId(1L)).thenReturn(List.of());
+
+        memberWithdrawalService.withdraw(1L);
+
+        InOrder order = inOrder(feedbackRepository, socialAccountRepository);
+        order.verify(feedbackRepository).deleteAllByUserId(1L);
+        order.verify(feedbackRepository).flush();
+        order.verify(socialAccountRepository).deleteAllByUserId(1L);
     }
 
     @Test

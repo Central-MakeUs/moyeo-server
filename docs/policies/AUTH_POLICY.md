@@ -101,8 +101,15 @@ entry.
 - `PATCH /api/users/me/nickname` changes the completed user's default nickname
   using the same validation rule. It does not change existing meeting-scoped
   host/member participant nicknames.
-- TODO(POLICY_UNDEFINED): Decide whether service users can select or upload a
-  profile image. The current User model and APIs have no profile-image field.
+- Members may select one built-in profile color: `GRAY`, `RED`, `PURPLE`, or
+  `ORANGE`. New users default to `GRAY`.
+- `PATCH /api/users/me/profile-color` changes a completed member's selected
+  color. The request and response use the enum value, not an arbitrary CSS
+  color value.
+- Authentication and current-user responses expose the profile as
+  `{ "type": "COLOR", "color": "..." }`. Image uploads are not supported in
+  the current MVP; a future image profile may extend this object without
+  changing the color profile contract.
 
 ## Access JWT
 
@@ -168,9 +175,10 @@ AUTH-005: An authenticated service user may withdraw through
   service-level nickname. Keep the `User` row only because participation records
   in meetings hosted by other users must retain a stable withdrawn-user
   reference.
-- Remove the user's social-account links, saved places, and member departure
-  place search history. Removing the social-account link allows a later social
-  login with the same provider identity to register a new service user.
+- Remove the user's social-account links, saved places, submitted feedback, and
+  member departure place search history. Removing the social-account link
+  allows a later social login with the same provider identity to register a new
+  service user.
 - Serialize withdrawal with meeting creation, member meeting join/leave,
   authenticated host/member participation-response updates, meeting-scoped
   nickname updates, host meeting deletion, saved-place

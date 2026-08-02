@@ -11,11 +11,16 @@ public record AuthUserResponse(
         @Schema(description = "사용자 기본 닉네임. 최초 소셜 가입 후 온보딩 전에는 null입니다.", example = "moyeo1", nullable = true)
         String nickname,
 
+        @Schema(description = "회원 프로필 표시 정보")
+        ProfileResponse profile,
+
         @Schema(description = "닉네임 등록을 완료했는지 여부", example = "true")
         boolean onboardingCompleted
 ) {
 
     public static AuthUserResponse from(AuthenticatedMember member) {
-        return new AuthUserResponse(member.userId(), member.nickname(), member.onboardingCompleted());
+        return new AuthUserResponse(
+                member.userId(), member.nickname(), ProfileResponse.color(member.profileColor()), member.onboardingCompleted()
+        );
     }
 }

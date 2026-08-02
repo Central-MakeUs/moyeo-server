@@ -60,6 +60,12 @@ Finalize decision
 
 ## Tech Decisions
 
+### Temporary MVP Feedback Limit
+
+- Feedback content is limited to 1,000 characters per submission during the
+  MVP. This is a temporary product limit and must be re-evaluated after MVP
+  feedback; it is not a permanent content-size policy.
+
 ### Java 21
 
 - Use an LTS release for stability and long-term maintainability in a new
@@ -102,6 +108,11 @@ Finalize decision
   `scripts/db/2026-07-27-meeting-deadline-nullable.sql` so
   `meetings.deadline_at` accepts null for meetings without a participation
   deadline.
+- Before deploying member profile-color selection to an existing production
+  database, back up the target database and apply
+  `scripts/db/2026-08-02-user-profile-color.sql`.
+- Before deploying member feedback to an existing production database, back up
+  the target database and apply `scripts/db/2026-08-02-feedbacks.sql`.
 - Before deploying persistent commercial-area recommendations to an existing
   production database, back up the target database and apply
   `scripts/db/2026-07-27-commercial-areas.sql`, then

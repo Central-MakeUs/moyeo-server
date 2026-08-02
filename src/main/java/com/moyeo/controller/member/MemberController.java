@@ -96,6 +96,31 @@ public class MemberController {
         return AuthUserResponse.from(memberOnboardingService.updateNickname(member.userId(), request.nickname()));
     }
 
+    @PatchMapping("/profile-color")
+    @Operation(
+            summary = "기본 프로필 색상 수정",
+            description = "현재 회원의 기본 프로필 색상을 GRAY, RED, PURPLE, ORANGE 중 하나로 변경합니다. 현재는 색상 프로필만 지원합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "기본 프로필 색상 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "지원하지 않는 색상 또는 요청 본문 오류"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "최초 닉네임 온보딩이 완료되지 않은 사용자입니다.",
+                    content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                            { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                            """))
+            )
+    })
+    public AuthUserResponse updateProfileColor(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @Valid @RequestBody UpdateProfileColorRequest request
+    ) {
+        return AuthUserResponse.from(memberOnboardingService.updateProfileColor(member.userId(), request.color()));
+    }
+
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(

@@ -7,6 +7,7 @@
 
 ```dbml
 Table users {
+  profile_color varchar(20) [not null, note: "회원 기본 프로필 색상: GRAY/RED/PURPLE/ORANGE"]
   id bigint [pk, increment, note: "서비스 사용자 ID"]
   nickname varchar(30) [note: "사용자 기본 닉네임. null이면 소셜 가입 후 온보딩 미완료 또는 탈퇴 상태"]
   created_at datetime [not null, note: "사용자 생성 일시"]
@@ -45,6 +46,17 @@ Table saved_places {
 
   indexes {
     (user_id, created_at, id) [name: "idx_saved_places_user_created"]
+  }
+}
+
+Table feedbacks {
+  id bigint [pk, increment, note: "피드백 ID"]
+  user_id bigint [not null, note: "피드백을 제출한 서비스 사용자 ID"]
+  content varchar(1000) [not null, note: "사용자가 제출한 피드백 내용. 1,000자는 임시 MVP 제한"]
+  created_at datetime [not null, note: "피드백 제출 일시"]
+
+  indexes {
+    (user_id, created_at, id) [name: "idx_feedbacks_user_created"]
   }
 }
 
@@ -233,6 +245,7 @@ Table departure_place_search_candidates {
 
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
 Ref fk_saved_places_user: saved_places.user_id > users.id
+Ref fk_feedbacks_user: feedbacks.user_id > users.id
 Ref fk_commercial_area_station_lines_area: commercial_area_station_lines.commercial_area_id > commercial_areas.id
 Ref fk_meetings_host_user: meetings.host_user_id > users.id
 Ref fk_meeting_schedule_candidates_meeting: meeting_schedule_candidates.meeting_id > meetings.id
@@ -267,6 +280,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
+- `feedbacks` stores authenticated members' submitted feedback with the submitting user, content, and submission time. Members can retrieve only their own history; feedback is deleted when its submitting member withdraws; no operator-facing feedback API is defined yet.
 - `commercial_areas` stores source-owned recommendation candidates independently from meetings. The initial seed contains only Seoul development areas and tourist-special areas from `SEOUL_COMMERCIAL_ANALYSIS`; later regional sources can use the same table through a different `source` value and source-owned code.
 - `commercial_areas.latitude` and `commercial_areas.longitude` are WGS84 center coordinates converted once during import from the source coordinate system, so route-provider calls do not transform coordinates at request time.
 - `commercial_area_station_lines` stores the verified Seoul subway station and line rows for a commercial area. One commercial area may have multiple rows for transfer lines; `distance_meters` is the straight-line distance between the commercial-area center and the station coordinate, not travel time.
