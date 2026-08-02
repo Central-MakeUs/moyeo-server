@@ -719,6 +719,7 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.scheduleCandidateDates").isEmpty())
                 .andExpect(jsonPath("$.availableStartTime").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.availableEndTime").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.availableScheduleResponse").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
                 .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"));
     }
@@ -862,6 +863,11 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
                 .andExpect(jsonPath("$.participationStatus.reason").value("ALREADY_JOINED"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableDates").isEmpty())
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[0].startTime").value("09:00:00"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[0].endTime").value("18:00:00"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[1].candidateDate").value("2026-07-02"))
                 .andExpect(jsonPath("$.participationStatus.message").value("이미 참여 중인 모임이에요."));
     }
 
@@ -902,6 +908,34 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(true))
                 .andExpect(jsonPath("$.participationStatus.reason").value("AVAILABLE"));
+    }
+
+    @Test
+    void getInvitationReturnsAvailableScheduleResponseForUnauthenticatedAndNonParticipatingUsers() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-schedule-host", "schedule-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        String otherToken = signupAndGetAccessToken("invitation-schedule-other", "schedule-other");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"));
+    }
+
+    @Test
+    void getInvitationReturnsDateOnlyAvailableScheduleResponse() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-date-only-host", "date-only-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, dateOnlyCreateMeetingRequest());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableScheduleResponse.availableDates[0]").value("2026-07-01"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableDates[1]").value("2026-07-02"))
+                .andExpect(jsonPath("$.availableScheduleResponse.availableTimeRanges").isEmpty());
     }
 
     @Test

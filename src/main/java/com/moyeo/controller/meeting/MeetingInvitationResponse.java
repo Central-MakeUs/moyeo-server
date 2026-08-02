@@ -103,7 +103,10 @@ public record MeetingInvitationResponse(
         String hostNickname,
 
         @Schema(description = "초대 링크 진입 시점의 참여 가능 상태. 참여하기 버튼 활성화와 안내 문구에 사용합니다.")
-        ParticipationStatusResponse participationStatus
+        ParticipationStatusResponse participationStatus,
+
+        @Schema(description = "참여자가 선택할 수 있는 모임 공통 일정 범위입니다. 일정 조율이 없는 모임이면 null입니다.", nullable = true)
+        ScheduleResponse availableScheduleResponse
 ) {
 
     public static MeetingInvitationResponse from(MeetingInvitationResult result) {
@@ -124,8 +127,29 @@ public record MeetingInvitationResponse(
                 result.deadlineAt(),
                 result.participantCount(),
                 result.hostNickname(),
-                ParticipationStatusResponse.from(result.participationStatus())
+                ParticipationStatusResponse.from(result.participationStatus()),
+                result.availableScheduleResponse() == null ? null : new ScheduleResponse(
+                        result.availableScheduleResponse().availableDates(),
+                        result.availableScheduleResponse().availableTimeRanges().stream()
+                                .map(slot -> new ScheduleAvailability(slot.candidateDate(), slot.startTime(), slot.endTime()))
+                                .toList()
+                )
         );
+    }
+
+    public record ScheduleResponse(
+            @Schema(description = "DATE_ONLY 모임에서 참여자가 선택할 수 있는 후보 날짜 목록입니다. 그 외에는 빈 배열입니다.")
+            List<LocalDate> availableDates,
+            @Schema(description = "DATE_AND_TIME 모임에서 참여자가 선택할 수 있는 날짜별 공통 시간 범위 목록입니다. 그 외에는 빈 배열입니다.")
+            List<ScheduleAvailability> availableTimeRanges
+    ) {
+    }
+
+    public record ScheduleAvailability(
+            @Schema(description = "모임 후보 날짜", example = "2026-07-10") LocalDate candidateDate,
+            @Schema(description = "가능 시작 시간", example = "18:00") LocalTime startTime,
+            @Schema(description = "가능 종료 시간", example = "20:00") LocalTime endTime
+    ) {
     }
 
     @Schema(description = "초대 진입 참여 가능 상태")

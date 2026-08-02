@@ -25,14 +25,16 @@ public record MeetingInvitationResult(
         LocalDateTime deadlineAt,
         long participantCount,
         String hostNickname,
-        ParticipationStatus participationStatus
+        ParticipationStatus participationStatus,
+        ScheduleResponse availableScheduleResponse
 ) {
 
     public static MeetingInvitationResult from(
             Meeting meeting,
             long participantCount,
             List<MeetingScheduleCandidate> scheduleCandidates,
-            boolean alreadyJoined
+            boolean alreadyJoined,
+            ScheduleResponse availableScheduleResponse
     ) {
         ParticipationStatus participationStatus = ParticipationStatus.from(meeting, participantCount, alreadyJoined);
         return new MeetingInvitationResult(
@@ -52,8 +54,22 @@ public record MeetingInvitationResult(
                 meeting.getDeadlineAt(),
                 participantCount,
                 meeting.getHostUser().getNickname(),
-                participationStatus
+                participationStatus,
+                availableScheduleResponse
         );
+    }
+
+    public record ScheduleResponse(
+            List<LocalDate> availableDates,
+            List<ScheduleAvailability> availableTimeRanges
+    ) {
+    }
+
+    public record ScheduleAvailability(
+            LocalDate candidateDate,
+            LocalTime startTime,
+            LocalTime endTime
+    ) {
     }
 
     public record ParticipationStatus(
