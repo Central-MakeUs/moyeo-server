@@ -113,6 +113,11 @@ entry.
 - Keep the current JWT implementation minimal: no refresh token, logout, or
   token rotation.
 - Guest meeting participation does not issue an Access JWT or a guest JWT.
+- Until guest re-entry authentication is defined, guest leave is an explicit MVP
+  exception: `DELETE /api/meetings/invitations/{inviteCode}/guests/{nickname}`
+  identifies the guest by the invite code and guest nickname without a password
+  or token. Anyone with the invite code can request removal of a named guest;
+  replace this with guest-bound authentication when the policy is expanded.
 - Store real JWT secrets through environment variables in dev/prod.
 - The unified departure place search API accepts either a valid Access JWT or,
   only when the `Authorization` header is absent, a valid meeting invite code.

@@ -1670,6 +1670,58 @@ class MeetingControllerTest {
     }
 
     @Test
+    void guestLeaveShrinksFullMeetingAndRegeneratesActualTimeRecommendationSnapshot() throws Exception {
+        String hostToken = signupAndGetAccessToken("guest-snapshot-leave-host", "guest-snapshot-leave-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        String guestNickname = normalizeGuestNickname("guest-snapshot-leave");
+        joinGuest(inviteCode, guestNickname);
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenReturn(1_200L);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3L);
+
+        mockMvc.perform(delete("/api/meetings/invitations/{inviteCode}/guests/{nickname}", inviteCode, guestNickname))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(1);
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isZero();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
+        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void guestLeaveDoesNotRemoveHostWithSameNickname() throws Exception {
+        String hostToken = signupAndGetAccessToken("guest-leave-same-name-host", "sameguest");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(3));
+        Long meetingId = getMeetingId(inviteCode);
+        joinGuest(inviteCode, "sameguest");
+
+        mockMvc.perform(delete("/api/meetings/invitations/{inviteCode}/guests/{nickname}", inviteCode, "sameguest"))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantCount").value(1))
+                .andExpect(jsonPath("$.participants[0].participantType").value("HOST"));
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(2);
+    }
+
+    @Test
     void memberLeavingConfirmedDateOnlyMeetingDeletesDateAvailability() throws Exception {
         String hostToken = signupAndGetAccessToken("date-only-leave-host", "date-host");
         String memberToken = signupAndGetAccessToken("date-only-leave-member", "date-member");

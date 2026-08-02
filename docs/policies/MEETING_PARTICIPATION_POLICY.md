@@ -164,8 +164,16 @@ general best practice into domain policy.
   down to a minimum of one; the departure does not create a joinable vacancy.
   When the meeting was at capacity, delete any actual-travel-time recommendation
   snapshot in the same transaction. A host cannot leave and must delete the
-  hosted meeting instead. Guest leave remains deferred until guest re-entry
-  authentication is defined.
+  hosted meeting instead.
+- A `GUEST` may leave through
+  `DELETE /api/meetings/invitations/{inviteCode}/guests/{nickname}` regardless
+  of meeting status. This temporary MVP flow identifies only a GUEST participant
+  by invite code and nickname, without the join password or a token; therefore,
+  anyone who knows the invite code can remove a named guest. Hard-delete the
+  guest's participant row, meeting-scoped nickname, schedule responses, and
+  departure snapshot, then decrease `maxParticipants` by one down to a minimum
+  of one. When the meeting was at capacity, delete any actual-travel-time
+  recommendation snapshot in the same transaction.
 - A `HOST` or `MEMBER` may change only their own meeting-scoped nickname using
   the same Korean/English 2-10-character rule as join. This does not change the
   user's default nickname. Nickname duplication remains prohibited only between

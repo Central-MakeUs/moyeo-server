@@ -965,6 +965,34 @@ public class MeetingController {
         return MeetingViewResponse.from(meetingService.getMeetingView(inviteCode));
     }
 
+    @DeleteMapping("/invitations/{inviteCode}/guests/{nickname}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(
+            summary = "게스트 모임 나가기",
+            description = """
+                    게스트 닉네임으로 해당 모임의 GUEST 참여를 취소합니다. 비밀번호나 Access JWT는 다시 입력하지 않습니다.<br>
+                    현재 MVP 임시 정책으로, 초대 코드를 아는 사람은 해당 모임의 게스트 닉네임을 지정해 나가기 요청을 할 수 있습니다.
+                    참여자 행과 일정 응답·출발지 정보는 hard delete되며, 최대 참여 인원도 함께 하나 감소합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "게스트 모임 나가기 성공"),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 게스트 참여 정보 없음", content = @Content(mediaType = "application/problem+json", examples = {
+                    @ExampleObject(name = "MEETING_INVITATION_NOT_FOUND", value = """
+                            { "code": "MEETING_INVITATION_NOT_FOUND", "status": 404 }
+                            """),
+                    @ExampleObject(name = "MEETING_PARTICIPANT_NOT_FOUND", value = """
+                            { "code": "MEETING_PARTICIPANT_NOT_FOUND", "status": 404 }
+                            """)
+            }))
+    })
+    public void leaveGuest(
+            @PathVariable String inviteCode,
+            @PathVariable String nickname
+    ) {
+        meetingService.leaveGuest(inviteCode, nickname);
+    }
+
     @GetMapping("/invitations/{inviteCode}/view/schedules")
     @Operation(
             summary = "일정 조율 현황 조회",

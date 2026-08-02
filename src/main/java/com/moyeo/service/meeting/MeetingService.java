@@ -228,7 +228,21 @@ public class MeetingService {
         if (participant.getParticipantType() != ParticipantType.MEMBER) {
             throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_LEAVE_FORBIDDEN);
         }
-        removeMemberParticipant(meeting, participant);
+        removeParticipantAndShrinkCapacity(meeting, participant);
+    }
+
+    @Transactional
+    public void leaveGuest(String inviteCode, String nickname) {
+        Meeting meeting = meetingRepository.findByInviteCodeForUpdate(inviteCode)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_INVITATION_NOT_FOUND));
+        MeetingParticipant participant = meetingParticipantRepository
+                .findByMeetingIdAndNicknameAndParticipantType(
+                        meeting.getId(),
+                        normalizeRequired(nickname),
+                        ParticipantType.GUEST
+                )
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+        removeParticipantAndShrinkCapacity(meeting, participant);
     }
 
     @Transactional
@@ -283,7 +297,7 @@ public class MeetingService {
         }
     }
 
-    private void removeMemberParticipant(Meeting meeting, MeetingParticipant participant) {
+    private void removeParticipantAndShrinkCapacity(Meeting meeting, MeetingParticipant participant) {
         if (meetingParticipantRepository.countByMeetingId(meeting.getId()) == meeting.getMaxParticipants()) {
             deletePlaceRecommendationSnapshots(meeting.getId());
         }

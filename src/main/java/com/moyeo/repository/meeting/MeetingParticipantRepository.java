@@ -31,6 +31,12 @@ public interface MeetingParticipantRepository extends JpaRepository<MeetingParti
 
     Optional<MeetingParticipant> findByMeetingIdAndUserId(Long meetingId, Long userId);
 
+    Optional<MeetingParticipant> findByMeetingIdAndNicknameAndParticipantType(
+            Long meetingId,
+            String nickname,
+            ParticipantType participantType
+    );
+
     @Query("""
             select participant from MeetingParticipant participant
             join fetch participant.meeting meeting
