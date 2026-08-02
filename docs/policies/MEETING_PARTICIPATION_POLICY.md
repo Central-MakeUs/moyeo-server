@@ -289,8 +289,10 @@ general best practice into domain policy.
   visible to an invite-link visitor.
 - VIEW-01-A accepts only `LONGEST_MEETING` and `EARLIEST_DATE` as the schedule
   sorting value. Unsupported values return the common invalid-request error.
-- VIEW-01-B place recommendations before final confirmation do not call
-  external travel-time APIs.
+- VIEW-01-B place recommendations before final confirmation use the straight-line
+  preview until capacity is reached. Once capacity is reached, only the first
+  place-view request calls the external travel-time API to create the stored
+  actual-time snapshot.
 - Before final confirmation, middle-point place recommendation is a preview
   based on saved participant departure snapshots. For each commercial area,
   multiply straight-line distance by the participant transportation weight
@@ -315,24 +317,23 @@ general best practice into domain policy.
 - The `RANDOM` place recommendation strategy shuffles the persistent
   commercial-area catalog for each view request before selecting up to five
   candidates.
-- Actual travel-time based reranking and final place result storage should be
-  handled through the host-only actual-time calculation endpoint, not on every
-  pre-confirmation status view request. It calls Kakao only for the preliminary
-  candidates (default three), requires every current participant departure and
-  transportation mode, and returns the default top three by the lowest actual
-  travel-time average plus maximum. A Kakao failure fails the entire calculation;
-  it never mixes partial results. Calculation results are not persisted and are
-  distinct from the later host final-confirmation and history flow.
-- Confirmed follow-up policy: when the active participant count reaches the
-  meeting capacity, automatically recalculate the actual-travel-time
-  recommendations from the completed participant departures. The current MVP
-  implementation remains the host's manual calculation endpoint until this
-  automatic trigger is implemented.
+- When the active participant count reaches the meeting capacity, the first
+  `GET /api/meetings/invitations/{inviteCode}/view/places` request calculates
+  actual travel times for the preliminary candidates through Kakao. It waits for
+  the calculation, ranks up to three recommendations by travel-time average plus
+  maximum, and stores that first result as the meeting's recommendation snapshot.
+  Later place-view requests return the stored snapshot without calling Kakao.
+- A full-meeting actual-time snapshot includes each recommendation's average and
+  maximum travel time in seconds. Before capacity is reached, the same endpoint
+  returns the straight-line preview and both actual-time fields are null.
+- Every active participant must have a departure coordinate and transportation
+  mode before the actual-time snapshot is created. A Kakao failure fails the
+  first view request; no partial or incomplete snapshot is stored.
 - Confirmed policy: preliminary place recommendations remain visible and are
   recalculated from the current departure snapshots while the meeting is open.
   Actual-travel-time calculation may run only after every active participant
-  has completed the required departure input; the current manual endpoint
-  already enforces this condition.
+  has completed the required departure input; the full-meeting first place-view
+  request enforces this condition.
 - `POLICY_UNDEFINED`: when the deadline arrives before the meeting reaches its
   capacity, show a deadline-extension popup. Define the extension authority,
   selectable duration, decline/close behavior, and the resulting

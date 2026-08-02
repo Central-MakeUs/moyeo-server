@@ -126,8 +126,11 @@ Finalize decision
 - Actual-time place reranking uses `KAKAO_ROUTE_REST_API_KEY` (falling back to
   `KAKAO_LOCAL_REST_API_KEY`) for Kakao Map public-transit and Kakao Mobility
   driving directions. Keep this key only in the runtime environment. The
-  preliminary candidate count (1 to 3), returned recommendation count, and
-  cooldown are configurable through `MEETING_ACTUAL_ROUTE_*` environment values.
+  preliminary candidate count (1 to 3) and returned recommendation count are
+  configurable through `MEETING_ACTUAL_ROUTE_*` environment values.
+- Before deploying full-meeting actual-time place recommendations to production,
+  back up the target database and apply
+  `scripts/db/2026-08-02-meeting-place-recommendation-snapshots.sql`.
 - Account withdrawal, cover replacement, and cover deletion store their cleanup
   tasks in the same database transaction as the local change, so a process
   restart cannot lose the object key after commit. A transaction-rollback

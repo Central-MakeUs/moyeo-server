@@ -141,6 +141,26 @@ Table meeting_schedule_candidates {
   }
 }
 
+Table meeting_place_recommendation_snapshots {
+  id bigint [pk, increment, note: "Full-meeting first actual-travel-time recommendation snapshot ID"]
+  meeting_id bigint [not null, note: "Meeting that owns the snapshot"]
+  rank int [not null, note: "Recommendation order starting at 1"]
+  area_code varchar(30) [not null, note: "Commercial area source code snapshot"]
+  area_name varchar(255) [not null, note: "Commercial area name snapshot"]
+  category_name varchar(30) [not null, note: "Commercial area category snapshot"]
+  latitude decimal(10,7) [not null, note: "Commercial area latitude snapshot"]
+  longitude decimal(10,7) [not null, note: "Commercial area longitude snapshot"]
+  gu_name varchar(40) [note: "District name snapshot"]
+  dong_name varchar(40) [note: "Administrative dong name snapshot"]
+  average_straight_distance_meters bigint [note: "Preliminary average straight-line distance"]
+  average_travel_time_seconds bigint [not null, note: "Average actual travel time"]
+  max_travel_time_seconds bigint [not null, note: "Maximum actual travel time"]
+
+  indexes {
+    (meeting_id, rank) [unique, name: "uk_meeting_place_recommendation_snapshots_meeting_rank"]
+  }
+}
+
 Table meeting_participant_schedule_availabilities {
   id bigint [pk, increment, note: "참여자 일정 가능 시간 ID"]
   participant_id bigint [not null, note: "일정 가능 시간을 입력한 참여자 ID"]
@@ -216,6 +236,7 @@ Ref fk_saved_places_user: saved_places.user_id > users.id
 Ref fk_commercial_area_station_lines_area: commercial_area_station_lines.commercial_area_id > commercial_areas.id
 Ref fk_meetings_host_user: meetings.host_user_id > users.id
 Ref fk_meeting_schedule_candidates_meeting: meeting_schedule_candidates.meeting_id > meetings.id
+Ref fk_meeting_place_recommendation_snapshots_meeting: meeting_place_recommendation_snapshots.meeting_id > meetings.id
 Ref fk_meeting_participants_meeting: meeting_participants.meeting_id > meetings.id
 Ref fk_meeting_participants_user: meeting_participants.user_id > users.id
 Ref fk_meeting_participant_schedule_availabilities_participant: meeting_participant_schedule_availabilities.participant_id > meeting_participants.id
@@ -265,6 +286,11 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 7 days.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
+- `meeting_place_recommendation_snapshots` stores the first actual-travel-time
+  recommendation result once a place-recommendation meeting reaches capacity.
+  The snapshot keeps the returned place data, preliminary straight-line distance,
+  and average/maximum travel time so later place-view requests do not call Kakao
+  again.
 - `meeting_participant_schedule_availabilities` stores participant-selected availability slots. For `DATE_AND_TIME`, meeting creation saves the host-selected ranges in the same transaction as the meeting and host row.
 - `meeting_participant_schedule_date_availabilities` stores the selected dates for `DATE_ONLY`. Meeting creation also saves the host's candidate dates as the host's available dates.
 - `meeting_participants` stores host, logged-in member, and guest participants. Creation inserts the host row and its required schedule/departure response data atomically.

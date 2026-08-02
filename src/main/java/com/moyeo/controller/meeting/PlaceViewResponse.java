@@ -122,6 +122,12 @@ public record PlaceViewResponse(
             @Schema(description = "참여자 출발지에서 상권까지의 평균 직선거리 미터. 랜덤 추천이면 null입니다.", example = "3200")
             Long averageStraightDistanceMeters,
 
+            @Schema(description = "정원이 찬 뒤 최초 조회에서 저장한 참여자 평균 실제 이동시간(초)입니다. 직선거리 미리보기에서는 null입니다.", example = "1200")
+            Long averageTravelTimeSeconds,
+
+            @Schema(description = "정원이 찬 뒤 최초 조회에서 저장한 참여자 최대 실제 이동시간(초)입니다. 직선거리 미리보기에서는 null입니다.", example = "1800")
+            Long maxTravelTimeSeconds,
+
             @Schema(description = "상권과 매핑된 지하철역 정보입니다. 매핑이 없으면 null이며, 거리·좌표는 노출하지 않습니다.")
             StationResponse station
     ) {
@@ -137,6 +143,8 @@ public record PlaceViewResponse(
                     recommendation.guName(),
                     recommendation.dongName(),
                     recommendation.averageStraightDistanceMeters(),
+                    recommendation.averageTravelTimeSeconds(),
+                    recommendation.maxTravelTimeSeconds(),
                     StationResponse.from(recommendation.station())
             );
         }

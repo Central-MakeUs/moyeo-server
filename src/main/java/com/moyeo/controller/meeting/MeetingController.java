@@ -3,7 +3,6 @@ package com.moyeo.controller.meeting;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.meeting.MeetingService;
-import com.moyeo.service.meeting.ActualRouteRecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -41,11 +40,9 @@ import org.springframework.web.multipart.MultipartFile;
 public class MeetingController {
 
     private final MeetingService meetingService;
-    private final ActualRouteRecommendationService actualRouteRecommendationService;
 
-    public MeetingController(MeetingService meetingService, ActualRouteRecommendationService actualRouteRecommendationService) {
+    public MeetingController(MeetingService meetingService) {
         this.meetingService = meetingService;
-        this.actualRouteRecommendationService = actualRouteRecommendationService;
     }
 
     @GetMapping("/me")
@@ -1012,11 +1009,13 @@ public class MeetingController {
             summary = "장소 조율 현황 조회",
             description = """
                     확정 전 모임 상세 화면의 장소 조율 현황을 조회합니다.<br>
-                    현재는 외부 이동시간 API를 호출하지 않고, 참여자 출발지 좌표와 임시 상권 카탈로그를 이용한 단순 직선거리 기반 미리보기를 반환합니다.
+                    정원 미달 시 참여자 출발지 좌표와 상권 카탈로그를 이용한 직선거리 기반 미리보기를 반환합니다.<br>
+                    정원이 찬 뒤 최초 조회에서는 카카오 실제 이동시간으로 추천을 계산해 저장하며, 이후 조회는 저장된 평균·최대 이동시간 추천을 반환합니다.
                     """
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "장소 조율 현황 조회 성공"),
+            @ApiResponse(responseCode = "503", description = "정원 충족 후 최초 실제 이동시간 계산 중 카카오 경로 조회 실패"),
             @ApiResponse(
                     responseCode = "404",
                     description = "초대 코드에 해당하는 모임 없음",
@@ -1444,16 +1443,6 @@ public class MeetingController {
                         request.toParticipationCommand()
                 )
         );
-    }
-
-    @PostMapping("/invitations/{inviteCode}/view/places/actual-time")
-    @SecurityRequirement(name = "bearerAuth")
-    @Operation(summary = "방장 실제 이동시간 장소 추천", description = "방장만 실행할 수 있습니다. 예비 후보를 카카오 실제 이동시간으로 재정렬해 반환하며 결과는 아직 확정 저장하지 않습니다.")
-    public ActualRouteRecommendationResponse calculateActualRouteRecommendation(
-            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
-            @PathVariable String inviteCode
-    ) {
-        return ActualRouteRecommendationResponse.from(actualRouteRecommendationService.calculate(inviteCode, member));
     }
 
     @PostMapping("/{meetingId}/schedule-confirmation")

@@ -40,6 +40,8 @@ public record PlaceViewResult(
             String guName,
             String dongName,
             Long averageStraightDistanceMeters,
+            Long averageTravelTimeSeconds,
+            Long maxTravelTimeSeconds,
             Station station
         ) {
     }

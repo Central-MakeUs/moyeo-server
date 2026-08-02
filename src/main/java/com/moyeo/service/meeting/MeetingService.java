@@ -12,12 +12,15 @@ import com.moyeo.domain.meeting.MeetingParticipant;
 import com.moyeo.domain.meeting.MeetingParticipantScheduleDateAvailability;
 import com.moyeo.domain.meeting.MeetingParticipantScheduleAvailability;
 import com.moyeo.domain.meeting.MeetingScheduleCandidate;
+import com.moyeo.domain.meeting.MeetingPlaceRecommendationSnapshot;
 import com.moyeo.domain.meeting.ScheduleMode;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.route.KakaoRouteProperties;
+import com.moyeo.route.KakaoRouteClient;
+import com.moyeo.route.KakaoRouteUnavailableException;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.commercial.CommercialAreaStationLineRepository;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
@@ -26,6 +29,7 @@ import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRe
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
+import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
 import com.moyeo.service.member.AuthenticatedMember;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -61,6 +65,7 @@ public class MeetingService {
     private final MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository;
     private final MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
+    private final MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
     private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final UserRepository userRepository;
     private final CommercialAreaCatalog commercialAreaCatalog;
@@ -71,6 +76,7 @@ public class MeetingService {
     private final MeetingCoverProcessor meetingCoverProcessor;
     private final MeetingCoverCleanupProcessor meetingCoverCleanupProcessor;
     private final KakaoRouteProperties kakaoRouteProperties;
+    private final KakaoRouteClient kakaoRouteClient;
 
     public MeetingService(
             MeetingRepository meetingRepository,
@@ -78,6 +84,7 @@ public class MeetingService {
             MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository,
             MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
+            MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository,
             DeparturePlaceSearchRepository departurePlaceSearchRepository,
             UserRepository userRepository,
             CommercialAreaCatalog commercialAreaCatalog,
@@ -87,13 +94,15 @@ public class MeetingService {
             MeetingCoverStorage meetingCoverStorage,
             MeetingCoverProcessor meetingCoverProcessor,
             MeetingCoverCleanupProcessor meetingCoverCleanupProcessor,
-            KakaoRouteProperties kakaoRouteProperties
+            KakaoRouteProperties kakaoRouteProperties,
+            KakaoRouteClient kakaoRouteClient
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
         this.meetingParticipantScheduleDateAvailabilityRepository = meetingParticipantScheduleDateAvailabilityRepository;
         this.meetingParticipantScheduleAvailabilityRepository = meetingParticipantScheduleAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
+        this.meetingPlaceRecommendationSnapshotRepository = meetingPlaceRecommendationSnapshotRepository;
         this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.userRepository = userRepository;
         this.commercialAreaCatalog = commercialAreaCatalog;
@@ -104,6 +113,7 @@ public class MeetingService {
         this.meetingCoverProcessor = meetingCoverProcessor;
         this.meetingCoverCleanupProcessor = meetingCoverCleanupProcessor;
         this.kakaoRouteProperties = kakaoRouteProperties;
+        this.kakaoRouteClient = kakaoRouteClient;
     }
 
     @Transactional
@@ -522,8 +532,10 @@ public class MeetingService {
         );
     }
 
+    @Transactional
     public PlaceViewResult getPlaceView(String inviteCode) {
-        Meeting meeting = findMeetingByInviteCode(inviteCode);
+        Meeting meeting = meetingRepository.findByInviteCodeForUpdate(inviteCode)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_INVITATION_NOT_FOUND));
         List<MeetingParticipant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meeting.getId());
         List<MeetingParticipant> departureParticipants = participants.stream()
                 .filter(this::hasDeparture)
@@ -596,15 +608,80 @@ public class MeetingService {
 
         recommendations = rankRecommendations(recommendations);
         recommendations = attachStation(recommendations);
+        boolean actualTravelTimeReady = participants.size() >= meeting.getMaxParticipants()
+                && coordinateParticipants.size() == participants.size();
+        if (actualTravelTimeReady) {
+            recommendations = actualTimeRecommendations(meeting, participants, recommendations);
+        }
         return new PlaceViewResult(
                 meeting.getId(),
                 strategy,
-                "STRAIGHT_LINE_PREVIEW",
+                actualTravelTimeReady ? "ACTUAL_TRAVEL_TIME" : "STRAIGHT_LINE_PREVIEW",
                 center,
                 participants.size(),
                 participantResults,
                 recommendations
         );
+    }
+
+    private List<PlaceViewResult.Recommendation> actualTimeRecommendations(
+            Meeting meeting,
+            List<MeetingParticipant> participants,
+            List<PlaceViewResult.Recommendation> preliminaryRecommendations
+    ) {
+        List<MeetingPlaceRecommendationSnapshot> snapshots = meetingPlaceRecommendationSnapshotRepository
+                .findAllByMeetingIdOrderByRankAsc(meeting.getId());
+        if (snapshots.isEmpty()) {
+            List<MeetingPlaceRecommendationSnapshot> scored;
+            try {
+                scored = preliminaryRecommendations.stream()
+                        .map(recommendation -> actualTimeSnapshot(meeting, participants, recommendation))
+                        .sorted(Comparator.comparingLong(this::actualTimeScore)
+                                .thenComparingLong(MeetingPlaceRecommendationSnapshot::getAverageTravelTimeSeconds)
+                                .thenComparingLong(MeetingPlaceRecommendationSnapshot::getMaxTravelTimeSeconds))
+                        .limit(kakaoRouteProperties.finalRecommendationCount())
+                        .toList();
+            } catch (KakaoRouteUnavailableException exception) {
+                throw new MoyeoException(MeetingErrorCode.ACTUAL_ROUTE_RECOMMENDATION_UNAVAILABLE);
+            }
+            List<MeetingPlaceRecommendationSnapshot> ranked = new ArrayList<>();
+            for (int index = 0; index < scored.size(); index++) {
+                MeetingPlaceRecommendationSnapshot snapshot = scored.get(index);
+                ranked.add(new MeetingPlaceRecommendationSnapshot(
+                        meeting,
+                        index + 1,
+                        snapshot.getAreaCode(), snapshot.getAreaName(), snapshot.getCategoryName(),
+                        snapshot.getLatitude(), snapshot.getLongitude(), snapshot.getGuName(), snapshot.getDongName(),
+                        snapshot.getAverageStraightDistanceMeters(),
+                        snapshot.getAverageTravelTimeSeconds(), snapshot.getMaxTravelTimeSeconds()
+                ));
+            }
+            snapshots = meetingPlaceRecommendationSnapshotRepository.saveAll(ranked);
+        }
+        return attachStation(snapshots.stream()
+                .map(snapshot -> new PlaceViewResult.Recommendation(
+                        snapshot.getRank(), snapshot.getAreaCode(), snapshot.getAreaName(), snapshot.getCategoryName(),
+                        snapshot.getLatitude(), snapshot.getLongitude(), snapshot.getGuName(), snapshot.getDongName(),
+                        snapshot.getAverageStraightDistanceMeters(), snapshot.getAverageTravelTimeSeconds(),
+                        snapshot.getMaxTravelTimeSeconds(), null))
+                .toList());
+    }
+
+    private MeetingPlaceRecommendationSnapshot actualTimeSnapshot(Meeting meeting, List<MeetingParticipant> participants,
+                                                                    PlaceViewResult.Recommendation recommendation) {
+        java.util.LongSummaryStatistics statistics = participants.stream()
+                .mapToLong(participant -> kakaoRouteClient.findShortestTravelTimeSeconds(
+                        participant.getTransportationMode(), participant.getDepartureLatitude(), participant.getDepartureLongitude(),
+                        recommendation.latitude(), recommendation.longitude()))
+                .summaryStatistics();
+        return new MeetingPlaceRecommendationSnapshot(meeting, 0, recommendation.areaCode(), recommendation.areaName(),
+                recommendation.categoryName(), recommendation.latitude(), recommendation.longitude(), recommendation.guName(),
+                recommendation.dongName(), recommendation.averageStraightDistanceMeters(),
+                Math.round(statistics.getAverage()), statistics.getMax());
+    }
+
+    private long actualTimeScore(MeetingPlaceRecommendationSnapshot snapshot) {
+        return snapshot.getAverageTravelTimeSeconds() + snapshot.getMaxTravelTimeSeconds();
     }
 
     @Transactional
@@ -1110,7 +1187,9 @@ public class MeetingService {
                             recommendation.dongName()
                     ),
                     index + 1,
-                    recommendation.averageStraightDistanceMeters()
+                    recommendation.averageStraightDistanceMeters(),
+                    recommendation.averageTravelTimeSeconds(),
+                    recommendation.maxTravelTimeSeconds()
             ));
         }
         return ranked;
@@ -1120,6 +1199,16 @@ public class MeetingService {
             CommercialArea area,
             int rank,
             Long averageStraightDistanceMeters
+    ) {
+        return recommendation(area, rank, averageStraightDistanceMeters, null, null);
+    }
+
+    private PlaceViewResult.Recommendation recommendation(
+            CommercialArea area,
+            int rank,
+            Long averageStraightDistanceMeters,
+            Long averageTravelTimeSeconds,
+            Long maxTravelTimeSeconds
     ) {
         return new PlaceViewResult.Recommendation(
                 rank,
@@ -1131,6 +1220,8 @@ public class MeetingService {
                 area.guName(),
                 area.dongName(),
                 averageStraightDistanceMeters,
+                averageTravelTimeSeconds,
+                maxTravelTimeSeconds,
                 null
         );
     }
@@ -1162,6 +1253,8 @@ public class MeetingService {
                         recommendation.guName(),
                         recommendation.dongName(),
                         recommendation.averageStraightDistanceMeters(),
+                        recommendation.averageTravelTimeSeconds(),
+                        recommendation.maxTravelTimeSeconds(),
                         stationsByAreaCode.get(recommendation.areaCode())
                 ))
                 .toList();
