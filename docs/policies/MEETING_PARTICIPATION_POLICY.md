@@ -149,18 +149,23 @@ general best practice into domain policy.
   departure search history, and its stored cover image.
 - In meetings hosted by another user, hard-delete the withdrawing user's `MEMBER`
   participant row, including its meeting-scoped nickname, schedule availability,
-  and departure snapshot. The withdrawn user is excluded from participant lists,
-  counts, schedule availability aggregation, and place recommendation
-  calculations; the freed capacity may be reused.
+  and departure snapshot. Decrease `maxParticipants` by one, allowing it to
+  reach one, so the departure does not create a joinable vacancy. When the
+  meeting was at capacity, delete any actual-travel-time recommendation snapshot
+  in the same transaction; the next place view recalculates it for the remaining
+  participants.
 - A host may hard-delete a meeting they created regardless of whether it is in
   `PLANNING` or `CONFIRMED`. Delete all participants, participant schedule
   responses, schedule candidates, meeting-linked departure search history, and
   the stored cover image with the meeting.
 - A logged-in `MEMBER` may leave a meeting regardless of its status. Hard-delete
   only that member's participant row, meeting-scoped nickname, schedule
-  responses, and departure snapshot; the freed capacity may be reused. A host
-  cannot leave and must delete the hosted meeting instead. Guest leave remains
-  deferred until guest re-entry authentication is defined.
+  responses, and departure snapshot, then decrease `maxParticipants` by one
+  down to a minimum of one; the departure does not create a joinable vacancy.
+  When the meeting was at capacity, delete any actual-travel-time recommendation
+  snapshot in the same transaction. A host cannot leave and must delete the
+  hosted meeting instead. Guest leave remains deferred until guest re-entry
+  authentication is defined.
 - A `HOST` or `MEMBER` may change only their own meeting-scoped nickname using
   the same Korean/English 2-10-character rule as join. This does not change the
   user's default nickname. Nickname duplication remains prohibited only between

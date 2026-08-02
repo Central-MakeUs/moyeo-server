@@ -187,8 +187,10 @@ AUTH-005: An authenticated service user may withdraw through
 - In meetings hosted by other users, hard-delete every participant row linked to
   the withdrawing user, including schedule availability and the departure
   snapshot stored on that row. The user no longer appears in participant lists,
-  counts, schedule aggregation, or place calculations, and the freed capacity
-  may be reused.
+  counts, schedule aggregation, or place calculations. Decrease the meeting
+  capacity by one down to a minimum of one, so withdrawal does not create a
+  joinable vacancy. If the meeting was full, delete its actual-travel-time
+  recommendation snapshot in the same transaction.
 
 ## Development Test Accounts
 

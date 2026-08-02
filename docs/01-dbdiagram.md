@@ -87,7 +87,7 @@ Table meetings {
   host_user_id bigint [not null, note: "모임을 만든 방장 사용자 ID"]
   name varchar(15) [not null, note: "모임 이름"]
   description varchar(100) [note: "모임 설명"]
-  max_participants int [not null, note: "최대 참여 인원. 방장 포함"]
+  max_participants int [not null, note: "최대 참여 인원. 방장 포함. 비방장 회원 탈퇴·나가기 시 1명까지 감소"]
   planning_type varchar(30) [not null, note: "모임 생성 유형: SCHEDULE_ONLY/PLACE_ONLY/SCHEDULE_AND_PLACE"]
   schedule_mode varchar(20) [not null, note: "일정 설정 방식: VOTE/FIXED/NONE"]
   schedule_input_type varchar(20) [not null, note: "일정 참여 입력 유형: DATE_ONLY/DATE_AND_TIME/NONE"]

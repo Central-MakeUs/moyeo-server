@@ -217,6 +217,13 @@ public class Meeting {
         return maxParticipants;
     }
 
+    public void decreaseMaxParticipants() {
+        if (maxParticipants <= 1) {
+            throw new IllegalStateException("Meeting capacity cannot be lower than one.");
+        }
+        maxParticipants--;
+    }
+
     public PlanningType getPlanningType() {
         return planningType;
     }

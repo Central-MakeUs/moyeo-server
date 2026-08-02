@@ -209,6 +209,7 @@ public class MeetingService {
 
         Long cleanupTaskId = meetingCoverCleanupProcessor.createDeletionTask(meeting.getCoverImageKey());
         deleteMeetingSearchHistory(meeting.getId());
+        deletePlaceRecommendationSnapshots(meeting.getId());
         deleteMeetingParticipants(meeting.getId());
         meetingScheduleCandidateRepository.deleteAllByMeetingId(meeting.getId());
         meetingScheduleCandidateRepository.flush();
@@ -220,14 +221,14 @@ public class MeetingService {
     @Transactional
     public void leaveMeeting(Long meetingId, AuthenticatedMember member) {
         findActiveUserForUpdate(member.userId());
-        meetingRepository.findByIdForUpdate(meetingId)
+        Meeting meeting = meetingRepository.findByIdForUpdate(meetingId)
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_NOT_FOUND));
         MeetingParticipant participant = meetingParticipantRepository.findByMeetingIdAndUserId(meetingId, member.userId())
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
         if (participant.getParticipantType() != ParticipantType.MEMBER) {
             throw new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_LEAVE_FORBIDDEN);
         }
-        deleteParticipant(participant);
+        removeMemberParticipant(meeting, participant);
     }
 
     @Transactional
@@ -280,6 +281,19 @@ public class MeetingService {
         for (MeetingParticipant participant : participants) {
             deleteParticipant(participant);
         }
+    }
+
+    private void removeMemberParticipant(Meeting meeting, MeetingParticipant participant) {
+        if (meetingParticipantRepository.countByMeetingId(meeting.getId()) == meeting.getMaxParticipants()) {
+            deletePlaceRecommendationSnapshots(meeting.getId());
+        }
+        deleteParticipant(participant);
+        meeting.decreaseMaxParticipants();
+    }
+
+    private void deletePlaceRecommendationSnapshots(Long meetingId) {
+        meetingPlaceRecommendationSnapshotRepository.deleteAllByMeetingId(meetingId);
+        meetingPlaceRecommendationSnapshotRepository.flush();
     }
 
     private void deleteParticipant(MeetingParticipant participant) {

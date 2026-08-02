@@ -1619,6 +1619,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.code").value("MEETING_NOT_FOUND"));
 
         assertThat(countRows("meeting_participants", "meeting_id", meetingId)).isEqualTo(1L);
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(5);
         assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(memberParticipantId)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 """
@@ -1630,6 +1632,41 @@ class MeetingControllerTest {
                 Long.class,
                 meetingId
         )).isEqualTo(1L);
+    }
+
+    @Test
+    void memberLeaveShrinksFullMeetingAndRegeneratesActualTimeRecommendationSnapshot() throws Exception {
+        String hostToken = signupAndGetAccessToken("snapshot-leave-host", "snapshot-leave-host");
+        String memberToken = signupAndGetAccessToken("snapshot-leave-member", "snapshot-leave-member");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        joinMember(inviteCode, memberToken, "snapshot-leave-member");
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenReturn(1_200L);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3L);
+
+        mockMvc.perform(delete("/api/meetings/{meetingId}/participation", meetingId)
+                        .header("Authorization", "Bearer " + memberToken))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(1);
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isZero();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
+        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test

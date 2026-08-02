@@ -8,6 +8,7 @@ import com.moyeo.domain.member.User;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
+import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
@@ -50,6 +51,8 @@ class MemberWithdrawalServiceTest {
     @Mock
     private MeetingParticipantRepository meetingParticipantRepository;
     @Mock
+    private MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
+    @Mock
     private MeetingParticipantScheduleAvailabilityRepository scheduleAvailabilityRepository;
     @Mock
     private MeetingParticipantScheduleDateAvailabilityRepository scheduleDateAvailabilityRepository;
@@ -77,6 +80,7 @@ class MemberWithdrawalServiceTest {
                 departurePlaceSearchRepository,
                 meetingRepository,
                 meetingParticipantRepository,
+                meetingPlaceRecommendationSnapshotRepository,
                 scheduleAvailabilityRepository,
                 scheduleDateAvailabilityRepository,
                 meetingScheduleCandidateRepository,

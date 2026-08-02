@@ -18,6 +18,7 @@ import com.moyeo.service.meeting.MeetingCoverCleanupProcessor;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
+import com.moyeo.route.KakaoRouteClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -79,6 +80,9 @@ class MemberWithdrawalControllerTest {
 
     @MockitoBean
     private KakaoLoginService kakaoLoginService;
+
+    @MockitoBean
+    private KakaoRouteClient kakaoRouteClient;
 
     @Test
     void withdrawalDeletesOwnedDataAndHostedMeetingsAndInvalidatesOldToken() throws Exception {
@@ -225,10 +229,52 @@ class MemberWithdrawalControllerTest {
                 .andExpect(status().isNoContent());
 
         assertThat(count("meetings", "id", meetingId)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(5);
         assertThat(count("meeting_participants", "meeting_id", meetingId)).isEqualTo(1);
         assertThat(count("meeting_participants", "id", participantId)).isZero();
         assertThat(count("meeting_participant_schedule_availabilities", "participant_id", participantId))
                 .isZero();
+    }
+
+    @Test
+    void withdrawalFromFullMeetingDeletesActualTimeSnapshotAndAllowsRegeneration() throws Exception {
+        String hostAccessToken = testMemberFactory.createAccessToken("withdraw-snapshot-host");
+        JsonNode hostedMeeting = createMeeting(hostAccessToken, "snapshot-out");
+        long meetingId = hostedMeeting.path("meetingId").asLong();
+        String inviteCode = hostedMeeting.path("inviteCode").asText();
+
+        String memberAccessToken = testMemberFactory.createAccessToken("withdraw-snapshot-member");
+        Long memberUserId = jwtTokenProvider.parse(memberAccessToken).userId();
+        insertSocialAccount(memberUserId, AuthProvider.KAKAO, "withdraw-snapshot-provider");
+        joinMember(inviteCode, memberAccessToken, "withdraw-snapshot-member");
+        jdbcTemplate.update("update meetings set max_participants = 2 where id = ?", meetingId);
+        org.mockito.Mockito.when(kakaoRouteClient.findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        )).thenReturn(1_200L);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"));
+        assertThat(count("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3);
+
+        mockMvc.perform(delete("/api/users/me")
+                        .header("Authorization", bearer(memberAccessToken)))
+                .andExpect(status().isNoContent());
+
+        assertThat(jdbcTemplate.queryForObject("select max_participants from meetings where id = ?", Integer.class, meetingId))
+                .isEqualTo(1);
+        assertThat(count("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isZero();
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
+        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test
@@ -467,6 +513,31 @@ class MemberWithdrawalControllerTest {
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(response);
+    }
+
+    private void joinMember(String inviteCode, String accessToken, String nickname) throws Exception {
+        LocalDate candidateDate = LocalDate.now().plusDays(1);
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nickname", nickname,
+                                "scheduleResponse", Map.of(
+                                        "availableTimeRanges", List.of(Map.of(
+                                                "candidateDate", candidateDate.toString(),
+                                                "startTime", "09:00",
+                                                "endTime", "10:00"
+                                        ))
+                                ),
+                                "departure", Map.of(
+                                        "name", "member-home",
+                                        "address", "서울 강남구",
+                                        "latitude", 37.5,
+                                        "longitude", 127.0,
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                )
+                        ))))
+                .andExpect(status().isCreated());
     }
 
     private long insertDepartureSearch(Long userId, Long meetingId, String keyword) {

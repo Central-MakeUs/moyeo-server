@@ -14,6 +14,7 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
+import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
@@ -38,6 +39,7 @@ public class MemberWithdrawalService {
     private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
+    private final MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
     private final MeetingParticipantScheduleAvailabilityRepository scheduleAvailabilityRepository;
     private final MeetingParticipantScheduleDateAvailabilityRepository scheduleDateAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
@@ -54,6 +56,7 @@ public class MemberWithdrawalService {
             DeparturePlaceSearchRepository departurePlaceSearchRepository,
             MeetingRepository meetingRepository,
             MeetingParticipantRepository meetingParticipantRepository,
+            MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository,
             MeetingParticipantScheduleAvailabilityRepository scheduleAvailabilityRepository,
             MeetingParticipantScheduleDateAvailabilityRepository scheduleDateAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
@@ -69,6 +72,7 @@ public class MemberWithdrawalService {
         this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
+        this.meetingPlaceRecommendationSnapshotRepository = meetingPlaceRecommendationSnapshotRepository;
         this.scheduleAvailabilityRepository = scheduleAvailabilityRepository;
         this.scheduleDateAvailabilityRepository = scheduleDateAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
@@ -154,6 +158,7 @@ public class MemberWithdrawalService {
         deleteSearchHistory(departurePlaceSearchRepository.findAllByMeetingIdIn(meetingIds));
 
         for (Meeting meeting : hostedMeetings) {
+            deletePlaceRecommendationSnapshots(meeting.getId());
             List<MeetingParticipant> participants =
                     meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meeting.getId());
             for (MeetingParticipant participant : participants) {
@@ -184,13 +189,28 @@ public class MemberWithdrawalService {
     private void deleteMemberParticipations(Long userId) {
         List<MeetingParticipant> participations = meetingParticipantRepository.findAllByUserIdWithMeeting(userId);
         for (MeetingParticipant participant : participations) {
-            scheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
-            scheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+            Meeting meeting = meetingRepository.findByIdForUpdate(participant.getMeeting().getId())
+                    .orElseThrow(() -> new IllegalStateException("Meeting disappeared during member withdrawal."));
+            removeMemberParticipant(meeting, participant);
         }
+    }
+
+    private void removeMemberParticipant(Meeting meeting, MeetingParticipant participant) {
+        if (meetingParticipantRepository.countByMeetingId(meeting.getId()) == meeting.getMaxParticipants()) {
+            deletePlaceRecommendationSnapshots(meeting.getId());
+        }
+        scheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
+        scheduleAvailabilityRepository.deleteAllByParticipantId(participant.getId());
         scheduleDateAvailabilityRepository.flush();
         scheduleAvailabilityRepository.flush();
-        meetingParticipantRepository.deleteAll(participations);
+        meetingParticipantRepository.delete(participant);
         meetingParticipantRepository.flush();
+        meeting.decreaseMaxParticipants();
+    }
+
+    private void deletePlaceRecommendationSnapshots(Long meetingId) {
+        meetingPlaceRecommendationSnapshotRepository.deleteAllByMeetingId(meetingId);
+        meetingPlaceRecommendationSnapshotRepository.flush();
     }
 
     private void deleteSearchHistory(List<DeparturePlaceSearch> searches) {
