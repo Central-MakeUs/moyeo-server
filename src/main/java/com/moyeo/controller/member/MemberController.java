@@ -5,6 +5,7 @@ import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberOnboardingService;
 import com.moyeo.service.member.MemberWithdrawalService;
+import com.moyeo.service.place.SavedPlaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,13 +32,39 @@ public class MemberController {
 
     private final MemberOnboardingService memberOnboardingService;
     private final MemberWithdrawalService memberWithdrawalService;
+    private final SavedPlaceService savedPlaceService;
 
     public MemberController(
             MemberOnboardingService memberOnboardingService,
-            MemberWithdrawalService memberWithdrawalService
+            MemberWithdrawalService memberWithdrawalService,
+            SavedPlaceService savedPlaceService
     ) {
         this.memberOnboardingService = memberOnboardingService;
         this.memberWithdrawalService = memberWithdrawalService;
+        this.savedPlaceService = savedPlaceService;
+    }
+
+    @GetMapping
+    @Operation(
+            summary = "마이페이지 조회",
+            description = "현재 회원의 기본 닉네임, 프로필 색상, 저장 출발지 목록을 함께 반환합니다. 출발지 목록은 GET /api/me/places와 같은 데이터를 마이페이지 화면용으로 복제해 반환하며, 피드백 이력은 포함하지 않습니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "마이페이지 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(
+                    responseCode = "403",
+                    description = "최초 닉네임 온보딩이 완료되지 않은 사용자입니다.",
+                    content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                            { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                            """))
+            )
+    })
+    public MyPageResponse getMyPage(
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        return MyPageResponse.from(member, savedPlaceService.findAll(member.userId()));
     }
 
     @PutMapping("/onboarding")

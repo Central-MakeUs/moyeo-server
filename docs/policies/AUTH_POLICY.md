@@ -106,6 +106,10 @@ entry.
 - `PATCH /api/users/me/profile-color` changes a completed member's selected
   color. The request and response use the enum value, not an arbitrary CSS
   color value.
+- `GET /api/users/me` returns a completed member's nickname, profile, and
+  saved departure-place list for the My Page screen. It duplicates the same
+  saved-place data available from `GET /api/me/places`; feedback history is not
+  included.
 - Authentication and current-user responses expose the profile as
   `{ "type": "COLOR", "color": "..." }`. Image uploads are not supported in
   the current MVP; a future image profile may extend this object without
