@@ -153,6 +153,18 @@ Table meeting_schedule_candidates {
   }
 }
 
+Table meeting_schedule_candidate_availabilities {
+  id bigint [pk, increment, note: "모임 후보 날짜 선택 가능 시간 스냅샷 ID"]
+  schedule_candidate_id bigint [not null, note: "연결된 모임 후보 날짜 ID"]
+  start_time time [not null, note: "참여자 선택 가능 시작 시간"]
+  end_time time [not null, note: "참여자 선택 가능 종료 시간"]
+  created_at datetime [not null, note: "스냅샷 생성 일시"]
+
+  indexes {
+    (schedule_candidate_id, start_time, end_time) [unique, name: "uk_meeting_schedule_candidate_availabilities_slot"]
+  }
+}
+
 Table meeting_place_recommendation_snapshots {
   id bigint [pk, increment, note: "Full-meeting first actual-travel-time recommendation snapshot ID"]
   meeting_id bigint [not null, note: "Meeting that owns the snapshot"]
@@ -249,6 +261,7 @@ Ref fk_feedbacks_user: feedbacks.user_id > users.id
 Ref fk_commercial_area_station_lines_area: commercial_area_station_lines.commercial_area_id > commercial_areas.id
 Ref fk_meetings_host_user: meetings.host_user_id > users.id
 Ref fk_meeting_schedule_candidates_meeting: meeting_schedule_candidates.meeting_id > meetings.id
+Ref fk_meeting_schedule_candidate_availabilities_candidate: meeting_schedule_candidate_availabilities.schedule_candidate_id > meeting_schedule_candidates.id
 Ref fk_meeting_place_recommendation_snapshots_meeting: meeting_place_recommendation_snapshots.meeting_id > meetings.id
 Ref fk_meeting_participants_meeting: meeting_participants.meeting_id > meetings.id
 Ref fk_meeting_participants_user: meeting_participants.user_id > users.id
@@ -300,6 +313,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 7 days.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
+- `meeting_schedule_candidate_availabilities` stores the host-selected time ranges copied at `DATE_AND_TIME` meeting creation. Invite lookup exposes only candidate dates with these snapshots, so later changes to the host's personal response do not change the participant selection range.
 - `meeting_place_recommendation_snapshots` stores the first actual-travel-time
   recommendation result once a place-recommendation meeting reaches capacity.
   The snapshot keeps the returned place data, preliminary straight-line distance,

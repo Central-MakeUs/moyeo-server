@@ -113,6 +113,11 @@ Finalize decision
   `scripts/db/2026-08-02-user-profile-color.sql`.
 - Before deploying member feedback to an existing production database, back up
   the target database and apply `scripts/db/2026-08-02-feedbacks.sql`.
+- Before deploying meeting-owned participant schedule-selection snapshots to an
+  existing production database, back up the target database and apply
+  `scripts/db/2026-08-03-meeting-schedule-candidate-availabilities.sql`.
+  The script copies each existing host response into the immutable meeting
+  snapshot used by invite lookup and participant schedule input.
 - Before deploying persistent commercial-area recommendations to an existing
   production database, back up the target database and apply
   `scripts/db/2026-07-27-commercial-areas.sql`, then

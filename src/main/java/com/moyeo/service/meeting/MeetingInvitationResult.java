@@ -2,11 +2,15 @@ package com.moyeo.service.meeting;
 
 import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingScheduleCandidate;
+import com.moyeo.domain.meeting.MeetingScheduleCandidateAvailability;
+import com.moyeo.domain.meeting.ScheduleInputType;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.stream.Collectors;
 
 public record MeetingInvitationResult(
         Long meetingId,
@@ -30,9 +34,34 @@ public record MeetingInvitationResult(
             Meeting meeting,
             long participantCount,
             List<MeetingScheduleCandidate> scheduleCandidates,
+            List<MeetingScheduleCandidateAvailability> scheduleCandidateAvailabilities,
             boolean alreadyJoined
     ) {
         ParticipationStatus participationStatus = ParticipationStatus.from(meeting, participantCount, alreadyJoined);
+        List<ScheduleCandidate> invitationScheduleCandidates = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> scheduleCandidates.stream()
+                    .map(candidate -> new ScheduleCandidate(candidate.getCandidateDate(), List.of()))
+                    .toList();
+            case DATE_AND_TIME -> scheduleCandidateAvailabilities.stream()
+                    .collect(Collectors.groupingBy(
+                            availability -> availability.getScheduleCandidate().getCandidateDate(),
+                            LinkedHashMap::new,
+                            Collectors.toList()
+                    ))
+                    .entrySet()
+                    .stream()
+                    .map(entry -> new ScheduleCandidate(
+                            entry.getKey(),
+                            entry.getValue().stream()
+                                    .map(availability -> new ScheduleAvailability(
+                                            availability.getStartTime(),
+                                            availability.getEndTime()
+                                    ))
+                                    .toList()
+                    ))
+                    .toList();
+            case NONE -> List.of();
+        };
         return new MeetingInvitationResult(
                 meeting.getId(),
                 meeting.getName(),
@@ -42,13 +71,7 @@ public record MeetingInvitationResult(
                 meeting.getPlanningType().name(),
                 meeting.getScheduleMode().name(),
                 meeting.getScheduleInputType().name(),
-                scheduleCandidates.stream()
-                        .map(candidate -> new ScheduleCandidate(
-                                candidate.getCandidateDate(),
-                                meeting.getAvailableStartTime(),
-                                meeting.getAvailableEndTime()
-                        ))
-                        .toList(),
+                invitationScheduleCandidates,
                 meeting.getPlaceMode().name(),
                 meeting.getPlaceRecommendationStrategy() != null ? meeting.getPlaceRecommendationStrategy().name() : null,
                 meeting.getDeadlineAt(),
@@ -60,8 +83,13 @@ public record MeetingInvitationResult(
 
     public record ScheduleCandidate(
             LocalDate candidateDate,
-            LocalTime availableStartTime,
-            LocalTime availableEndTime
+            List<ScheduleAvailability> availableTimeRanges
+    ) {
+    }
+
+    public record ScheduleAvailability(
+            LocalTime startTime,
+            LocalTime endTime
     ) {
     }
 

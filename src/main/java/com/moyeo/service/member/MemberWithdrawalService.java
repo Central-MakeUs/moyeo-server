@@ -20,6 +20,7 @@ import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityReposi
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
+import com.moyeo.repository.meeting.MeetingScheduleCandidateAvailabilityRepository;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.place.SavedPlaceRepository;
@@ -45,6 +46,7 @@ public class MemberWithdrawalService {
     private final MeetingParticipantScheduleAvailabilityRepository scheduleAvailabilityRepository;
     private final MeetingParticipantScheduleDateAvailabilityRepository scheduleDateAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
+    private final MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
     private final MeetingCoverCleanupTaskRepository coverCleanupTaskRepository;
     private final MeetingCoverCleanupProcessor coverCleanupProcessor;
     private final AppleLoginService appleLoginService;
@@ -63,6 +65,7 @@ public class MemberWithdrawalService {
             MeetingParticipantScheduleAvailabilityRepository scheduleAvailabilityRepository,
             MeetingParticipantScheduleDateAvailabilityRepository scheduleDateAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
+            MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository,
             MeetingCoverCleanupTaskRepository coverCleanupTaskRepository,
             MeetingCoverCleanupProcessor coverCleanupProcessor,
             AppleLoginService appleLoginService,
@@ -80,6 +83,7 @@ public class MemberWithdrawalService {
         this.scheduleAvailabilityRepository = scheduleAvailabilityRepository;
         this.scheduleDateAvailabilityRepository = scheduleDateAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
+        this.meetingScheduleCandidateAvailabilityRepository = meetingScheduleCandidateAvailabilityRepository;
         this.coverCleanupTaskRepository = coverCleanupTaskRepository;
         this.coverCleanupProcessor = coverCleanupProcessor;
         this.appleLoginService = appleLoginService;
@@ -174,6 +178,8 @@ public class MemberWithdrawalService {
 
             meetingParticipantRepository.deleteAll(participants);
             meetingParticipantRepository.flush();
+            meetingScheduleCandidateAvailabilityRepository.deleteAllByMeetingId(meeting.getId());
+            meetingScheduleCandidateAvailabilityRepository.flush();
             meetingScheduleCandidateRepository.deleteAllByMeetingId(meeting.getId());
             meetingScheduleCandidateRepository.flush();
         }

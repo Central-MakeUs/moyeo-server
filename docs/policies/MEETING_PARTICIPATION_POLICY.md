@@ -104,9 +104,10 @@ general best practice into domain policy.
 - Schedule voting candidate dates are stored as separate rows during meeting
   creation. The host may submit at most 21 candidate dates. Duplicate dates
   are normalized into one date before storage.
-- `DATE_AND_TIME` applies the same available time range to every selected
-  candidate date. Its common range and participant ranges are currently accepted
-  in 1-hour units.
+- `DATE_AND_TIME` stores the creation-time common time range on the meeting for
+  host-response validation. The host-selected ranges are copied as a
+  meeting-owned snapshot, and ordinary participants may select only within that
+  snapshot. All ranges are currently accepted in 1-hour units.
 - `DATE_ONLY` stores participant selections in
   `meeting_participant_schedule_date_availabilities`; it does not create artificial
   start/end times.
@@ -126,9 +127,10 @@ general best practice into domain policy.
   `DATE_AND_TIME` additionally receives
   `scheduleResponse.availableTimeRanges`. Place-coordination creation
   receives the same departure snapshot shape used by other participants.
-- Meeting, host participant, candidate dates, host schedule availability, and host
-  departure are saved in one transaction. Invalid host input must leave none of
-  those rows behind.
+- Meeting, host participant, candidate dates, host schedule availability,
+  meeting-owned participant-selection schedule snapshots, and host departure
+  are saved in one transaction. Invalid host input must leave none of those
+  rows behind.
 - There is no separate post-creation host participation API. A successful creation
   returns `meetingId` and `inviteCode`.
 
@@ -193,11 +195,12 @@ general best practice into domain policy.
   already joined, including before nickname onboarding is complete; an absent
   header keeps the existing public lookup behavior.
 - Invite-code lookup returns `scheduleCandidateDates` as the meeting-owned
-  schedule selection list for all users. Each item always includes its candidate
-  date. For `DATE_AND_TIME`, each item also includes the common available-time
-  range; for `DATE_ONLY`, those time values are null. A meeting without schedule
-  coordination returns an empty list. This response does not use or expose any
-  participant's saved schedule response.
+  schedule selection list for all users. For `DATE_AND_TIME`, it returns only
+  candidate dates with at least one host-selected time-range snapshot and lists
+  those ranges under each date. For `DATE_ONLY`, it returns each candidate date
+  with an empty time-range list. A meeting without schedule coordination returns
+  an empty list. This response does not use or expose any participant's saved
+  schedule response.
 - The entry response returns `ALREADY_JOINED` with `canJoin = false` for an
   already participating authenticated member. This status takes priority over
   deadline and participant-limit statuses. If the member has not joined and
@@ -260,8 +263,8 @@ general best practice into domain policy.
   `SCHEDULE_AND_PLACE` meetings.
 - `DATE_ONLY` participation stores one selection per available host candidate date.
   `DATE_AND_TIME` participation stores selected availability ranges within the
-  host's candidate dates and common available time range. Each range start and end
-  time must be in 1-hour units, and multiple ranges may be saved.
+  meeting-owned host-selection snapshots created with the meeting. Each range
+  start and end time must be in 1-hour units, and multiple ranges may be saved.
 - A join request creates the participant and their initial availability slots
   atomically.
 - An authenticated `HOST` or `MEMBER` may retrieve only their own participation
@@ -277,8 +280,9 @@ general best practice into domain policy.
 - Schedule modification replaces the caller's entire schedule response. For a
   `DATE_ONLY` meeting, a host and a member may select any non-empty subset of
   the existing host candidate dates; candidate dates themselves are not
-  changed. For `DATE_AND_TIME`, the existing candidate-date, common-time-range,
-  and one-hour-unit validation remains in effect.
+  changed. For `DATE_AND_TIME`, all `HOST`, `MEMBER`, and `GUEST` selections must
+  stay within the meeting-owned host-selection snapshots and use 1-hour units.
+  A later personal-response modification does not replace those snapshots.
 - Departure modification replaces only the caller's departure snapshot and
   transportation mode. It does not replace the caller's schedule response.
 - Join requests save departure and transportation mode for

@@ -14,6 +14,7 @@ import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityReposi
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
+import com.moyeo.repository.meeting.MeetingScheduleCandidateAvailabilityRepository;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.place.SavedPlaceRepository;
@@ -62,6 +63,8 @@ class MemberWithdrawalServiceTest {
     @Mock
     private MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
     @Mock
+    private MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
+    @Mock
     private MeetingCoverCleanupTaskRepository coverCleanupTaskRepository;
     @Mock
     private MeetingCoverCleanupProcessor coverCleanupProcessor;
@@ -88,6 +91,7 @@ class MemberWithdrawalServiceTest {
                 scheduleAvailabilityRepository,
                 scheduleDateAvailabilityRepository,
                 meetingScheduleCandidateRepository,
+                meetingScheduleCandidateAvailabilityRepository,
                 coverCleanupTaskRepository,
                 coverCleanupProcessor,
                 appleLoginService,

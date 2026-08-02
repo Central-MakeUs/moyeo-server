@@ -110,7 +110,7 @@ public class MeetingController {
                             ),
                             @ExampleObject(
                                     name = "DATE_AND_TIME",
-                                    description = "후보 날짜와 모임의 공통 가능 시간 안에서 가능한 시간대를 다시 선택합니다.",
+                                    description = "초대 조회로 받은 모임장 선택 시간대 안에서 가능한 시간대를 다시 선택합니다.",
                                     value = """
                                             {
                                               "availableTimeRanges": [
@@ -1006,7 +1006,7 @@ public class MeetingController {
                             schema = @Schema(implementation = MeetingInvitationResponse.class),
                             examples = @ExampleObject(
                                     name = "DATE_AND_TIME",
-                                    description = "참여자가 날짜별 공통 시간 범위 안에서 가능한 시간을 선택하는 모임입니다.",
+                                    description = "참여자가 날짜별 모임장 선택 시간대 안에서 가능한 시간을 선택하는 모임입니다.",
                                     value = """
                                             {
                                               "meetingId": 152,
@@ -1020,8 +1020,12 @@ public class MeetingController {
                                               "scheduleCandidateDates": [
                                                 {
                                                   "candidateDate": "2026-08-02",
-                                                  "availableStartTime": "06:00:00",
-                                                  "availableEndTime": "12:00:00"
+                                                  "availableTimeRanges": [
+                                                    {
+                                                      "startTime": "06:00:00",
+                                                      "endTime": "12:00:00"
+                                                    }
+                                                  ]
                                                 }
                                               ],
                                               "placeMode": "NONE",
@@ -1253,7 +1257,7 @@ public class MeetingController {
                             examples = {
                                     @ExampleObject(
                                             name = "SCHEDULE_AND_PLACE_DATE_AND_TIME",
-                                            description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 생성된 후보일과 17:00~23:00 범위 안에서 가능한 날짜·시간대를 선택합니다.",
+                                            description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 초대 조회로 받은 모임장 선택 시간대 안에서만 가능한 날짜·시간대를 선택합니다.",
                                             value = """
                                             {
                                               "nickname": "민지친구",
@@ -1264,11 +1268,6 @@ public class MeetingController {
                                                   "candidateDate": "2026-07-10",
                                                   "startTime": "18:00",
                                                   "endTime": "20:00"
-                                                },
-                                                {
-                                                  "candidateDate": "2026-07-11",
-                                                  "startTime": "20:00",
-                                                  "endTime": "23:00"
                                                 }
                                                 ]
                                               },
@@ -1454,7 +1453,7 @@ public class MeetingController {
                             examples = {
                                     @ExampleObject(
                                             name = "SCHEDULE_AND_PLACE_DATE_AND_TIME",
-                                            description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 생성에 사용한 방장 토큰이 아닌 참여 회원의 Bearer Access Token을 설정하고, 생성된 후보일과 17:00~23:00 범위 안에서 가능한 날짜·시간대를 선택합니다.",
+                                            description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 생성에 사용한 방장 토큰이 아닌 참여 회원의 Bearer Access Token을 설정하고, 초대 조회로 받은 모임장 선택 시간대 안에서만 가능한 날짜·시간대를 선택합니다.",
                                             value = """
                                             {
                                               "nickname": "민지 1",
@@ -1462,12 +1461,7 @@ public class MeetingController {
                                                 "availableTimeRanges": [
                                                 {
                                                   "candidateDate": "2026-07-10",
-                                                  "startTime": "19:00",
-                                                  "endTime": "22:00"
-                                                },
-                                                {
-                                                  "candidateDate": "2026-07-11",
-                                                  "startTime": "17:00",
+                                                  "startTime": "18:00",
                                                   "endTime": "20:00"
                                                 }
                                                 ]

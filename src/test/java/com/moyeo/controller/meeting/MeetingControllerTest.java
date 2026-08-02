@@ -464,8 +464,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scheduleInputType").value("DATE_ONLY"))
                 .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableStartTime").value(org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableEndTime").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges").isEmpty());
     }
 
     @Test
@@ -816,7 +815,10 @@ class MeetingControllerTest {
                                 "availableEndTime", "22:00",
                                 "scheduleCandidateDates", List.of("2026-07-02", "2026-07-01", "2026-07-01"),
                                 "scheduleResponse", Map.of(
-                                        "availableTimeRanges", List.of(scheduleAvailability("18:00", "19:00"))
+                                        "availableTimeRanges", List.of(
+                                                scheduleAvailability("18:00", "19:00"),
+                                                scheduleAvailability("20:00", "21:00")
+                                        )
                                 ),
                                 "deadlineMinutes", 1440
                         ))))
@@ -828,9 +830,12 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.scheduleCandidateDates.length()").value(2))
+                .andExpect(jsonPath("$.scheduleCandidateDates.length()").value(1))
                 .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[1].candidateDate").value("2026-07-02"));
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].startTime").value("18:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].endTime").value("19:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[1].startTime").value("20:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[1].endTime").value("21:00:00"));
     }
 
     @Test
@@ -846,6 +851,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.planningType").value("SCHEDULE_AND_PLACE"))
                 .andExpect(jsonPath("$.scheduleMode").value("VOTE"))
                 .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].startTime").value("09:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].endTime").value("11:00:00"))
                 .andExpect(jsonPath("$.placeMode").value("RECOMMEND"))
                 .andExpect(jsonPath("$.placeRecommendationStrategy").value("MIDDLE_POINT"))
                 .andExpect(jsonPath("$.deadlineAt").isString())
@@ -867,9 +874,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
                 .andExpect(jsonPath("$.participationStatus.reason").value("ALREADY_JOINED"))
                 .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableStartTime").value("09:00:00"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableEndTime").value("18:00:00"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[1].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].startTime").value("09:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].endTime").value("11:00:00"))
                 .andExpect(jsonPath("$.participationStatus.message").value("이미 참여 중인 모임이에요."));
     }
 
@@ -937,8 +943,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.scheduleCandidateDates[1].candidateDate").value("2026-07-02"))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableStartTime").value(org.hamcrest.Matchers.nullValue()))
-                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableEndTime").value(org.hamcrest.Matchers.nullValue()));
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges").isEmpty());
     }
 
     @Test
@@ -1013,7 +1018,7 @@ class MeetingControllerTest {
     }
 
     @Test
-    void joinGuestRejectsInvalidParticipationAndRollsBackParticipantCreation() throws Exception {
+    void joinGuestRejectsScheduleOutsideHostSnapshotAndRollsBackParticipantCreation() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost-invalid", "host-invalid", 6);
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
@@ -1024,8 +1029,8 @@ class MeetingControllerTest {
                                 "scheduleResponse", Map.of(
                                         "availableTimeRanges", List.of(Map.of(
                                                 "candidateDate", "2026-07-01",
-                                                "startTime", "08:00",
-                                                "endTime", "09:00"
+                                                "startTime", "12:00",
+                                                "endTime", "13:00"
                                         ))
                                 ),
                                 "departure", Map.of(
@@ -1173,7 +1178,7 @@ class MeetingControllerTest {
     }
 
     @Test
-    void hostAndMemberCanReadAndIndependentlyModifyTheirParticipationResponses() throws Exception {
+    void hostAndMemberCanReadAndModifyParticipationResponsesWithinHostSnapshot() throws Exception {
         String hostToken = signupAndGetAccessToken("participation-update-host", "update-host");
         String memberToken = signupAndGetAccessToken("participation-update-member", "update-member");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
@@ -1192,13 +1197,26 @@ class MeetingControllerTest {
                         .content("""
                                 {
                                   "availableTimeRanges": [
-                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                    { "candidateDate": "2026-07-01", "startTime": "10:00", "endTime": "11:00" }
                                   ]
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.departure.name").value("company"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "11:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
 
         mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
                         .header("Authorization", "Bearer " + memberToken)
@@ -1221,8 +1239,15 @@ class MeetingControllerTest {
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
                         .header("Authorization", "Bearer " + hostToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.departure.name").value("company"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduleCandidateDates.length()").value(1))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].startTime").value("09:00:00"))
+                .andExpect(jsonPath("$.scheduleCandidateDates[0].availableTimeRanges[0].endTime").value("11:00:00"));
     }
 
     @Test
@@ -1237,13 +1262,13 @@ class MeetingControllerTest {
                         .content("""
                                 {
                                   "availableTimeRanges": [
-                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                    { "candidateDate": "2026-07-01", "startTime": "10:00", "endTime": "11:00" }
                                   ]
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.participantType").value("GUEST"))
-                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"));
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"));
 
         mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure", inviteCode, nickname)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -1988,17 +2013,17 @@ class MeetingControllerTest {
     }
 
     @Test
-    void getScheduleViewUsesEarliestDateByDefaultAndOmitsCandidatesWithoutOverlap() throws Exception {
-        String inviteCode = createMeetingAndGetInviteCode("meetinghost-schedule-no-overlap", "host-no-overlap", 6);
-        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-no-overlap");
-        saveDefaultParticipation(inviteCode, participantId, "12:00", "13:00");
+    void getScheduleViewUsesEarliestDateByDefault() throws Exception {
+        String hostToken = signupAndGetAccessToken("meetinghost-schedule-no-overlap", "host-no-overlap");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        joinGuest(inviteCode, "guest-no-overlap");
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sort").value("EARLIEST_DATE"))
-                .andExpect(jsonPath("$.candidates").isEmpty())
+                .andExpect(jsonPath("$.candidates").isNotEmpty())
                 .andExpect(jsonPath("$.availabilityStatuses.length()").value(2))
-                .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(1));
+                .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(2));
     }
 
     @Test

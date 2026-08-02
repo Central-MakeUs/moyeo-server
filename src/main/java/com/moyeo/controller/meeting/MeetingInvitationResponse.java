@@ -57,8 +57,8 @@ public record MeetingInvitationResponse(
         String scheduleInputType,
 
         @Schema(
-                description = "일정 후보 목록입니다. DATE_AND_TIME이면 각 후보 날짜에 참여자가 선택할 수 있는 공통 시간 범위도 포함합니다. 일정 조율이 없으면 빈 배열입니다.",
-                example = "[{\"candidateDate\":\"2026-07-10\",\"availableStartTime\":\"18:00\",\"availableEndTime\":\"22:00\"}]"
+                description = "일정 후보 목록입니다. DATE_AND_TIME이면 모임장이 방 생성 때 선택한 시간 범위만 포함합니다. 시간이 없는 후보 날짜는 반환하지 않습니다. DATE_ONLY에서는 시간 범위가 빈 배열입니다.",
+                example = "[{\"candidateDate\":\"2026-07-10\",\"availableTimeRanges\":[{\"startTime\":\"18:00\",\"endTime\":\"20:00\"}]}]"
         )
         List<ScheduleCandidateResponse> scheduleCandidateDates,
 
@@ -125,15 +125,23 @@ public record MeetingInvitationResponse(
 
     public record ScheduleCandidateResponse(
             @Schema(description = "모임 후보 날짜", example = "2026-07-10") LocalDate candidateDate,
-            @Schema(description = "참여자가 선택할 수 있는 시작 시간입니다. DATE_AND_TIME이 아니면 null입니다.", nullable = true, example = "18:00") LocalTime availableStartTime,
-            @Schema(description = "참여자가 선택할 수 있는 종료 시간입니다. DATE_AND_TIME이 아니면 null입니다.", nullable = true, example = "20:00") LocalTime availableEndTime
+            @Schema(description = "DATE_AND_TIME 모임에서 참여자가 선택할 수 있는 모임장 선택 시간 범위입니다. DATE_ONLY에서는 빈 배열입니다.")
+            List<ScheduleAvailabilityResponse> availableTimeRanges
     ) {
         private static ScheduleCandidateResponse from(MeetingInvitationResult.ScheduleCandidate candidate) {
             return new ScheduleCandidateResponse(
                     candidate.candidateDate(),
-                    candidate.availableStartTime(),
-                    candidate.availableEndTime()
+                    candidate.availableTimeRanges().stream().map(ScheduleAvailabilityResponse::from).toList()
             );
+        }
+    }
+
+    public record ScheduleAvailabilityResponse(
+            @Schema(description = "선택 가능 시작 시간", example = "18:00") LocalTime startTime,
+            @Schema(description = "선택 가능 종료 시간", example = "20:00") LocalTime endTime
+    ) {
+        private static ScheduleAvailabilityResponse from(MeetingInvitationResult.ScheduleAvailability availability) {
+            return new ScheduleAvailabilityResponse(availability.startTime(), availability.endTime());
         }
     }
 

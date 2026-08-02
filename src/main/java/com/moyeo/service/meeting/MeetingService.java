@@ -11,6 +11,7 @@ import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingParticipant;
 import com.moyeo.domain.meeting.MeetingParticipantScheduleDateAvailability;
 import com.moyeo.domain.meeting.MeetingParticipantScheduleAvailability;
+import com.moyeo.domain.meeting.MeetingScheduleCandidateAvailability;
 import com.moyeo.domain.meeting.MeetingScheduleCandidate;
 import com.moyeo.domain.meeting.MeetingPlaceRecommendationSnapshot;
 import com.moyeo.domain.meeting.ScheduleMode;
@@ -29,6 +30,7 @@ import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRe
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
+import com.moyeo.repository.meeting.MeetingScheduleCandidateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
 import com.moyeo.service.member.AuthenticatedMember;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -48,6 +50,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +68,7 @@ public class MeetingService {
     private final MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository;
     private final MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository;
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
+    private final MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
     private final MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
     private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final UserRepository userRepository;
@@ -84,6 +88,7 @@ public class MeetingService {
             MeetingParticipantScheduleDateAvailabilityRepository meetingParticipantScheduleDateAvailabilityRepository,
             MeetingParticipantScheduleAvailabilityRepository meetingParticipantScheduleAvailabilityRepository,
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
+            MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository,
             MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository,
             DeparturePlaceSearchRepository departurePlaceSearchRepository,
             UserRepository userRepository,
@@ -102,6 +107,7 @@ public class MeetingService {
         this.meetingParticipantScheduleDateAvailabilityRepository = meetingParticipantScheduleDateAvailabilityRepository;
         this.meetingParticipantScheduleAvailabilityRepository = meetingParticipantScheduleAvailabilityRepository;
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
+        this.meetingScheduleCandidateAvailabilityRepository = meetingScheduleCandidateAvailabilityRepository;
         this.meetingPlaceRecommendationSnapshotRepository = meetingPlaceRecommendationSnapshotRepository;
         this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.userRepository = userRepository;
@@ -164,7 +170,8 @@ public class MeetingService {
                 scheduleCandidateDates,
                 participationCommand
         );
-        saveParticipation(savedMeeting, hostParticipant, resolvedCommand);
+        saveParticipation(savedMeeting, hostParticipant, resolvedCommand, false);
+        saveScheduleCandidateAvailabilities(savedMeeting, resolvedCommand);
 
         if (coverImage != null && !coverImage.isEmpty()) {
             saveCoverImage(savedMeeting, coverImage);
@@ -211,6 +218,8 @@ public class MeetingService {
         deleteMeetingSearchHistory(meeting.getId());
         deletePlaceRecommendationSnapshots(meeting.getId());
         deleteMeetingParticipants(meeting.getId());
+        meetingScheduleCandidateAvailabilityRepository.deleteAllByMeetingId(meeting.getId());
+        meetingScheduleCandidateAvailabilityRepository.flush();
         meetingScheduleCandidateRepository.deleteAllByMeetingId(meeting.getId());
         meetingScheduleCandidateRepository.flush();
         meetingRepository.delete(meeting);
@@ -347,12 +356,16 @@ public class MeetingService {
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
         List<MeetingScheduleCandidate> scheduleCandidates = meetingScheduleCandidateRepository
                 .findAllByMeetingIdOrderByCandidateDateAsc(meeting.getId());
+        List<MeetingScheduleCandidateAvailability> scheduleCandidateAvailabilities =
+                meetingScheduleCandidateAvailabilityRepository
+                        .findAllByMeetingIdOrderByCandidateDateAndTimeAsc(meeting.getId());
         boolean alreadyJoined = member != null
                 && meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), member.userId());
         return MeetingInvitationResult.from(
                 meeting,
                 participantCount,
                 scheduleCandidates,
+                scheduleCandidateAvailabilities,
                 alreadyJoined
         );
     }
@@ -466,7 +479,7 @@ public class MeetingService {
         Meeting meeting = participant.getMeeting();
         validateJoinOpen(meeting);
         validateScheduleResponseInput(meeting, command);
-        saveScheduleResponse(meeting, participant, command);
+        saveScheduleResponse(meeting, participant, command, true);
         return toMyParticipationResult(meeting, participant);
     }
 
@@ -506,7 +519,7 @@ public class MeetingService {
         Meeting meeting = participant.getMeeting();
         validateJoinOpen(meeting);
         validateScheduleResponseInput(meeting, command);
-        saveScheduleResponse(meeting, participant, command);
+        saveScheduleResponse(meeting, participant, command, true);
         return toMyParticipationResult(meeting, participant);
     }
 
@@ -844,7 +857,7 @@ public class MeetingService {
             MeetingParticipant participant = meetingParticipantRepository.saveAndFlush(
                     MeetingParticipant.guest(meeting, normalizedNickname, passwordHash)
             );
-            saveParticipation(meeting, participant, participationCommand);
+            saveParticipation(meeting, participant, participationCommand, true);
             return ParticipantJoinResult.from(meeting, participant);
         } catch (DataIntegrityViolationException exception) {
             throw new MoyeoException(MeetingErrorCode.DUPLICATE_MEETING_PARTICIPANT_NICKNAME);
@@ -886,7 +899,7 @@ public class MeetingService {
             MeetingParticipant participant = meetingParticipantRepository.saveAndFlush(
                     MeetingParticipant.member(meeting, user, normalizedNickname)
             );
-            saveParticipation(meeting, participant, participationCommand);
+            saveParticipation(meeting, participant, participationCommand, true);
             return ParticipantJoinResult.from(meeting, participant);
         } catch (DataIntegrityViolationException exception) {
             if (meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), user.getId())) {
@@ -907,18 +920,19 @@ public class MeetingService {
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
 
         validateJoinOpen(meeting);
-        return saveParticipation(meeting, participant, command);
+        return saveParticipation(meeting, participant, command, true);
     }
 
     private SaveParticipationResult saveParticipation(
             Meeting meeting,
             MeetingParticipant participant,
-            SaveParticipationCommand command
+            SaveParticipationCommand command,
+            boolean restrictScheduleToSnapshot
     ) {
         boolean requiresPlace = meeting.getPlaceMode() == PlaceMode.RECOMMEND;
         validateParticipationInput(meeting, command, requiresPlace);
 
-        int scheduleAvailabilityCount = saveScheduleResponse(meeting, participant, command);
+        int scheduleAvailabilityCount = saveScheduleResponse(meeting, participant, command, restrictScheduleToSnapshot);
         boolean hasDeparture = false;
 
         if (requiresPlace) {
@@ -1398,6 +1412,32 @@ public class MeetingService {
         );
     }
 
+    private void saveScheduleCandidateAvailabilities(Meeting meeting, SaveParticipationCommand command) {
+        if (meeting.getScheduleInputType() != ScheduleInputType.DATE_AND_TIME) {
+            return;
+        }
+
+        Map<LocalDate, MeetingScheduleCandidate> candidatesByDate = meetingScheduleCandidateRepository
+                .findAllByMeetingIdOrderByCandidateDateAsc(meeting.getId())
+                .stream()
+                .collect(Collectors.toMap(MeetingScheduleCandidate::getCandidateDate, Function.identity()));
+        LinkedHashSet<ScheduleSlot> slots = command.scheduleAvailabilities().stream()
+                .map(availability -> new ScheduleSlot(
+                        availability.candidateDate(),
+                        availability.startTime(),
+                        availability.endTime()
+                ))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        List<MeetingScheduleCandidateAvailability> snapshots = slots.stream()
+                .map(slot -> new MeetingScheduleCandidateAvailability(
+                        candidatesByDate.get(slot.candidateDate()),
+                        slot.startTime(),
+                        slot.endTime()
+                ))
+                .toList();
+        meetingScheduleCandidateAvailabilityRepository.saveAll(snapshots);
+    }
+
     private void validateParticipationInput(
             Meeting meeting,
             SaveParticipationCommand command,
@@ -1437,7 +1477,8 @@ public class MeetingService {
     private int saveScheduleResponse(
             Meeting meeting,
             MeetingParticipant participant,
-            SaveParticipationCommand command
+            SaveParticipationCommand command,
+            boolean restrictScheduleToSnapshot
     ) {
         meetingParticipantScheduleDateAvailabilityRepository.deleteAllByParticipantId(participant.getId());
         meetingParticipantScheduleDateAvailabilityRepository.flush();
@@ -1448,6 +1489,16 @@ public class MeetingService {
                 .findAllByMeetingIdOrderByCandidateDateAsc(meeting.getId())
                 .stream()
                 .collect(Collectors.toMap(MeetingScheduleCandidate::getCandidateDate, Function.identity()));
+        Map<LocalDate, List<MeetingScheduleCandidateAvailability>> snapshotsByDate = restrictScheduleToSnapshot
+                ? meetingScheduleCandidateAvailabilityRepository
+                        .findAllByMeetingIdOrderByCandidateDateAndTimeAsc(meeting.getId())
+                        .stream()
+                        .collect(Collectors.groupingBy(
+                                availability -> availability.getScheduleCandidate().getCandidateDate(),
+                                LinkedHashMap::new,
+                                Collectors.toList()
+                        ))
+                : null;
 
         if (meeting.getScheduleInputType() == ScheduleInputType.DATE_ONLY) {
             return saveScheduleDateAvailabilities(participant, command, candidatesByDate);
@@ -1458,7 +1509,7 @@ public class MeetingService {
 
         LinkedHashSet<ScheduleSlot> slots = new LinkedHashSet<>();
         for (SaveParticipationCommand.ScheduleAvailability availability : command.scheduleAvailabilities()) {
-            validateScheduleAvailability(meeting, candidatesByDate, availability);
+            validateScheduleAvailability(meeting, candidatesByDate, snapshotsByDate, availability);
             slots.add(new ScheduleSlot(
                     availability.candidateDate(),
                     availability.startTime(),
@@ -1500,6 +1551,7 @@ public class MeetingService {
     private void validateScheduleAvailability(
             Meeting meeting,
             Map<LocalDate, MeetingScheduleCandidate> candidatesByDate,
+            Map<LocalDate, List<MeetingScheduleCandidateAvailability>> snapshotsByDate,
             SaveParticipationCommand.ScheduleAvailability availability
     ) {
         if (!candidatesByDate.containsKey(availability.candidateDate())
@@ -1509,9 +1561,34 @@ public class MeetingService {
                 || !isHourUnit(availability.startTime())
                 || !isHourUnit(availability.endTime())
                 || availability.startTime().isBefore(meeting.getAvailableStartTime())
-                || availability.endTime().isAfter(meeting.getAvailableEndTime())) {
+                || availability.endTime().isAfter(meeting.getAvailableEndTime())
+                || !isWithinScheduleSnapshot(snapshotsByDate, availability)) {
             throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
         }
+    }
+
+    private boolean isWithinScheduleSnapshot(
+            Map<LocalDate, List<MeetingScheduleCandidateAvailability>> snapshotsByDate,
+            SaveParticipationCommand.ScheduleAvailability availability
+    ) {
+        if (snapshotsByDate == null) {
+            return true;
+        }
+
+        List<MeetingScheduleCandidateAvailability> snapshots = snapshotsByDate.get(availability.candidateDate());
+        if (snapshots == null) {
+            return false;
+        }
+        for (LocalTime time = availability.startTime(); time.isBefore(availability.endTime()); time = time.plusHours(1)) {
+            LocalTime slotStartTime = time;
+            LocalTime slotEndTime = time.plusHours(1);
+            boolean allowed = snapshots.stream().anyMatch(snapshot -> !snapshot.getStartTime().isAfter(slotStartTime)
+                    && !snapshot.getEndTime().isBefore(slotEndTime));
+            if (!allowed) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private LocalDateTime resolveFixedScheduleAt(CreateMeetingCommand command) {
