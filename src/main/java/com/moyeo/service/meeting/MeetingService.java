@@ -469,6 +469,12 @@ public class MeetingService {
         return toMyParticipationResult(meeting, participant);
     }
 
+    public MyParticipationResult getGuestParticipation(String inviteCode, String nickname) {
+        Meeting meeting = findMeetingByInviteCode(inviteCode);
+        MeetingParticipant participant = findGuestParticipant(meeting, nickname);
+        return toMyParticipationResult(meeting, participant);
+    }
+
     @Transactional
     public MyParticipationResult updateMyScheduleResponse(
             String inviteCode,
@@ -965,6 +971,12 @@ public class MeetingService {
 
     private MeetingParticipant findMemberParticipant(Meeting meeting, Long userId) {
         return meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), userId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+    }
+
+    private MeetingParticipant findGuestParticipant(Meeting meeting, String nickname) {
+        return meetingParticipantRepository
+                .findByMeetingIdAndNicknameAndParticipantType(meeting.getId(), normalizeRequired(nickname), ParticipantType.GUEST)
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
     }
 

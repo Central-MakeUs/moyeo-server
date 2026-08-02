@@ -92,6 +92,22 @@ public class MeetingController {
         return MyParticipationResponse.from(meetingService.getMyParticipation(inviteCode, member));
     }
 
+    @GetMapping("/invitations/{inviteCode}/guests/{nickname}/participation")
+    @Operation(
+            summary = "게스트 모임 참여 응답 조회",
+            description = "초대 코드와 게스트 닉네임으로 식별한 게스트의 일정 가능 응답과 출발지 응답을 조회합니다. 현재 게스트 참여 응답 수정 API와 동일하게 비밀번호나 토큰을 다시 확인하지 않습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "게스트 참여 응답 조회 성공"),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 게스트 참여 정보 없음")
+    })
+    public MyParticipationResponse getGuestParticipation(
+            @PathVariable String inviteCode,
+            @PathVariable String nickname
+    ) {
+        return MyParticipationResponse.from(meetingService.getGuestParticipation(inviteCode, nickname));
+    }
+
     @PatchMapping("/invitations/{inviteCode}/members/me/participation/schedule-response")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(

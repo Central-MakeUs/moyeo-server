@@ -230,6 +230,10 @@ general best practice into domain policy.
   `meeting_participants` row. Guest participation modification is a temporary
   MVP flow that identifies a guest only by the invite code and their
   meeting-scoped nickname; it does not verify the stored password.
+- `GET /api/meetings/invitations/{inviteCode}/guests/{nickname}/participation`
+  returns that identified guest's saved schedule and departure responses for
+  the guest edit screen. It uses the same temporary MVP identification rule as
+  guest participation modification and does not establish a session.
 - Guest join does not issue an Access JWT or a guest JWT. Guest participation
   modification does not establish a session.
 - Before guest join, `POST /api/meetings/invitations/{inviteCode}/guests/entry`

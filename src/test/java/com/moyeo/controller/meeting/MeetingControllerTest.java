@@ -1285,6 +1285,12 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.departure.name").value("guest-home"))
                 .andExpect(jsonPath("$.departure.transportationMode").value("CAR"));
 
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation", inviteCode, nickname))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("GUEST"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.departure.name").value("guest-home"));
+
     }
 
     @Test
