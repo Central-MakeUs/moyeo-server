@@ -11,6 +11,9 @@ public record ParticipantJoinResponse(
         @Schema(description = "서버에서 생성한 모임 참여자 ID", example = "2")
         Long participantId,
 
+        @Schema(description = "연결된 서비스 사용자 ID입니다. 게스트 참여자는 null입니다.", example = "42", nullable = true)
+        Long userId,
+
         @Schema(description = "모임 안에서 사용할 표시 닉네임", example = "member1")
         String nickname,
 
@@ -33,6 +36,7 @@ public record ParticipantJoinResponse(
         return new ParticipantJoinResponse(
                 result.meetingId(),
                 result.participantId(),
+                result.userId(),
                 result.nickname(),
                 result.participantType()
         );

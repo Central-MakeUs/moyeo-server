@@ -30,6 +30,6 @@ public record ScheduleViewResult(
     ) {
     }
 
-    public record AvailableParticipant(Long participantId, String nickname) {
+    public record AvailableParticipant(Long participantId, Long userId, String nickname) {
     }
 }

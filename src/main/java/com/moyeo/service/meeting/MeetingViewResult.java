@@ -22,6 +22,7 @@ public record MeetingViewResult(
 
     public record Participant(
             Long participantId,
+            Long userId,
             String nickname,
             String participantType,
             boolean withdrawn

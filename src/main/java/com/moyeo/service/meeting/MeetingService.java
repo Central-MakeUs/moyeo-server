@@ -257,7 +257,7 @@ public class MeetingService {
         MeetingParticipant participant = meetingParticipantRepository.findByMeetingIdAndUserId(meetingId, member.userId())
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
         participant.changeNickname(normalizeRequired(nickname));
-        return new MeetingParticipantNicknameResult(meetingId, participant.getId(), participant.getNickname());
+        return new MeetingParticipantNicknameResult(meetingId, participant.getId(), participant.getUser().getId(), participant.getNickname());
     }
 
     public MeetingCoverStorage.CoverObject getCoverImage(String inviteCode) {
@@ -367,6 +367,7 @@ public class MeetingService {
         List<MeetingViewResult.Participant> participantResults = participants.stream()
                 .map(participant -> new MeetingViewResult.Participant(
                         participant.getId(),
+                        participant.getUser() == null ? null : participant.getUser().getId(),
                         participant.getNickname(),
                         participant.getParticipantType().name(),
                         participant.isWithdrawn()
@@ -429,6 +430,7 @@ public class MeetingService {
         List<MyMeetingDetailResult.Participant> participants = meetingParticipantRepository.findAllByMeetingIdOrderByIdAsc(meetingId).stream()
                 .map(participant -> new MyMeetingDetailResult.Participant(
                         participant.getId(),
+                        participant.getUser() == null ? null : participant.getUser().getId(),
                         participant.getNickname(),
                         participant.getParticipantType().name(),
                         member.userId().equals(participant.getUser() == null ? null : participant.getUser().getId())
@@ -612,6 +614,7 @@ public class MeetingService {
         List<PlaceViewResult.ParticipantDeparture> participantResults = participants.stream()
                 .map(participant -> new PlaceViewResult.ParticipantDeparture(
                         participant.getId(),
+                        participant.getUser() == null ? null : participant.getUser().getId(),
                         participant.getNickname(),
                         participant.getParticipantType().name(),
                         participant.isWithdrawn(),
@@ -932,7 +935,13 @@ public class MeetingService {
             hasDeparture = true;
         }
 
-        return new SaveParticipationResult(meeting.getId(), participant.getId(), scheduleAvailabilityCount, hasDeparture);
+        return new SaveParticipationResult(
+                meeting.getId(),
+                participant.getId(),
+                participant.getUser() == null ? null : participant.getUser().getId(),
+                scheduleAvailabilityCount,
+                hasDeparture
+        );
     }
 
     private Meeting findMeetingByInviteCode(String inviteCode) {
@@ -1178,6 +1187,7 @@ public class MeetingService {
                 .filter(java.util.Objects::nonNull)
                 .map(participant -> new ScheduleViewResult.AvailableParticipant(
                         participant.getId(),
+                        participant.getUser() == null ? null : participant.getUser().getId(),
                         participant.getNickname()
                 ))
                 .toList();

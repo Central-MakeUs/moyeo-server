@@ -21,6 +21,7 @@ public record PlaceViewResult(
 
     public record ParticipantDeparture(
             Long participantId,
+            Long userId,
             String nickname,
             String participantType,
             boolean withdrawn,

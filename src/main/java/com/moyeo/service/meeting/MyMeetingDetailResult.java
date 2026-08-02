@@ -17,6 +17,6 @@ public record MyMeetingDetailResult(
         List<Participant> participants
 ) {
 
-    public record Participant(Long participantId, String nickname, String participantType, boolean isMe) {
+    public record Participant(Long participantId, Long userId, String nickname, String participantType, boolean isMe) {
     }
 }

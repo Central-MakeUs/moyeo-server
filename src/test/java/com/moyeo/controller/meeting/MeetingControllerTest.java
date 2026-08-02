@@ -10,6 +10,7 @@ import com.moyeo.repository.commercial.CommercialAreaRepository;
 import com.moyeo.service.meeting.MeetingService;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.SaveParticipationCommand;
+import com.moyeo.service.meeting.SaveParticipationResult;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.commercial.CommercialAreaSource;
 import com.moyeo.domain.commercial.CommercialAreaType;
@@ -40,6 +41,7 @@ import javax.imageio.ImageIO;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -136,6 +138,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.meetingId").value(meetingId))
                 .andExpect(jsonPath("$.hostNickname").value("homehost"))
                 .andExpect(jsonPath("$.participants.length()").value(2))
+                .andExpect(jsonPath("$.participants[0].userId").isNumber())
+                .andExpect(jsonPath("$.participants[1].userId").isNumber())
                 .andExpect(jsonPath("$.participants[0].isMe").value(false))
                 .andExpect(jsonPath("$.participants[1].isMe").value(true));
 
@@ -751,6 +755,7 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.recommendationBasis").value("STRAIGHT_LINE_PREVIEW"))
                 .andExpect(jsonPath("$.participants[0].departureName").value("서울 강남구 테헤란로 123"))
                 .andExpect(jsonPath("$.participants[0].departureAddress").value("서울 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.participants[0].userId").isNumber())
                 .andExpect(jsonPath("$.recommendations[0].areaName").isString());
     }
 
@@ -992,6 +997,7 @@ class MeetingControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.meetingId").isNumber())
                 .andExpect(jsonPath("$.participantId").isNumber())
+                .andExpect(jsonPath("$.userId").value(nullValue()))
                 .andExpect(jsonPath("$.nickname").value("guest"))
                 .andExpect(jsonPath("$.participantType").value("GUEST"))
                 .andReturn()
@@ -1423,6 +1429,7 @@ class MeetingControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.participantId").isNumber())
+                .andExpect(jsonPath("$.userId").isNumber())
                 .andExpect(jsonPath("$.nickname").value("meeting-member"))
                 .andExpect(jsonPath("$.participantType").value("MEMBER"))
                 .andReturn()
@@ -1622,6 +1629,17 @@ class MeetingControllerTest {
     }
 
     @Test
+    void saveParticipationResponseReturnsNullUserIdForGuest() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("meeting-user-id-guest", "host-user-id", 6);
+        Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-user-id");
+
+        SaveParticipationResult result = saveDefaultParticipation(inviteCode, participantId, "09:00", "10:00");
+
+        assertThat(result.userId()).isNull();
+        assertThat(SaveParticipationResponse.from(result).userId()).isNull();
+    }
+
+    @Test
     void getMeetingViewReturnsParticipantListWithoutRedundantResponseStatus() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost29", "host29", 6);
         Long participantId = joinGuestAndGetParticipantId(inviteCode, "guest-view");
@@ -1633,6 +1651,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.name").value("weekend-meeting"))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.participantCount").value(2))
+                .andExpect(jsonPath("$.participants[0].userId").isNumber())
+                .andExpect(jsonPath("$.participants[1].userId").value(nullValue()))
                 .andExpect(jsonPath("$.respondedParticipantCount").doesNotExist())
                 .andExpect(jsonPath("$.responseRate").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].participantType").value("HOST"))
@@ -1855,6 +1875,8 @@ class MeetingControllerTest {
     void hostAndMemberCanChangeOnlyTheirOwnMeetingNicknameWithDuplicatesAllowed() throws Exception {
         String hostToken = signupAndGetAccessToken("meeting-nickname-host", "host-default");
         String memberToken = signupAndGetAccessToken("meeting-nickname-member", "member-default");
+        Long hostUserId = jwtTokenProvider.parse(hostToken).userId();
+        Long memberUserId = jwtTokenProvider.parse(memberToken).userId();
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
         Long meetingId = getMeetingId(inviteCode);
         joinMember(inviteCode, memberToken, "member-room");
@@ -1864,6 +1886,7 @@ class MeetingControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"same\"}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(hostUserId))
                 .andExpect(jsonPath("$.nickname").value("same"));
 
         mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
@@ -1871,6 +1894,7 @@ class MeetingControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nickname\":\"same\"}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(memberUserId))
                 .andExpect(jsonPath("$.nickname").value("same"));
 
         mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
@@ -1945,6 +1969,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates[0].startTime").value("09:00:00"))
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3))
                 .andExpect(jsonPath("$.candidates[0].availableParticipants.length()").value(3))
+                .andExpect(jsonPath("$.candidates[0].availableParticipants[0].userId").isNumber())
+                .andExpect(jsonPath("$.candidates[0].availableParticipants[1].userId").value(nullValue()))
                 .andExpect(jsonPath("$.candidates[0].availableParticipants[0].nickname").value("host30"))
                 .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(3))
                 .andExpect(jsonPath("$.candidates[0].totalParticipantCount").doesNotExist())
@@ -2850,8 +2876,8 @@ class MeetingControllerTest {
                 .andExpect(status().isCreated());
     }
 
-    private void saveDefaultParticipation(String inviteCode, Long participantId, String startTime, String endTime) throws Exception {
-        saveDefaultParticipation(inviteCode, participantId, List.of(scheduleAvailability(startTime, endTime)));
+    private SaveParticipationResult saveDefaultParticipation(String inviteCode, Long participantId, String startTime, String endTime) throws Exception {
+        return saveDefaultParticipation(inviteCode, participantId, List.of(scheduleAvailability(startTime, endTime)));
     }
 
     private byte[] pngImage() throws Exception {
@@ -2862,12 +2888,12 @@ class MeetingControllerTest {
         return output.toByteArray();
     }
 
-    private void saveDefaultParticipation(
+    private SaveParticipationResult saveDefaultParticipation(
             String inviteCode,
             Long participantId,
             List<Map<String, String>> scheduleAvailabilities
     ) throws Exception {
-        meetingService.saveParticipation(
+        return meetingService.saveParticipation(
                 inviteCode,
                 participantId,
                 new SaveParticipationCommand(

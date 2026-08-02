@@ -88,10 +88,12 @@ public record ScheduleViewResponse(
     @Schema(description = "일정 후보 참여 가능자")
     public record AvailableParticipantResponse(
             Long participantId,
+            @Schema(description = "연결된 서비스 사용자 ID입니다. 게스트 참여자는 null입니다.", example = "42", nullable = true)
+            Long userId,
             String nickname
     ) {
         private static AvailableParticipantResponse from(ScheduleViewResult.AvailableParticipant participant) {
-            return new AvailableParticipantResponse(participant.participantId(), participant.nickname());
+            return new AvailableParticipantResponse(participant.participantId(), participant.userId(), participant.nickname());
         }
     }
 }

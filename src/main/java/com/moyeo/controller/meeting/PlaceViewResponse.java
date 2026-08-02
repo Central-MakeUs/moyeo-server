@@ -61,6 +61,9 @@ public record PlaceViewResponse(
             @Schema(description = "모임 참여자 ID", example = "1")
             Long participantId,
 
+            @Schema(description = "연결된 서비스 사용자 ID입니다. 게스트 참여자는 null입니다.", example = "42", nullable = true)
+            Long userId,
+
             @Schema(description = "모임 안에서 표시할 닉네임", example = "moyeo1")
             String nickname,
 
@@ -83,6 +86,7 @@ public record PlaceViewResponse(
         private static ParticipantDepartureResponse from(PlaceViewResult.ParticipantDeparture participant) {
             return new ParticipantDepartureResponse(
                     participant.participantId(),
+                    participant.userId(),
                     participant.nickname(),
                     participant.participantType(),
                     participant.withdrawn(),

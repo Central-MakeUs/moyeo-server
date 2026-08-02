@@ -6,6 +6,7 @@ import com.moyeo.domain.meeting.MeetingParticipant;
 public record ParticipantJoinResult(
         Long meetingId,
         Long participantId,
+        Long userId,
         String nickname,
         String participantType
 ) {
@@ -14,6 +15,7 @@ public record ParticipantJoinResult(
         return new ParticipantJoinResult(
                 meeting.getId(),
                 participant.getId(),
+                participant.getUser() == null ? null : participant.getUser().getId(),
                 participant.getNickname(),
                 participant.getParticipantType().name()
         );
