@@ -405,6 +405,52 @@ public class MeetingService {
         );
     }
 
+    public MyParticipationResult getMyParticipation(String inviteCode, AuthenticatedMember member) {
+        Meeting meeting = findMeetingByInviteCode(inviteCode);
+        MeetingParticipant participant = findMemberParticipant(meeting, member.userId());
+        return toMyParticipationResult(meeting, participant);
+    }
+
+    @Transactional
+    public MyParticipationResult updateMyScheduleResponse(
+            String inviteCode,
+            AuthenticatedMember member,
+            SaveParticipationCommand command
+    ) {
+        MeetingParticipant participant = findMemberParticipantForUpdate(inviteCode, member);
+        Meeting meeting = participant.getMeeting();
+        validateJoinOpen(meeting);
+        validateScheduleResponseInput(meeting, command);
+        saveScheduleResponse(meeting, participant, command);
+        return toMyParticipationResult(meeting, participant);
+    }
+
+    @Transactional
+    public MyParticipationResult updateMyDeparture(
+            String inviteCode,
+            AuthenticatedMember member,
+            SaveParticipationCommand.Departure departure
+    ) {
+        MeetingParticipant participant = findMemberParticipantForUpdate(inviteCode, member);
+        Meeting meeting = participant.getMeeting();
+        validateJoinOpen(meeting);
+
+        if (meeting.getPlaceMode() != PlaceMode.RECOMMEND || departure == null) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        }
+
+        String departureAddress = normalizeRequired(departure.address());
+        validateSupportedDepartureRegion(departureAddress);
+        participant.updateDeparture(
+                normalizeOptional(departure.name()),
+                departureAddress,
+                departure.latitude(),
+                departure.longitude(),
+                departure.transportationMode()
+        );
+        return toMyParticipationResult(meeting, participant);
+    }
+
     public ScheduleViewResult getScheduleView(String inviteCode, String sort) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
@@ -733,6 +779,59 @@ public class MeetingService {
     private Meeting findMeetingByInviteCode(String inviteCode) {
         return meetingRepository.findByInviteCode(inviteCode)
                 .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_INVITATION_NOT_FOUND));
+    }
+
+    private MeetingParticipant findMemberParticipant(Meeting meeting, Long userId) {
+        return meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), userId)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
+    }
+
+    private MeetingParticipant findMemberParticipantForUpdate(String inviteCode, AuthenticatedMember member) {
+        User user = findActiveUserForUpdate(member.userId());
+        Meeting meeting = findMeetingByInviteCodeForUpdate(inviteCode);
+        return findMemberParticipant(meeting, user.getId());
+    }
+
+    private MyParticipationResult toMyParticipationResult(Meeting meeting, MeetingParticipant participant) {
+        MyParticipationResult.ScheduleResponse scheduleResponse = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> new MyParticipationResult.ScheduleResponse(
+                    meetingParticipantScheduleDateAvailabilityRepository
+                            .findAllByParticipantIdOrderByCandidateDateAsc(participant.getId())
+                            .stream()
+                            .map(availability -> availability.getScheduleCandidate().getCandidateDate())
+                            .toList(),
+                    List.of()
+            );
+            case DATE_AND_TIME -> new MyParticipationResult.ScheduleResponse(
+                    List.of(),
+                    meetingParticipantScheduleAvailabilityRepository
+                            .findAllByParticipantIdOrderByCandidateDateAndTimeAsc(participant.getId())
+                            .stream()
+                            .map(availability -> new MyParticipationResult.ScheduleAvailability(
+                                    availability.getScheduleCandidate().getCandidateDate(),
+                                    availability.getStartTime(),
+                                    availability.getEndTime()
+                            ))
+                            .toList()
+            );
+            case NONE -> null;
+        };
+        MyParticipationResult.Departure departure = meeting.getPlaceMode() == PlaceMode.RECOMMEND
+                ? new MyParticipationResult.Departure(
+                        participant.getDepartureName(),
+                        participant.getDepartureAddress(),
+                        participant.getDepartureLatitude(),
+                        participant.getDepartureLongitude(),
+                        participant.getTransportationMode().name()
+                )
+                : null;
+        return new MyParticipationResult(
+                meeting.getId(),
+                participant.getParticipantType().name(),
+                meeting.getScheduleInputType().name(),
+                scheduleResponse,
+                departure
+        );
     }
 
     private User findActiveUserForUpdate(Long userId) {
@@ -1129,6 +1228,21 @@ public class MeetingService {
             case NONE -> !hasAvailableDates && !hasScheduleAvailabilities;
         };
         if (!validScheduleInput || requiresPlace != hasDeparture) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        }
+    }
+
+    private void validateScheduleResponseInput(Meeting meeting, SaveParticipationCommand command) {
+        boolean hasAvailableDates = command.scheduleAvailableDates() != null
+                && !command.scheduleAvailableDates().isEmpty();
+        boolean hasScheduleAvailabilities = command.scheduleAvailabilities() != null
+                && !command.scheduleAvailabilities().isEmpty();
+        boolean validScheduleInput = switch (meeting.getScheduleInputType()) {
+            case DATE_ONLY -> hasAvailableDates && !hasScheduleAvailabilities;
+            case DATE_AND_TIME -> !hasAvailableDates && hasScheduleAvailabilities;
+            case NONE -> false;
+        };
+        if (!validScheduleInput) {
             throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
         }
     }

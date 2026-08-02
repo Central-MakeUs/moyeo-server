@@ -20,5 +20,16 @@ public interface MeetingParticipantScheduleAvailabilityRepository extends JpaRep
             """)
     List<MeetingParticipantScheduleAvailability> findAllByParticipantMeetingId(@Param("meetingId") Long meetingId);
 
+    @Query("""
+            select availability
+            from MeetingParticipantScheduleAvailability availability
+            join fetch availability.scheduleCandidate scheduleCandidate
+            where availability.participant.id = :participantId
+            order by scheduleCandidate.candidateDate, availability.startTime, availability.endTime
+            """)
+    List<MeetingParticipantScheduleAvailability> findAllByParticipantIdOrderByCandidateDateAndTimeAsc(
+            @Param("participantId") Long participantId
+    );
+
     void deleteAllByParticipantId(Long participantId);
 }

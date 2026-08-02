@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.CacheControl;
 import org.springframework.http.MediaType;
@@ -71,6 +72,111 @@ public class MeetingController {
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
     ) {
         return MyMeetingDetailResponse.from(meetingService.getMyMeetingDetail(meetingId, member));
+    }
+
+    @GetMapping("/invitations/{inviteCode}/members/me/participation")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "내 모임 참여 응답 조회",
+            description = "로그인한 방장 또는 회원이 수정 화면에 표시할 본인의 일정 가능 응답과 출발지 응답을 조회합니다. 게스트 참여자는 지원하지 않습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "내 참여 응답 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
+                    { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 본인 참여 정보 없음")
+    })
+    public MyParticipationResponse getMyParticipation(
+            @PathVariable String inviteCode,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
+    ) {
+        return MyParticipationResponse.from(meetingService.getMyParticipation(inviteCode, member));
+    }
+
+    @PatchMapping("/invitations/{inviteCode}/members/me/participation/schedule-response")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "내 일정 참여 응답 수정",
+            description = "로그인한 방장 또는 회원의 일정 가능 응답 전체를 교체합니다. DATE_ONLY는 availableDates만, DATE_AND_TIME은 availableTimeRanges만 보냅니다. 일정 조율이 없는 모임에서는 수정할 수 없습니다.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, examples = {
+                            @ExampleObject(
+                                    name = "DATE_ONLY",
+                                    description = "기존 후보 날짜 중 가능한 날짜만 다시 선택합니다.",
+                                    value = """
+                                            {
+                                              "availableDates": ["2026-07-10", "2026-07-12"]
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "DATE_AND_TIME",
+                                    description = "후보 날짜와 모임의 공통 가능 시간 안에서 가능한 시간대를 다시 선택합니다.",
+                                    value = """
+                                            {
+                                              "availableTimeRanges": [
+                                                {
+                                                  "candidateDate": "2026-07-10",
+                                                  "startTime": "18:00",
+                                                  "endTime": "20:00"
+                                                }
+                                              ]
+                                            }
+                                            """
+                            )
+                    })
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "내 일정 참여 응답 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "모임 유형과 맞지 않거나 유효하지 않은 일정 응답"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
+                    { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 본인 참여 정보 없음"),
+            @ApiResponse(responseCode = "409", description = "마감 또는 확정된 모임")
+    })
+    public MyParticipationResponse updateMyScheduleResponse(
+            @PathVariable String inviteCode,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @NotNull @Valid @RequestBody SaveParticipationRequest.ScheduleResponseRequest request
+    ) {
+        return MyParticipationResponse.from(meetingService.updateMyScheduleResponse(
+                inviteCode,
+                member,
+                SaveParticipationRequest.toCommand(request, null)
+        ));
+    }
+
+    @PatchMapping("/invitations/{inviteCode}/members/me/participation/departure")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "내 출발지 참여 응답 수정",
+            description = "로그인한 방장 또는 회원의 출발지와 교통수단 응답 전체를 교체합니다. 장소 조율이 없는 모임에서는 수정할 수 없습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "내 출발지 참여 응답 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "모임 유형과 맞지 않거나 유효하지 않은 출발지 응답"),
+            @ApiResponse(responseCode = "401", description = "인증 필요"),
+            @ApiResponse(responseCode = "403", description = "닉네임 온보딩 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
+                    { "code": "ONBOARDING_REQUIRED", "status": 403 }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 본인 참여 정보 없음"),
+            @ApiResponse(responseCode = "409", description = "마감 또는 확정된 모임")
+    })
+    public MyParticipationResponse updateMyDeparture(
+            @PathVariable String inviteCode,
+            @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
+            @NotNull @Valid @RequestBody SaveParticipationRequest.DepartureRequest request
+    ) {
+        return MyParticipationResponse.from(meetingService.updateMyDeparture(
+                inviteCode,
+                member,
+                SaveParticipationRequest.toCommand(null, request).departure()
+        ));
     }
 
     @DeleteMapping("/{meetingId}")

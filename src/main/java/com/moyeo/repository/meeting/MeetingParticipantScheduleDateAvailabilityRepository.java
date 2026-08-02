@@ -21,5 +21,16 @@ public interface MeetingParticipantScheduleDateAvailabilityRepository
             """)
     List<MeetingParticipantScheduleDateAvailability> findAllByParticipantMeetingId(@Param("meetingId") Long meetingId);
 
+    @Query("""
+            select availability
+            from MeetingParticipantScheduleDateAvailability availability
+            join fetch availability.scheduleCandidate scheduleCandidate
+            where availability.participant.id = :participantId
+            order by scheduleCandidate.candidateDate
+            """)
+    List<MeetingParticipantScheduleDateAvailability> findAllByParticipantIdOrderByCandidateDateAsc(
+            @Param("participantId") Long participantId
+    );
+
     void deleteAllByParticipantId(Long participantId);
 }

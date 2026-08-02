@@ -1103,6 +1103,214 @@ class MeetingControllerTest {
     }
 
     @Test
+    void hostAndMemberCanReadAndIndependentlyModifyTheirParticipationResponses() throws Exception {
+        String hostToken = signupAndGetAccessToken("participation-update-host", "update-host");
+        String memberToken = signupAndGetAccessToken("participation-update-member", "update-member");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        joinMember(inviteCode, memberToken, "update-member-room");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("HOST"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.departure.name").value("company"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.departure.name").value("company"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "member-home",
+                                  "address": "서울 마포구 월드컵북로 120",
+                                  "latitude": 37.5665,
+                                  "longitude": 126.9780,
+                                  "transportationMode": "CAR"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("MEMBER"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.departure.name").value("member-home"))
+                .andExpect(jsonPath("$.departure.transportationMode").value("CAR"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.departure.name").value("company"));
+    }
+
+    @Test
+    void participationResponseUpdatesRejectUnsupportedMeetingInputs() throws Exception {
+        String hostToken = signupAndGetAccessToken("participation-update-invalid", "update-invalid");
+        String placeOnlyResponse = mockMvc.perform(post("/api/meetings")
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "place-update",
+                                "maxParticipants", 6,
+                                "planningType", "PLACE_ONLY",
+                                "departure", Map.of(
+                                        "address", "서울 강남구 테헤란로 123",
+                                        "transportationMode", "PUBLIC_TRANSIT"
+                                ),
+                                "deadlineMinutes", 1440
+                        ))))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String placeOnlyInviteCode = objectMapper.readTree(placeOnlyResponse).path("inviteCode").asText();
+        String scheduleOnlyInviteCode = createMeetingAndGetInviteCode(hostToken, dateOnlyCreateMeetingRequest());
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", placeOnlyInviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"availableDates\":[\"2026-07-01\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", scheduleOnlyInviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "address": "서울 마포구 월드컵북로 120",
+                                  "transportationMode": "CAR"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
+    }
+
+    @Test
+    void hostCanReplaceDateOnlyResponseWithSubsetOfExistingCandidateDates() throws Exception {
+        String hostToken = signupAndGetAccessToken("host-date-response-update", "host-date-update");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, dateOnlyCreateMeetingRequest());
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"availableDates\":[\"2026-07-02\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("HOST"))
+                .andExpect(jsonPath("$.scheduleResponse.availableDates[0]").value("2026-07-02"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availabilityStatuses.length()").value(1))
+                .andExpect(jsonPath("$.availabilityStatuses[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(1));
+    }
+
+    @Test
+    void participationResponseUpdatesRejectNonParticipantsAndConfirmedMeetings() throws Exception {
+        String hostToken = signupAndGetAccessToken("participation-closed-host", "closed-host");
+        String memberToken = signupAndGetAccessToken("participation-closed-member", "closed-member");
+        String outsiderToken = signupAndGetAccessToken("participation-closed-outsider", "closed-outsider");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + outsiderToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-01", "startTime": "10:00", "endTime": "12:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPANT_NOT_FOUND"));
+
+        joinMember(inviteCode, memberToken, "closed-member-room");
+        confirmMeeting(getMeetingId(inviteCode), inviteCode, hostToken);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("HOST"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPATION_CLOSED"));
+    }
+
+    @Test
+    void participationResponseGetAllowsDeadlinePassedMeeting() throws Exception {
+        String hostToken = signupAndGetAccessToken("participation-deadline-read-host", "deadline-read-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        jdbcTemplate.update(
+                "update meetings set deadline_at = dateadd('second', -1, current_timestamp) where invite_code = ?",
+                inviteCode
+        );
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("HOST"));
+    }
+
+    @Test
+    void participationResponseUpdatesRejectDeadlinePassedMeeting() throws Exception {
+        String hostToken = signupAndGetAccessToken("participation-deadline-update-host", "deadline-update-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        jdbcTemplate.update(
+                "update meetings set deadline_at = dateadd('second', -1, current_timestamp) where invite_code = ?",
+                inviteCode
+        );
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPATION_CLOSED"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "address": "서울 마포구 월드컵북로 120",
+                                  "transportationMode": "CAR"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPATION_CLOSED"));
+    }
+
+    @Test
     void joinMemberCreatesMemberParticipant() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost22", "host22", 6);
         String memberToken = signupAndGetAccessToken("memberjoin1", "default-member");

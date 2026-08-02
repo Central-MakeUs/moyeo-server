@@ -167,7 +167,8 @@ AUTH-005: An authenticated service user may withdraw through
   place search history. Removing the social-account link allows a later social
   login with the same provider identity to register a new service user.
 - Serialize withdrawal with meeting creation, member meeting join/leave,
-  meeting-scoped nickname updates, host meeting deletion, saved-place
+  authenticated host/member participation-response updates, meeting-scoped
+  nickname updates, host meeting deletion, saved-place
   create/rename/delete, and member search-history writes by locking the active
   `User` row first. When one of these flows also requires another row lock, keep
   the order `User` first, followed by the affected resource, to avoid opposite

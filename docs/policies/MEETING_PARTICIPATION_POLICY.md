@@ -238,6 +238,21 @@ general best practice into domain policy.
   time must be in 1-hour units, and multiple ranges may be saved.
 - A join request creates the participant and their initial availability slots
   atomically.
+- An authenticated `HOST` or `MEMBER` may retrieve only their own participation
+  input regardless of meeting confirmation or deadline status. They may modify
+  it only before the meeting is confirmed or its deadline has passed. Guest
+  participation modification remains deferred.
+- Participation modification never changes meeting-owned settings such as the
+  planning type, candidate dates, common available-time range, deadline, or
+  participant limit. It may change the calculated schedule aggregation and
+  middle-point place preview.
+- Schedule modification replaces the caller's entire schedule response. For a
+  `DATE_ONLY` meeting, a host and a member may select any non-empty subset of
+  the existing host candidate dates; candidate dates themselves are not
+  changed. For `DATE_AND_TIME`, the existing candidate-date, common-time-range,
+  and one-hour-unit validation remains in effect.
+- Departure modification replaces only the caller's departure snapshot and
+  transportation mode. It does not replace the caller's schedule response.
 - Join requests save departure and transportation mode for
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
 - Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Departure `name` is optional; when omitted, the place-view response uses the saved departure address as its display name. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
@@ -437,8 +452,6 @@ general best practice into domain policy.
 - TODO: After the MVP creation flow is stable, decide whether to remove the
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.
-- TODO: Host departure modification after initial meeting creation remains
-  deferred until the modification policy is confirmed.
 - GPS/current-location lookup remains P1 or later client/domain work.
 - Guest re-entry remains deferred until its policy is confirmed.
 - Guest modification remains deferred until its policy is confirmed.
