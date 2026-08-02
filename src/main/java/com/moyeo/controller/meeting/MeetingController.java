@@ -176,6 +176,83 @@ public class MeetingController {
         ));
     }
 
+    @PatchMapping("/invitations/{inviteCode}/guests/{nickname}/participation/schedule-response")
+    @Operation(
+            summary = "게스트 일정 참여 응답 수정",
+            description = "초대 코드와 게스트 닉네임으로 대상을 식별한 뒤, 일정 응답 전체를 교체합니다.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, examples = {
+                            @ExampleObject(name = "DATE_ONLY", value = """
+                                    {
+                                      "availableDates": ["2026-07-10", "2026-07-12"]
+                                    }
+                                    """),
+                            @ExampleObject(name = "DATE_AND_TIME", value = """
+                                    {
+                                      "availableTimeRanges": [
+                                        {
+                                          "candidateDate": "2026-07-10",
+                                          "startTime": "18:00",
+                                          "endTime": "20:00"
+                                        }
+                                      ]
+                                    }
+                                    """)
+                    })
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "게스트 일정 참여 응답 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 일정 응답"),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 게스트 참여 정보 없음"),
+            @ApiResponse(responseCode = "409", description = "마감 또는 확정된 모임")
+    })
+    public MyParticipationResponse updateGuestScheduleResponse(
+            @PathVariable String inviteCode,
+            @PathVariable String nickname,
+            @NotNull @Valid @RequestBody SaveParticipationRequest.ScheduleResponseRequest request
+    ) {
+        return MyParticipationResponse.from(meetingService.updateGuestScheduleResponse(
+                inviteCode,
+                nickname,
+                SaveParticipationRequest.toCommand(request, null)
+        ));
+    }
+
+    @PatchMapping("/invitations/{inviteCode}/guests/{nickname}/participation/departure")
+    @Operation(
+            summary = "게스트 출발지 참여 응답 수정",
+            description = "초대 코드와 게스트 닉네임으로 대상을 식별한 뒤, 출발지와 교통수단 응답을 교체합니다.",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, examples = @ExampleObject(value = """
+                            {
+                              "name": "회사",
+                              "address": "서울 마포구 월드컵북로 120",
+                              "latitude": 37.5665,
+                              "longitude": 126.9780,
+                              "transportationMode": "PUBLIC_TRANSIT"
+                            }
+                            """))
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "게스트 출발지 참여 응답 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 출발지 응답"),
+            @ApiResponse(responseCode = "404", description = "초대 코드 또는 게스트 참여 정보 없음"),
+            @ApiResponse(responseCode = "409", description = "마감 또는 확정된 모임")
+    })
+    public MyParticipationResponse updateGuestDeparture(
+            @PathVariable String inviteCode,
+            @PathVariable String nickname,
+            @NotNull @Valid @RequestBody SaveParticipationRequest.DepartureRequest request
+    ) {
+        return MyParticipationResponse.from(meetingService.updateGuestDeparture(
+                inviteCode,
+                nickname,
+                SaveParticipationRequest.toCommand(null, request).departure()
+        ));
+    }
+
     @DeleteMapping("/{meetingId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @SecurityRequirement(name = "bearerAuth")
@@ -1097,6 +1174,62 @@ public class MeetingController {
     })
     public PlaceViewResponse getPlaceView(@PathVariable String inviteCode) {
         return PlaceViewResponse.from(meetingService.getPlaceView(inviteCode));
+    }
+
+    @PostMapping("/invitations/{inviteCode}/guests/entry")
+    @Operation(
+            summary = "게스트 참여 진입 분기",
+            description = """
+                    게스트 참여 요청 전에 호출하는 공개 분기 API입니다. Bearer Access Token은 사용하지 않습니다.
+
+                    - `NEW_GUEST`: 해당 모임에서 게스트 닉네임이 미사용입니다. 신규 게스트 참여 입력 플로우로 이동합니다.
+                    - `EXISTING_GUEST`: 해당 닉네임의 게스트가 있고 비밀번호가 일치합니다. 모임 현황 플로우로 이동합니다.
+                    - 이미 사용 중인 닉네임의 비밀번호가 일치하지 않으면 `DUPLICATE_MEETING_PARTICIPANT_NICKNAME`을 반환합니다. 비밀번호 불일치 여부는 별도 오류로 노출하지 않습니다.
+                    """,
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, examples = @ExampleObject(
+                            name = "GUEST_ENTRY",
+                            description = "모임 안에서 사용할 게스트 닉네임과 숫자 4자리 비밀번호를 입력합니다.",
+                            value = """
+                                    {
+                                      "nickname": "민지",
+                                      "password": "1234"
+                                    }
+                                    """
+                    ))
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "게스트 참여 진입 분기 성공", content = @Content(
+                    mediaType = MediaType.APPLICATION_JSON_VALUE,
+                    examples = {
+                            @ExampleObject(
+                                    name = "NEW_GUEST",
+                                    description = "신규 게스트 참여 입력 플로우로 이동합니다.",
+                                    value = """
+                                            { "entryType": "NEW_GUEST" }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "EXISTING_GUEST",
+                                    description = "기존 게스트로 확인되었습니다. 모임 현황 플로우로 이동합니다.",
+                                    value = """
+                                            { "entryType": "EXISTING_GUEST" }
+                                            """
+                            )
+                    }
+            )),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 닉네임 또는 비밀번호"),
+            @ApiResponse(responseCode = "404", description = "초대 코드에 해당하는 모임 없음"),
+            @ApiResponse(responseCode = "409", description = "이미 사용 중인 게스트 닉네임", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                    { "code": "DUPLICATE_MEETING_PARTICIPANT_NICKNAME", "status": 409 }
+                    """)))
+    })
+    public GuestEntryResponse checkGuestEntry(
+            @PathVariable String inviteCode,
+            @Valid @RequestBody GuestEntryRequest request
+    ) {
+        return GuestEntryResponse.from(meetingService.checkGuestEntry(inviteCode, request.nickname(), request.password()));
     }
 
     @PostMapping("/invitations/{inviteCode}/guests")

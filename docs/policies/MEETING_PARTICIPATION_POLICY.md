@@ -224,11 +224,18 @@ general best practice into domain policy.
   include the departure snapshot and transportation mode for `PLACE_ONLY` and
   `SCHEDULE_AND_PLACE`.
 - Guest join stores the participant password as a hash on the
-  `meeting_participants` row. Guest password verification for later re-entry or
-  modification remains deferred until its policy is confirmed.
-- Guest join does not issue an Access JWT or a guest JWT. Authentication for a
-  later guest re-entry or modification flow remains deferred until that flow's
-  policy is confirmed.
+  `meeting_participants` row. Guest participation modification is a temporary
+  MVP flow that identifies a guest only by the invite code and their
+  meeting-scoped nickname; it does not verify the stored password.
+- Guest join does not issue an Access JWT or a guest JWT. Guest participation
+  modification does not establish a session.
+- Before guest join, `POST /api/meetings/invitations/{inviteCode}/guests/entry`
+  accepts the guest nickname and four-digit password solely for client-side entry
+  branching. It returns `NEW_GUEST` when no guest uses the nickname and
+  `EXISTING_GUEST` when the matching guest password is provided; the latter moves
+  the client to the meeting-status flow. When the nickname is used but the
+  password does not match, it returns the same duplicate-nickname conflict as a
+  normal duplicate attempt and does not expose a password-specific error.
 - A repeated guest join attempt with the same nickname as an existing guest in
   the same meeting should continue to return a duplicate nickname conflict, even if
   the same password is provided.
@@ -259,8 +266,10 @@ general best practice into domain policy.
   atomically.
 - An authenticated `HOST` or `MEMBER` may retrieve only their own participation
   input regardless of meeting confirmation or deadline status. They may modify
-  it only before the meeting is confirmed or its deadline has passed. Guest
-  participation modification remains deferred.
+  it only before the meeting is confirmed or its deadline has passed. A `GUEST`
+  may modify only their own participation input before the same cutoff by
+  supplying their meeting-scoped nickname. This temporary MVP flow does not
+  verify a guest password.
 - Participation modification never changes meeting-owned settings such as the
   planning type, candidate dates, common available-time range, deadline, or
   participant limit. It may change the calculated schedule aggregation and
@@ -473,10 +482,9 @@ general best practice into domain policy.
   remaining fixed schedule/place fields and enum values or reintroduce a fixed
   direct-input flow.
 - GPS/current-location lookup remains P1 or later client/domain work.
-- Guest re-entry remains deferred until its policy is confirmed.
-- Guest modification remains deferred until its policy is confirmed.
-- Participant password verification for re-entry or modification remains
-  deferred until its policy is confirmed.
+- Guest re-entry is limited to the pre-join entry branch above and does not
+  establish a guest session. Guest participation-response modification remains
+  the documented temporary invite-code-and-nickname flow.
 - Member invitation beyond direct invite-link join remains deferred until its
   policy is confirmed.
 - Group invitation remains deferred until its policy is confirmed.

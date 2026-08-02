@@ -494,6 +494,39 @@ public class MeetingService {
         return toMyParticipationResult(meeting, participant);
     }
 
+    @Transactional
+    public MyParticipationResult updateGuestScheduleResponse(
+            String inviteCode,
+            String nickname,
+            SaveParticipationCommand command
+    ) {
+        MeetingParticipant participant = findGuestParticipantForUpdate(inviteCode, nickname);
+        Meeting meeting = participant.getMeeting();
+        validateJoinOpen(meeting);
+        validateScheduleResponseInput(meeting, command);
+        saveScheduleResponse(meeting, participant, command);
+        return toMyParticipationResult(meeting, participant);
+    }
+
+    @Transactional
+    public MyParticipationResult updateGuestDeparture(
+            String inviteCode,
+            String nickname,
+            SaveParticipationCommand.Departure departure
+    ) {
+        MeetingParticipant participant = findGuestParticipantForUpdate(inviteCode, nickname);
+        Meeting meeting = participant.getMeeting();
+        validateJoinOpen(meeting);
+        if (meeting.getPlaceMode() != PlaceMode.RECOMMEND || departure == null) {
+            throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        }
+        String departureAddress = normalizeRequired(departure.address());
+        validateSupportedDepartureRegion(departureAddress);
+        participant.updateDeparture(normalizeOptional(departure.name()), departureAddress, departure.latitude(),
+                departure.longitude(), departure.transportationMode());
+        return toMyParticipationResult(meeting, participant);
+    }
+
     public ScheduleViewResult getScheduleView(String inviteCode, String sort) {
         Meeting meeting = findMeetingByInviteCode(inviteCode);
         long participantCount = meetingParticipantRepository.countByMeetingId(meeting.getId());
@@ -815,6 +848,22 @@ public class MeetingService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public GuestEntryResult checkGuestEntry(String inviteCode, String nickname, String rawPassword) {
+        Meeting meeting = findMeetingByInviteCode(inviteCode);
+        String normalizedNickname = normalizeRequired(nickname);
+
+        return meetingParticipantRepository
+                .findByMeetingIdAndNicknameAndParticipantType(meeting.getId(), normalizedNickname, ParticipantType.GUEST)
+                .map(participant -> {
+                    if (!passwordEncoder.matches(rawPassword, participant.getPasswordHash())) {
+                        throw new MoyeoException(MeetingErrorCode.DUPLICATE_MEETING_PARTICIPANT_NICKNAME);
+                    }
+                    return GuestEntryResult.existingGuest();
+                })
+                .orElseGet(GuestEntryResult::newGuest);
+    }
+
     @Transactional
     public ParticipantJoinResult joinMember(
             String inviteCode,
@@ -900,6 +949,13 @@ public class MeetingService {
         User user = findActiveUserForUpdate(member.userId());
         Meeting meeting = findMeetingByInviteCodeForUpdate(inviteCode);
         return findMemberParticipant(meeting, user.getId());
+    }
+
+    private MeetingParticipant findGuestParticipantForUpdate(String inviteCode, String nickname) {
+        Meeting meeting = findMeetingByInviteCodeForUpdate(inviteCode);
+        return meetingParticipantRepository
+                .findByMeetingIdAndNicknameAndParticipantType(meeting.getId(), normalizeRequired(nickname), ParticipantType.GUEST)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
     }
 
     private MyParticipationResult toMyParticipationResult(Meeting meeting, MeetingParticipant participant) {

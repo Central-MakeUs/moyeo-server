@@ -8,10 +8,10 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 
-@Schema(description = "로그인한 방장 또는 회원의 모임 참여 응답")
+@Schema(description = "방장, 회원 또는 게스트의 모임 참여 응답")
 public record MyParticipationResponse(
         @Schema(description = "모임 ID", example = "17") Long meetingId,
-        @Schema(description = "현재 사용자의 모임 역할", allowableValues = {"HOST", "MEMBER"}) String participantType,
+        @Schema(description = "현재 사용자의 모임 역할", allowableValues = {"HOST", "MEMBER", "GUEST"}) String participantType,
         @Schema(description = "일정 입력 유형", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"}) String scheduleInputType,
         @Schema(description = "본인의 일정 응답입니다. DATE_ONLY에서는 availableDates만 사용하고 availableTimeRanges는 빈 배열입니다. DATE_AND_TIME에서는 availableTimeRanges만 사용하고 availableDates는 빈 배열입니다. 일정 조율이 없는 모임(NONE)에서는 null입니다.", nullable = true)
         ScheduleResponse scheduleResponse,

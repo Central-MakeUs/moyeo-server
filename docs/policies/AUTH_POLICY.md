@@ -129,6 +129,11 @@ entry.
   identifies the guest by the invite code and guest nickname without a password
   or token. Anyone with the invite code can request removal of a named guest;
   replace this with guest-bound authentication when the policy is expanded.
+- Guest participation-response modification is the same temporary MVP exception:
+  `PATCH /api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/*`
+  identifies a guest by invite code and nickname without a password or token.
+  Anyone with the invite code can modify a named guest's response; replace this
+  with guest-bound authentication when the policy is expanded.
 - Store real JWT secrets through environment variables in dev/prod.
 - The unified departure place search API accepts either a valid Access JWT or,
   only when the `Authorization` header is absent, a valid meeting invite code.

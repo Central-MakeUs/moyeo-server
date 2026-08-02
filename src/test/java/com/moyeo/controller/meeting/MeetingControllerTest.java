@@ -1054,6 +1054,37 @@ class MeetingControllerTest {
     }
 
     @Test
+    void guestEntryBranchesNewAndExistingGuestsWithoutExposingPasswordMismatch() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("guest-entry-host", "guest-entry-host", 6);
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests/entry", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nickname": "newguest", "password": "1234" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entryType").value("NEW_GUEST"));
+
+        joinGuest(inviteCode, "existing");
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests/entry", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nickname": "existing", "password": "1234" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entryType").value("EXISTING_GUEST"));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests/entry", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nickname": "existing", "password": "9999" }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DUPLICATE_MEETING_PARTICIPANT_NICKNAME"));
+    }
+
+    @Test
     void joinGuestAllowsMultipleGuestsWithNullUserId() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost9", "host9", 6);
 
@@ -1186,6 +1217,43 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"))
                 .andExpect(jsonPath("$.departure.name").value("company"));
+    }
+
+    @Test
+    void guestCanModifyOwnParticipationResponsesWithPassword() throws Exception {
+        String hostToken = signupAndGetAccessToken("guest-update-host", "guest-update-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
+        String nickname = "guestedit";
+        joinGuest(inviteCode, nickname);
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/schedule-response", inviteCode, nickname)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "availableTimeRanges": [
+                                    { "candidateDate": "2026-07-02", "startTime": "10:00", "endTime": "12:00" }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantType").value("GUEST"))
+                .andExpect(jsonPath("$.scheduleResponse.availableTimeRanges[0].candidateDate").value("2026-07-02"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure", inviteCode, nickname)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "guest-home",
+                                  "address": "서울 마포구 월드컵북로 120",
+                                  "latitude": 37.5665,
+                                  "longitude": 126.9780,
+                                  "transportationMode": "CAR"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departure.name").value("guest-home"))
+                .andExpect(jsonPath("$.departure.transportationMode").value("CAR"));
+
     }
 
     @Test
