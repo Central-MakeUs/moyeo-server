@@ -209,6 +209,7 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PLANNING"))
                 .andExpect(jsonPath("$.deadlineAt").doesNotExist())
                 .andExpect(jsonPath("$.participationStatus.canJoin").value(true));
 
@@ -894,6 +895,21 @@ class MeetingControllerTest {
     }
 
     @Test
+    void getInvitationPrioritizesAlreadyJoinedStatusOverConfirmedMeeting() throws Exception {
+        String hostToken = signupAndGetAccessToken("invitation-already-joined-confirmed-host", "already-joined-confirmed-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        joinGuest(inviteCode, "already-joined-confirmed-guest");
+        confirmMeeting(getMeetingId(inviteCode), inviteCode, hostToken);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("ALREADY_JOINED"));
+    }
+
+    @Test
     void getInvitationKeepsAvailableStatusForAuthenticatedNonParticipant() throws Exception {
         String hostToken = signupAndGetAccessToken("invitation-non-participant-host", "non-participant-host");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
@@ -1378,6 +1394,12 @@ class MeetingControllerTest {
 
         joinMember(inviteCode, memberToken, "closed-member-room");
         confirmMeeting(getMeetingId(inviteCode), inviteCode, hostToken);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.participationStatus.canJoin").value(false))
+                .andExpect(jsonPath("$.participationStatus.reason").value("MEETING_CONFIRMED"));
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
                         .header("Authorization", "Bearer " + hostToken))

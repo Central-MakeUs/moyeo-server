@@ -203,9 +203,10 @@ general best practice into domain policy.
   schedule response.
 - The entry response returns `ALREADY_JOINED` with `canJoin = false` for an
   already participating authenticated member. This status takes priority over
-  deadline and participant-limit statuses. If the member has not joined and
-  both the deadline and participant limit block joining, the deadline-passed
-  status takes priority.
+  `MEETING_CONFIRMED`, deadline, and participant-limit statuses. A confirmed
+  meeting returns `MEETING_CONFIRMED` with `canJoin = false`. If the member has
+  not joined and the meeting is not confirmed but both the deadline and
+  participant limit block joining, the deadline-passed status takes priority.
 - Web invite-link entry supports both logged-in member join and guest join.
 - App invite-link entry supports logged-in member join only; guest join is not
   exposed in the app entry flow.

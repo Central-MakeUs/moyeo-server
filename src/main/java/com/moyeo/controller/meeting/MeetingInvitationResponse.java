@@ -39,6 +39,9 @@ public record MeetingInvitationResponse(
         )
         String planningType,
 
+        @Schema(description = "모임의 최종 확정 상태입니다. PLANNING은 아직 최종 확정 전, CONFIRMED는 필요한 일정·장소 선택이 모두 확정된 상태입니다.", example = "PLANNING", allowableValues = {"PLANNING", "CONFIRMED"})
+        String status,
+
         @Schema(
                 description = """
                         일정 설정 방식입니다.
@@ -113,6 +116,7 @@ public record MeetingInvitationResponse(
                 result.coverImageUrl(),
                 result.maxParticipants(),
                 result.planningType(),
+                result.status(),
                 result.scheduleMode(),
                 result.scheduleInputType(),
                 result.scheduleCandidateDates().stream().map(ScheduleCandidateResponse::from).toList(),
@@ -158,14 +162,16 @@ public record MeetingInvitationResponse(
                             <ul>
                               <li>AVAILABLE: 참여 가능</li>
                               <li>ALREADY_JOINED: 로그인한 사용자가 이미 참여함</li>
+                              <li>MEETING_CONFIRMED: 모임이 최종 확정됨</li>
                               <li>DEADLINE_PASSED: 참여 기한 지남</li>
                               <li>PARTICIPANT_LIMIT_EXCEEDED: 정원 초과</li>
                             </ul>
                             로그인한 사용자가 이미 참여한 경우 `ALREADY_JOINED`를 우선 반환합니다.
-                            그렇지 않고 기한과 정원이 모두 막힌 경우 기한 초과를 우선 반환합니다.
+                            그렇지 않고 모임이 확정되었으면 `MEETING_CONFIRMED`를 반환합니다.
+                            이후 기한과 정원이 모두 막힌 경우 기한 초과를 우선 반환합니다.
                             """,
                     example = "AVAILABLE",
-                    allowableValues = {"AVAILABLE", "ALREADY_JOINED", "DEADLINE_PASSED", "PARTICIPANT_LIMIT_EXCEEDED"}
+                    allowableValues = {"AVAILABLE", "ALREADY_JOINED", "MEETING_CONFIRMED", "DEADLINE_PASSED", "PARTICIPANT_LIMIT_EXCEEDED"}
             )
             String reason,
 

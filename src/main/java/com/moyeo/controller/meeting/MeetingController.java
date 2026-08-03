@@ -1031,6 +1031,7 @@ public class MeetingController {
                                               "coverImageUrl": null,
                                               "maxParticipants": 6,
                                               "planningType": "SCHEDULE_ONLY",
+                                              "status": "PLANNING",
                                               "scheduleMode": "VOTE",
                                               "scheduleInputType": "DATE_AND_TIME",
                                               "scheduleCandidateDates": [

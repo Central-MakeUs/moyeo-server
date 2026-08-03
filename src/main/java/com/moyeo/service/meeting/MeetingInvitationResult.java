@@ -1,6 +1,7 @@
 package com.moyeo.service.meeting;
 
 import com.moyeo.domain.meeting.Meeting;
+import com.moyeo.domain.meeting.MeetingStatus;
 import com.moyeo.domain.meeting.MeetingScheduleCandidate;
 import com.moyeo.domain.meeting.MeetingScheduleCandidateAvailability;
 import com.moyeo.domain.meeting.ScheduleInputType;
@@ -19,6 +20,7 @@ public record MeetingInvitationResult(
         String coverImageUrl,
         Integer maxParticipants,
         String planningType,
+        String status,
         String scheduleMode,
         String scheduleInputType,
         List<ScheduleCandidate> scheduleCandidateDates,
@@ -69,6 +71,7 @@ public record MeetingInvitationResult(
                 MeetingCoverUrl.from(meeting),
                 meeting.getMaxParticipants(),
                 meeting.getPlanningType().name(),
+                meeting.getStatus().name(),
                 meeting.getScheduleMode().name(),
                 meeting.getScheduleInputType().name(),
                 invitationScheduleCandidates,
@@ -101,15 +104,21 @@ public record MeetingInvitationResult(
 
         private static final String AVAILABLE = "AVAILABLE";
         private static final String ALREADY_JOINED = "ALREADY_JOINED";
+        private static final String MEETING_CONFIRMED = "MEETING_CONFIRMED";
         private static final String DEADLINE_PASSED = "DEADLINE_PASSED";
         private static final String PARTICIPANT_LIMIT_EXCEEDED = "PARTICIPANT_LIMIT_EXCEEDED";
         private static final String ALREADY_JOINED_MESSAGE = "이미 참여 중인 모임이에요.";
+        private static final String MEETING_CONFIRMED_MESSAGE = "확정된 모임이에요. 아쉽지만 현재는 더 이상 참여할 수 없어요.";
         private static final String DEADLINE_PASSED_MESSAGE = "\uAE30\uD55C\uC774 \uC9C0\uB09C \uBAA8\uC784\uC774\uC5D0\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694.";
         private static final String PARTICIPANT_LIMIT_EXCEEDED_MESSAGE = "\uBAA8\uC778 \uC778\uC6D0\uC774 \uBAA8\uB450 \uCC3C\uC5B4\uC694. \uC544\uC27D\uC9C0\uB9CC \uD604\uC7AC\uB294 \uB354 \uC774\uC0C1 \uCC38\uC5EC\uD560 \uC218 \uC5C6\uC5B4\uC694.";
 
         private static ParticipationStatus from(Meeting meeting, long participantCount, boolean alreadyJoined) {
             if (alreadyJoined) {
                 return new ParticipationStatus(false, ALREADY_JOINED, ALREADY_JOINED_MESSAGE);
+            }
+
+            if (meeting.getStatus() == MeetingStatus.CONFIRMED) {
+                return new ParticipationStatus(false, MEETING_CONFIRMED, MEETING_CONFIRMED_MESSAGE);
             }
 
             if (meeting.getDeadlineAt() != null && !meeting.getDeadlineAt().isAfter(LocalDateTime.now())) {
