@@ -14,10 +14,10 @@ public record MeetingViewResponse(
         @Schema(description = "모임명", example = "주말 저녁 모임")
         String name,
 
-        @Schema(description = "모임 설명. 입력하지 않은 경우 null입니다.", example = "오랜만에 같이 저녁 먹어요.")
+        @Schema(description = "모임 설명. 입력하지 않은 경우 null입니다.", example = "오랜만에 같이 저녁 먹어요.", nullable = true, types = {"string", "null"})
         String description,
 
-        @Schema(description = "이미 저장된 커버 이미지를 <img src>에 표시할 때 쓰는 상대 API 경로입니다. API 서버 주소를 앞에 붙여 사용하며, v 값은 캐시 갱신용이므로 변경하지 않습니다. 커버가 없으면 null입니다.", example = "/api/meetings/invitations/ABCD234567/cover-image?v=15v9zq")
+        @Schema(description = "이미 저장된 커버 이미지를 <img src>에 표시할 때 쓰는 상대 API 경로입니다. API 서버 주소를 앞에 붙여 사용하며, v 값은 캐시 갱신용이므로 변경하지 않습니다. 커버가 없으면 null입니다.", example = "/api/meetings/invitations/ABCD234567/cover-image?v=15v9zq", nullable = true, types = {"string", "null"})
         String coverImageUrl,
 
         @Schema(description = "모임 생성 유형", example = "SCHEDULE_AND_PLACE", allowableValues = {"SCHEDULE_ONLY", "PLACE_ONLY", "SCHEDULE_AND_PLACE"})
@@ -32,7 +32,7 @@ public record MeetingViewResponse(
         @Schema(description = "장소 설정 방식입니다. 현재 MVP에서는 장소 조율 모임이면 RECOMMEND, 장소 조율이 없으면 NONE을 반환합니다.", example = "RECOMMEND", allowableValues = {"RECOMMEND", "NONE"})
         String placeMode,
 
-        @Schema(description = "장소 추천 방식입니다. placeMode가 RECOMMEND일 때만 반환하고, 그 외에는 null입니다.", example = "MIDDLE_POINT", allowableValues = {"MIDDLE_POINT", "RANDOM"})
+        @Schema(description = "장소 추천 방식입니다. placeMode가 RECOMMEND가 아닌 경우 null입니다.", example = "MIDDLE_POINT", allowableValues = {"MIDDLE_POINT", "RANDOM"}, nullable = true, types = {"string", "null"})
         String placeRecommendationStrategy,
 
         @Schema(description = "최대 참여 인원. 방장을 포함합니다.", example = "6")
@@ -41,10 +41,10 @@ public record MeetingViewResponse(
         @Schema(description = "현재 참여 인원. 방장을 포함합니다.", example = "3")
         long participantCount,
 
-        @Schema(description = "모임 참여/응답 마감 일시입니다. 마감 없는 모임에서는 반환하지 않습니다.", example = "2026-07-12T18:00:00")
+        @Schema(description = "모임 참여/응답 마감 일시입니다. 마감 없는 모임에서는 null입니다.", example = "2026-07-12T18:00:00", nullable = true, types = {"string", "null"})
         LocalDateTime deadlineAt,
 
-        @Schema(description = "현재 서버 시간 기준 마감까지 남은 분입니다. 이미 마감된 경우 0이며, 마감 없는 모임에서는 반환하지 않습니다.", example = "360")
+        @Schema(description = "현재 서버 시간 기준 마감까지 남은 분입니다. 이미 마감된 경우 0이며, 마감 없는 모임에서는 null입니다.", example = "360", nullable = true, types = {"integer", "null"})
         Long remainingMinutes,
 
         @Schema(description = "참여자 목록. 방장이 먼저 오고 이후 참여 순서로 정렬됩니다.")

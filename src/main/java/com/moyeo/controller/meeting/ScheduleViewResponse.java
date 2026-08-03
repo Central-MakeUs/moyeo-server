@@ -44,10 +44,10 @@ public record ScheduleViewResponse(
             @Schema(description = "후보 날짜", example = "2026-07-12")
             LocalDate candidateDate,
 
-            @Schema(description = "시작 시간. DATE_ONLY에서는 null입니다.", example = "18:00")
+            @Schema(description = "시작 시간. DATE_ONLY에서는 null입니다.", example = "18:00", nullable = true, types = {"string", "null"})
             LocalTime startTime,
 
-            @Schema(description = "종료 시간. DATE_ONLY에서는 null입니다.", example = "19:00")
+            @Schema(description = "종료 시간. DATE_ONLY에서는 null입니다.", example = "19:00", nullable = true, types = {"string", "null"})
             LocalTime endTime,
 
             @Schema(description = "해당 날짜 또는 시간에 참여 가능한 인원 수", example = "3")

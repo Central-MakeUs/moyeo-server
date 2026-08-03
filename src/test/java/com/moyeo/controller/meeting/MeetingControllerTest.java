@@ -2105,7 +2105,7 @@ class MeetingControllerTest {
     }
 
     @Test
-    void swaggerDocumentsNoDeadlineRequestAndOmittedDeadlineResponses() throws Exception {
+    void swaggerDocumentsNoDeadlineRequestAndNullableDeadlineResponses() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath(
@@ -2116,13 +2116,64 @@ class MeetingControllerTest {
                 ).value(false))
                 .andExpect(jsonPath(
                         "$.components.schemas.MeetingInvitationResponse.properties.deadlineAt.description"
-                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")))
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 null입니다")))
                 .andExpect(jsonPath(
                         "$.components.schemas.MeetingViewResponse.properties.deadlineAt.description"
-                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")))
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 null입니다")))
                 .andExpect(jsonPath(
                         "$.components.schemas.MeetingViewResponse.properties.remainingMinutes.description"
-                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 반환하지 않습니다")));
+                ).value(org.hamcrest.Matchers.containsString("마감 없는 모임에서는 null입니다")));
+    }
+
+    @Test
+    void swaggerDocumentsNullableOptionalResponseFields() throws Exception {
+        var openApi = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        Map<String, List<String>> nullableFieldsBySchema = Map.of(
+                "MeetingInvitationResponse", List.of("description", "coverImageUrl", "placeRecommendationStrategy", "deadlineAt"),
+                "ParticipationStatusResponse", List.of("message"),
+                "MeetingViewResponse", List.of("description", "coverImageUrl", "placeRecommendationStrategy", "deadlineAt", "remainingMinutes"),
+                "MeetingConfirmationResponse", List.of("confirmedAt", "scheduleDate", "startTime", "endTime", "placeName"),
+                "MyMeetingDetailResponse", List.of("description", "coverImageUrl", "confirmedScheduleDate", "confirmedStartTime", "confirmedEndTime", "confirmedPlaceName"),
+                "Item", List.of("coverImageUrl", "deadlineAt", "confirmedScheduleDate", "confirmedStartTime", "confirmedEndTime", "confirmedPlaceName"),
+                "CandidateResponse", List.of("startTime", "endTime"),
+                "PlaceViewResponse", List.of("placeRecommendationStrategy", "recommendationBasis", "center"),
+                "ParticipantDepartureResponse", List.of("departureAddress", "transportationMode"),
+                "RecommendationResponse", List.of("averageStraightDistanceMeters", "averageTravelTimeSeconds", "maxTravelTimeSeconds", "station")
+        );
+
+        nullableFieldsBySchema.forEach((schemaName, fields) -> {
+            var schema = openApi.path("components").path("schemas").path(schemaName);
+            assertThat(schema.isMissingNode()).isFalse();
+            for (String field : fields) {
+                assertThat(schema.path("required").toString()).doesNotContain(field);
+                var fieldSchema = schema.path("properties").path(field);
+                assertThat(schema.path("required").toString()).doesNotContain(field);
+                assertThat(fieldSchema.path("description").asText()).contains("null입니다");
+                assertThat(fieldSchema.path("nullable").asBoolean()
+                        || fieldSchema.path("type").toString().contains("\"null\""))
+                        .isTrue();
+            }
+        });
+
+        String invitationExample = openApi.path("paths")
+                .path("/api/meetings/invitations/{inviteCode}")
+                .path("get")
+                .path("responses")
+                .path("200")
+                .path("content")
+                .path(MediaType.APPLICATION_JSON_VALUE)
+                .path("examples")
+                .path("DATE_AND_TIME")
+                .path("value")
+                .toString();
+        assertThat(invitationExample).contains("\"coverImageUrl\":null")
+                .contains("\"placeRecommendationStrategy\":null")
+                .contains("\"message\":null");
     }
 
     @Test

@@ -27,18 +27,18 @@ public record MyMeetingListResponse(
             @Schema(description = "모임 ID", example = "17") Long meetingId,
             @Schema(description = "모임 초대 코드. 모임 현황 조회 API 경로에 사용합니다.", example = "ABCD234567") String inviteCode,
             @Schema(description = "모임명", example = "주말 저녁 모임") String name,
-            @Schema(description = "커버 이미지 조회 API 경로. 없으면 null") String coverImageUrl,
+            @Schema(description = "커버 이미지 조회 API 경로. 없으면 null입니다.", nullable = true, types = {"string", "null"}) String coverImageUrl,
             @Schema(description = "모임장 닉네임", example = "moyeo1") String hostNickname,
             @Schema(description = "나의 역할", allowableValues = {"HOST", "MEMBER"}) String role,
             @Schema(description = "현재 참여 인원", example = "2") int participantCount,
             @Schema(description = "최대 참여 인원", example = "6") int maxParticipants,
             @Schema(description = "참여·응답 마감 상태", allowableValues = {"OPEN", "CLOSED", "NO_DEADLINE"}) String deadlineStatus,
-            @Schema(description = "마감 시각. 마감이 없으면 null", example = "2026-07-29 13:54:43")
+            @Schema(description = "마감 시각. 마감이 없으면 null입니다.", example = "2026-07-29 13:54:43", nullable = true, types = {"string", "null"})
             @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime deadlineAt,
-            @Schema(description = "확정 일정 날짜. 미확정 또는 장소 전용 모임이면 null") LocalDate confirmedScheduleDate,
-            @Schema(description = "확정 시작 시간. DATE_ONLY 또는 장소 전용 모임이면 null") LocalTime confirmedStartTime,
-            @Schema(description = "확정 종료 시간. DATE_ONLY 또는 장소 전용 모임이면 null") LocalTime confirmedEndTime,
-            @Schema(description = "확정 장소명. 미확정 또는 일정 전용 모임이면 null") String confirmedPlaceName
+            @Schema(description = "확정 일정 날짜. 미확정 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalDate confirmedScheduleDate,
+            @Schema(description = "확정 시작 시간. DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedStartTime,
+            @Schema(description = "확정 종료 시간. DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedEndTime,
+            @Schema(description = "확정 장소명. 미확정 또는 일정 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) String confirmedPlaceName
     ) {
 
         static Item from(MyMeetingListResult.Item item) {
