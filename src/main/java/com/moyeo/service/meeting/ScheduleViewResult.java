@@ -7,6 +7,7 @@ import java.util.List;
 public record ScheduleViewResult(
         Long meetingId,
         String scheduleInputType,
+        boolean scheduleConfirmed,
         String sort,
         long participantCount,
         List<Candidate> candidates,

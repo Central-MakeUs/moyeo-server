@@ -9,6 +9,7 @@ public record MeetingViewResult(
         String description,
         String coverImageUrl,
         String planningType,
+        boolean meetingConfirmed,
         String scheduleMode,
         String scheduleInputType,
         String placeMode,

@@ -393,6 +393,7 @@ public class MeetingService {
                 meeting.getDescription(),
                 MeetingCoverUrl.from(meeting),
                 meeting.getPlanningType().name(),
+                meeting.getStatus() == com.moyeo.domain.meeting.MeetingStatus.CONFIRMED,
                 meeting.getScheduleMode().name(),
                 meeting.getScheduleInputType().name(),
                 meeting.getPlaceMode().name(),
@@ -574,6 +575,7 @@ public class MeetingService {
         return new ScheduleViewResult(
                 meeting.getId(),
                 meeting.getScheduleInputType().name(),
+                meeting.getConfirmedScheduleDate() != null,
                 resolvedSort,
                 participantCount,
                 selectRecommendedScheduleCandidates(availabilityBlocks, resolvedSort),
@@ -612,6 +614,7 @@ public class MeetingService {
         return new ScheduleViewResult(
                 meeting.getId(),
                 meeting.getScheduleInputType().name(),
+                meeting.getConfirmedScheduleDate() != null,
                 resolvedSort,
                 participantCount,
                 selectRecommendedScheduleCandidates(availabilityBlocks, resolvedSort),
@@ -664,6 +667,7 @@ public class MeetingService {
             recommendations = attachStation(recommendations);
             return new PlaceViewResult(
                     meeting.getId(),
+                    meeting.getConfirmedPlaceName() != null,
                     strategy,
                     "RANDOM_CATALOG_PREVIEW",
                     null,
@@ -675,7 +679,7 @@ public class MeetingService {
 
         if (coordinateParticipants.isEmpty()) {
             return new PlaceViewResult(
-                    meeting.getId(), strategy, "COORDINATES_PENDING", null, participants.size(),
+                    meeting.getId(), meeting.getConfirmedPlaceName() != null, strategy, "COORDINATES_PENDING", null, participants.size(),
                     participantResults, List.of()
             );
         }
@@ -703,6 +707,7 @@ public class MeetingService {
         }
         return new PlaceViewResult(
                 meeting.getId(),
+                meeting.getConfirmedPlaceName() != null,
                 strategy,
                 actualTravelTimeReady ? "ACTUAL_TRAVEL_TIME" : "STRAIGHT_LINE_PREVIEW",
                 center,
@@ -1253,6 +1258,7 @@ public class MeetingService {
     ) {
         return new PlaceViewResult(
                 meeting.getId(),
+                meeting.getConfirmedPlaceName() != null,
                 strategy,
                 strategy != null ? "STRAIGHT_LINE_PREVIEW" : null,
                 null,

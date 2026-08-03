@@ -23,6 +23,9 @@ public record MeetingViewResponse(
         @Schema(description = "모임 생성 유형", example = "SCHEDULE_AND_PLACE", allowableValues = {"SCHEDULE_ONLY", "PLACE_ONLY", "SCHEDULE_AND_PLACE"})
         String planningType,
 
+        @Schema(description = "모임의 최종 확정 여부입니다. 일정과 장소 조율이 모두 필요한 모임은 두 항목이 모두 확정된 경우에만 true입니다.", example = "false")
+        boolean meetingConfirmed,
+
         @Schema(description = "일정 설정 방식입니다. 현재 MVP에서는 일정 조율 모임이면 VOTE, 일정 조율이 없으면 NONE을 반환합니다.", example = "VOTE", allowableValues = {"VOTE", "NONE"})
         String scheduleMode,
 
@@ -58,6 +61,7 @@ public record MeetingViewResponse(
                 result.description(),
                 result.coverImageUrl(),
                 result.planningType(),
+                result.meetingConfirmed(),
                 result.scheduleMode(),
                 result.scheduleInputType(),
                 result.placeMode(),

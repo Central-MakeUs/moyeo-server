@@ -1702,6 +1702,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.name").value("weekend-meeting"))
+                .andExpect(jsonPath("$.meetingConfirmed").value(false))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.participantCount").value(2))
                 .andExpect(jsonPath("$.participants[0].userId").isNumber())
@@ -1715,6 +1716,36 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.participants[0].scheduleResponded").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].placeResponded").doesNotExist())
                 .andExpect(jsonPath("$.participants[0].responseCompleted").doesNotExist());
+    }
+
+    @Test
+    void statusViewsReturnConfirmationFlagsAfterScheduleAndPlaceAreConfirmed() throws Exception {
+        String hostToken = signupAndGetAccessToken("status-view-confirmation-host", "status-view-confirmation-host");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        joinGuest(inviteCode, "status-view-confirmation-guest");
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meetingConfirmed").value(false));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduleConfirmed").value(false));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.placeConfirmed").value(false));
+
+        confirmMeeting(meetingId, inviteCode, hostToken);
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meetingConfirmed").value(true));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduleConfirmed").value(true));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.placeConfirmed").value(true));
     }
 
     @Test

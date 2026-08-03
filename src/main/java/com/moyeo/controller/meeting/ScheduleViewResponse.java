@@ -15,6 +15,9 @@ public record ScheduleViewResponse(
         @Schema(description = "일정 참여 입력 유형", example = "DATE_AND_TIME", allowableValues = {"DATE_ONLY", "DATE_AND_TIME", "NONE"})
         String scheduleInputType,
 
+        @Schema(description = "일정의 확정 여부입니다. 확정 일정이 선택되면 true입니다.", example = "false")
+        boolean scheduleConfirmed,
+
         @Schema(description = "적용된 정렬 방식", example = "EARLIEST_DATE", allowableValues = {"LONGEST_MEETING", "EARLIEST_DATE"})
         String sort,
 
@@ -32,6 +35,7 @@ public record ScheduleViewResponse(
         return new ScheduleViewResponse(
                 result.meetingId(),
                 result.scheduleInputType(),
+                result.scheduleConfirmed(),
                 result.sort(),
                 result.participantCount(),
                 result.candidates().stream().map(CandidateResponse::from).toList(),

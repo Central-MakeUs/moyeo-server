@@ -5,6 +5,7 @@ import java.util.List;
 
 public record PlaceViewResult(
         Long meetingId,
+        boolean placeConfirmed,
         String placeRecommendationStrategy,
         String recommendationBasis,
         Coordinate center,

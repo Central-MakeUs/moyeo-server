@@ -11,6 +11,9 @@ public record PlaceViewResponse(
         @Schema(description = "모임 ID", example = "1")
         Long meetingId,
 
+        @Schema(description = "장소의 확정 여부입니다. 확정 장소가 선택되면 true입니다.", example = "false")
+        boolean placeConfirmed,
+
         @Schema(description = "장소 추천 방식입니다. 장소 조율 모임이 아니면 null입니다.", example = "MIDDLE_POINT", allowableValues = {"MIDDLE_POINT", "RANDOM"}, nullable = true, types = {"string", "null"})
         String placeRecommendationStrategy,
 
@@ -33,6 +36,7 @@ public record PlaceViewResponse(
     public static PlaceViewResponse from(PlaceViewResult result) {
         return new PlaceViewResponse(
                 result.meetingId(),
+                result.placeConfirmed(),
                 result.placeRecommendationStrategy(),
                 result.recommendationBasis(),
                 result.center() != null ? CoordinateResponse.from(result.center()) : null,
