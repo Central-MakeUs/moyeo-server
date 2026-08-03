@@ -2230,6 +2230,35 @@ class MeetingControllerTest {
     }
 
     @Test
+    void swaggerDocumentsConfirmationFlagsAsNonNullableBooleans() throws Exception {
+        var openApi = objectMapper.readTree(mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+        Map<String, List<String>> confirmationFlagsBySchema = Map.of(
+                "MeetingViewResponse", List.of("meetingConfirmed"),
+                "ScheduleViewResponse", List.of("scheduleConfirmed"),
+                "PlaceViewResponse", List.of("placeConfirmed")
+        );
+
+        confirmationFlagsBySchema.forEach((schemaName, fields) -> {
+            var schema = openApi.path("components").path("schemas").path(schemaName);
+            assertThat(schema.isMissingNode()).isFalse();
+            for (String field : fields) {
+                var fieldSchema = schema.path("properties").path(field);
+                assertThat(fieldSchema.path("type").toString()).contains("boolean").doesNotContain("null");
+                assertThat(fieldSchema.path("nullable").asBoolean()).isFalse();
+                assertThat(fieldSchema.path("description").asText()).contains("확정 여부");
+                assertThat(fieldSchema.has("example")).isTrue();
+                assertThat(fieldSchema.path("example").isBoolean()).isTrue();
+                assertThat(fieldSchema.path("example").asBoolean()).isFalse();
+            }
+        });
+    }
+
+    @Test
     void swaggerDocumentsEveryMeetingCreationFlowForJsonAndMultipart() throws Exception {
         List<String> exampleNames = List.of(
                 "SCHEDULE_ONLY_DATE_ONLY_NO_DEADLINE",
