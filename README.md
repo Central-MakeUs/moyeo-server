@@ -340,3 +340,4 @@ the runtime environment to use a different host directory.
 - Codex working rules: `AGENTS.md`
 - Project setup and technical decisions: `docs/00-project-setup.md`
 - DB diagram DBML: `docs/01-dbdiagram.md`
+- Product-design flow map and backend routing: `docs/02-ui-flow-map.md`

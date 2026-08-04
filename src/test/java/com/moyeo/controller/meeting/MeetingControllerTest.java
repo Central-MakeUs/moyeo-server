@@ -123,7 +123,7 @@ class MeetingControllerTest {
                 inviteCode
         );
         String memberToken = signupAndGetAccessToken("home-detail-member", "homemember");
-        joinMember(inviteCode, memberToken, "member-in-meeting");
+        joinMember(inviteCode, memberToken, "memberone");
 
         mockMvc.perform(get("/api/meetings/me")
                         .header("Authorization", "Bearer " + hostToken))
@@ -1198,7 +1198,7 @@ class MeetingControllerTest {
         String hostToken = signupAndGetAccessToken("participation-update-host", "update-host");
         String memberToken = signupAndGetAccessToken("participation-update-member", "update-member");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
-        joinMember(inviteCode, memberToken, "update-member-room");
+        joinMember(inviteCode, memberToken, "updatemem");
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/members/me/participation", inviteCode)
                         .header("Authorization", "Bearer " + hostToken))
@@ -1392,7 +1392,7 @@ class MeetingControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEETING_PARTICIPANT_NOT_FOUND"));
 
-        joinMember(inviteCode, memberToken, "closed-member-room");
+        joinMember(inviteCode, memberToken, "closedmem");
         confirmMeeting(getMeetingId(inviteCode), inviteCode, hostToken);
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
@@ -1478,12 +1478,12 @@ class MeetingControllerTest {
         String response = mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
                         .header("Authorization", "Bearer " + memberToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("meeting-member"))))
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("meetingmem"))))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.participantId").isNumber())
                 .andExpect(jsonPath("$.userId").isNumber())
-                .andExpect(jsonPath("$.nickname").value("meeting-member"))
+                .andExpect(jsonPath("$.nickname").value("meetingmem"))
                 .andExpect(jsonPath("$.participantType").value("MEMBER"))
                 .andReturn()
                 .getResponse()
@@ -1500,12 +1500,26 @@ class MeetingControllerTest {
     }
 
     @Test
+    void joinMemberValidatesNicknameAsTwoToTenKoreanOrEnglishLetters() throws Exception {
+        String inviteCode = createMeetingAndGetInviteCode("member-nickname-validation-host", "hostvalid", 6);
+        String memberToken = signupAndGetAccessToken("member-nickname-validation", "membervalid");
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("member1"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void joinMemberRequiresAccessToken() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost23", "host23", 6);
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("meeting-member"))))
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("meetingmem"))))
                 .andExpect(status().isUnauthorized())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
@@ -1515,12 +1529,12 @@ class MeetingControllerTest {
     void joinMemberRejectsSameMemberInSameMeeting() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost24", "host24", 6);
         String memberToken = signupAndGetAccessToken("memberjoin2", "member2");
-        joinMember(inviteCode, memberToken, "meeting-member1");
+        joinMember(inviteCode, memberToken, "memberone");
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
                         .header("Authorization", "Bearer " + memberToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("meeting-member2"))))
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("membertwo"))))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("DUPLICATE_MEETING_PARTICIPANT_MEMBER"));
@@ -1530,14 +1544,14 @@ class MeetingControllerTest {
     void joinMemberAllowsGuestNicknameInSameMeeting() throws Exception {
         String inviteCode = createMeetingAndGetInviteCode("meetinghost25", "host25", 6);
         String memberToken = signupAndGetAccessToken("memberjoin3", "member3");
-        joinGuest(inviteCode, "duplicated-name");
+        joinGuest(inviteCode, "sameguest");
 
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
                         .header("Authorization", "Bearer " + memberToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("duplicated-name"))))
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("sameguest"))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.nickname").value("duplicated-name"))
+                .andExpect(jsonPath("$.nickname").value("sameguest"))
                 .andExpect(jsonPath("$.participantType").value("MEMBER"));
     }
 
@@ -1549,7 +1563,7 @@ class MeetingControllerTest {
         mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
                         .header("Authorization", "Bearer " + hostToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("host-as-member"))))
+                        .content(objectMapper.writeValueAsString(defaultMemberJoinRequest("hostmember"))))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("DUPLICATE_MEETING_PARTICIPANT_MEMBER"));
@@ -1804,7 +1818,7 @@ class MeetingControllerTest {
         String memberToken = signupAndGetAccessToken("meeting-leave-member", "member-leave");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
         Long meetingId = getMeetingId(inviteCode);
-        joinMember(inviteCode, memberToken, "member-room");
+        joinMember(inviteCode, memberToken, "memberroom");
         confirmMeeting(meetingId, inviteCode, hostToken);
         Long memberParticipantId = meetingParticipantRepository.findByMeetingIdAndUserId(
                 meetingId,
@@ -1852,7 +1866,7 @@ class MeetingControllerTest {
         String memberToken = signupAndGetAccessToken("snapshot-leave-member", "snapshot-leave-member");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
         Long meetingId = getMeetingId(inviteCode);
-        joinMember(inviteCode, memberToken, "snapshot-leave-member");
+        joinMember(inviteCode, memberToken, "snapshotm");
         when(kakaoRouteClient.findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
@@ -1939,7 +1953,7 @@ class MeetingControllerTest {
         String memberToken = signupAndGetAccessToken("date-only-leave-member", "date-member");
         String inviteCode = createMeetingAndGetInviteCode(hostToken, dateOnlyCreateMeetingRequest());
         Long meetingId = getMeetingId(inviteCode);
-        joinDateOnlyMember(inviteCode, memberToken, "date-member-room");
+        joinDateOnlyMember(inviteCode, memberToken, "datemember");
         confirmDateOnlyMeeting(meetingId, hostToken);
         Long memberParticipantId = meetingParticipantRepository.findByMeetingIdAndUserId(
                 meetingId,
@@ -1971,7 +1985,7 @@ class MeetingControllerTest {
         Long memberUserId = jwtTokenProvider.parse(memberToken).userId();
         String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(6));
         Long meetingId = getMeetingId(inviteCode);
-        joinMember(inviteCode, memberToken, "member-room");
+        joinMember(inviteCode, memberToken, "memberroom");
 
         mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
                         .header("Authorization", "Bearer " + hostToken)
@@ -2021,7 +2035,7 @@ class MeetingControllerTest {
                 memberUserId,
                 providerUserId
         );
-        joinMember(inviteCode, memberToken, "withdrawn-snapshot");
+        joinMember(inviteCode, memberToken, "withdrawn");
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", "Bearer " + memberToken))

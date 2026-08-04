@@ -4,18 +4,22 @@ import com.moyeo.service.meeting.SaveParticipationCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 
 @Schema(description = "로그인 회원 참여자 생성과 참여 상세 정보 저장 요청")
 public record MemberJoinRequest(
         @Schema(
                 description = "모임 안에서 사용할 표시 닉네임입니다. 회원 기본 닉네임과 다르게 입력할 수 있습니다.",
-                example = "member1",
-                minLength = 1,
-                maxLength = 30
+                example = "member",
+                minLength = 2,
+                maxLength = 10,
+                pattern = "^[가-힣A-Za-z]{2,10}$"
         )
         @NotBlank
-        @Size(min = 1, max = 30)
+        @Pattern(
+                regexp = "^[가-힣A-Za-z]{2,10}$",
+                message = "닉네임은 한글 또는 영문 2~10자로 입력해주세요."
+        )
         String nickname,
 
         @Schema(description = "참여자의 일정 응답입니다. 일정 조율 모임에서 필수입니다.")

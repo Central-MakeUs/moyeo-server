@@ -525,7 +525,7 @@ public class MeetingController {
 
                     await fetch("/api/meetings", {
                       method: "POST",
-                      headers: { Authorization: `Bearer ${accessToken}` },
+                      headers: { Authorization: "Bearer {accessToken}" },
                       body: formData
                     });
                     ```
@@ -1473,7 +1473,7 @@ public class MeetingController {
                                             description = "모임 생성의 SCHEDULE_AND_PLACE_DATE_AND_TIME 예시와 연결됩니다. 생성에 사용한 방장 토큰이 아닌 참여 회원의 Bearer Access Token을 설정하고, 초대 조회로 받은 모임장 선택 시간대 안에서만 가능한 날짜·시간대를 선택합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 1",
+                                              "nickname": "민지일",
                                               "scheduleResponse": {
                                                 "availableTimeRanges": [
                                                 {
@@ -1498,7 +1498,7 @@ public class MeetingController {
                                             description = "날짜와 장소를 함께 정하는 모임입니다. 방장이 만든 후보 날짜 중 가능한 날짜와 출발지를 입력합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 2",
+                                              "nickname": "민지이",
                                               "scheduleResponse": {
                                                   "availableDates": ["2026-07-10", "2026-07-11"]
                                               },
@@ -1529,7 +1529,7 @@ public class MeetingController {
                                             description = "일정과 시간을 정하는 일정 모임입니다. 방장이 만든 후보 날짜 안에서 가능한 시간대를 입력합니다.",
                                             value = """
                                             {
-                                              "nickname": "민지 시간",
+                                              "nickname": "민지시간",
                                               "scheduleResponse": {
                                                 "availableTimeRanges": [
                                                   {"candidateDate": "2026-07-10", "startTime": "18:00", "endTime": "20:00"}

@@ -198,7 +198,7 @@ class MemberWithdrawalControllerTest {
                         .header("Authorization", bearer(memberAccessToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "nickname", "withdraw-member",
+                                "nickname", "withdraw",
                                 "scheduleResponse", Map.of(
                                         "availableTimeRanges", List.of(Map.of(
                                                 "candidateDate", candidateDate.toString(),
@@ -247,7 +247,7 @@ class MemberWithdrawalControllerTest {
         String memberAccessToken = testMemberFactory.createAccessToken("withdraw-snapshot-member");
         Long memberUserId = jwtTokenProvider.parse(memberAccessToken).userId();
         insertSocialAccount(memberUserId, AuthProvider.KAKAO, "withdraw-snapshot-provider");
-        joinMember(inviteCode, memberAccessToken, "withdraw-snapshot-member");
+        joinMember(inviteCode, memberAccessToken, "wdsnap");
         jdbcTemplate.update("update meetings set max_participants = 2 where id = ?", meetingId);
         org.mockito.Mockito.when(kakaoRouteClient.findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
