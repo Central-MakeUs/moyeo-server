@@ -16,13 +16,14 @@ import java.math.BigDecimal;
 
 @Entity
 @Table(name = "meeting_place_recommendation_snapshots", uniqueConstraints = @UniqueConstraint(
-        name = "uk_meeting_place_recommendation_snapshots_meeting_rank", columnNames = {"meeting_id", "rank"}))
+        name = "uk_meeting_place_recommendation_snapshots_meeting_rank",
+        columnNames = {"meeting_id", "`rank`"}))
 public class MeetingPlaceRecommendationSnapshot {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "meeting_id", nullable = false, foreignKey = @ForeignKey(name = "fk_meeting_place_recommendation_snapshots_meeting"))
     private Meeting meeting;
-    @Column(nullable = false) private int rank;
+    @Column(name = "`rank`", nullable = false) private int rank;
     @Column(name = "area_code", nullable = false, length = 30) private String areaCode;
     @Column(name = "area_name", nullable = false, length = 255) private String areaName;
     @Column(name = "category_name", nullable = false, length = 30) private String categoryName;
