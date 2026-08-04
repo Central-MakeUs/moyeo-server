@@ -3,7 +3,9 @@ package com.moyeo.controller.meeting;
 import com.moyeo.service.meeting.MeetingViewResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Schema(description = "모임 현황 조회 응답")
@@ -50,6 +52,18 @@ public record MeetingViewResponse(
         @Schema(description = "현재 서버 시간 기준 마감까지 남은 분입니다. 이미 마감된 경우 0이며, 마감 없는 모임에서는 null입니다.", example = "360", nullable = true, types = {"integer", "null"})
         Long remainingMinutes,
 
+        @Schema(description = "확정 일정 날짜. 일정이 아직 확정되지 않았거나 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"})
+        LocalDate confirmedScheduleDate,
+
+        @Schema(description = "확정 시작 시간. 일정이 아직 확정되지 않았거나 DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"})
+        LocalTime confirmedStartTime,
+
+        @Schema(description = "확정 종료 시간. 일정이 아직 확정되지 않았거나 DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"})
+        LocalTime confirmedEndTime,
+
+        @Schema(description = "확정 장소명. 장소가 아직 확정되지 않았거나 일정 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"})
+        String confirmedPlaceName,
+
         @Schema(description = "참여자 목록. 방장이 먼저 오고 이후 참여 순서로 정렬됩니다.")
         List<ParticipantResponse> participants
 ) {
@@ -70,6 +84,10 @@ public record MeetingViewResponse(
                 result.participantCount(),
                 result.deadlineAt(),
                 result.remainingMinutes(),
+                result.confirmedScheduleDate(),
+                result.confirmedStartTime(),
+                result.confirmedEndTime(),
+                result.confirmedPlaceName(),
                 result.participants().stream().map(ParticipantResponse::from).toList()
         );
     }

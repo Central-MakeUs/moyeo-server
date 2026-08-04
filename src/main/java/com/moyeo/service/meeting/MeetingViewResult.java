@@ -1,6 +1,8 @@
 package com.moyeo.service.meeting;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 public record MeetingViewResult(
@@ -18,6 +20,10 @@ public record MeetingViewResult(
         long participantCount,
         LocalDateTime deadlineAt,
         Long remainingMinutes,
+        LocalDate confirmedScheduleDate,
+        LocalTime confirmedStartTime,
+        LocalTime confirmedEndTime,
+        String confirmedPlaceName,
         List<Participant> participants
 ) {
 

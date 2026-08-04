@@ -128,6 +128,28 @@ Review perspectives:
 
 Do not treat a heuristic match itself as `POLICY_VIOLATION`.
 
+## Swagger Nullable-Response Review Route
+
+When a changed API response adds or changes a nullable field, classify it as an
+API-contract change and read `docs/policies/API_POLICY.md`. Review all of the
+following:
+
+- The DTO and the OpenAPI schema both represent the field as nullable and not
+  required.
+- The Korean Swagger field description states every current condition that
+  returns `null`; distinguish a partially confirmed selection from final
+  meeting status when the domain supports them separately.
+- A response test covers a representative populated value and a representative
+  `null` value when the changed field has mode- or confirmation-dependent
+  behavior.
+
+The backend exposes Swagger through `/v3/api-docs`; changing nullable metadata
+does not itself change a Vercel deployment. Treat Vercel as relevant only when
+the changed contract is consumed by a checked-in frontend build, generated
+client, proxy, or Vercel configuration. If that consumer is outside this
+repository, report the verification scope rather than claiming a Vercel
+deployment issue.
+
 ## Ignore Rules
 
 Do not report a finding without concrete risk or explicit policy support:
@@ -231,8 +253,9 @@ Prioritize concrete bugs, regressions, policy violations, missing tests, and
 documentation mismatches. Check especially for API/error contract drift,
 Swagger/OpenAPI mismatch, JPA/DBML mismatch, auth/security behavior changes,
 transaction or concurrency risks, duplicate processing, nullable relation
-handling, enum branch completeness, request replacement semantics, and
-planningType-dependent validation.
+handling, enum branch completeness, request replacement semantics,
+planningType-dependent validation, and the Swagger nullable-response review
+route when applicable.
 
 Do not report personal preference, cosmetic refactoring, speculative
 architecture, hypothetical scale concerns, Redis/Kafka/microservice

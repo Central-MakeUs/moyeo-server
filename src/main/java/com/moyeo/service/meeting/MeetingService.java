@@ -402,6 +402,10 @@ public class MeetingService {
                 participants.size(),
                 meeting.getDeadlineAt(),
                 remainingMinutes(meeting.getDeadlineAt()),
+                meeting.getConfirmedScheduleDate(),
+                meeting.getConfirmedStartTime(),
+                meeting.getConfirmedEndTime(),
+                meeting.getConfirmedPlaceName(),
                 participantResults
         );
     }

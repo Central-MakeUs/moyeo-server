@@ -1703,6 +1703,10 @@ class MeetingControllerTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.name").value("weekend-meeting"))
                 .andExpect(jsonPath("$.meetingConfirmed").value(false))
+                .andExpect(jsonPath("$.confirmedScheduleDate").value(nullValue()))
+                .andExpect(jsonPath("$.confirmedStartTime").value(nullValue()))
+                .andExpect(jsonPath("$.confirmedEndTime").value(nullValue()))
+                .andExpect(jsonPath("$.confirmedPlaceName").value(nullValue()))
                 .andExpect(jsonPath("$.maxParticipants").value(6))
                 .andExpect(jsonPath("$.participantCount").value(2))
                 .andExpect(jsonPath("$.participants[0].userId").isNumber())
@@ -1739,7 +1743,11 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view", inviteCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.meetingConfirmed").value(true));
+                .andExpect(jsonPath("$.meetingConfirmed").value(true))
+                .andExpect(jsonPath("$.confirmedScheduleDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.confirmedStartTime").value("09:00:00"))
+                .andExpect(jsonPath("$.confirmedEndTime").value("10:00:00"))
+                .andExpect(jsonPath("$.confirmedPlaceName").isString());
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scheduleConfirmed").value(true));
@@ -2189,7 +2197,7 @@ class MeetingControllerTest {
         Map<String, List<String>> nullableFieldsBySchema = Map.of(
                 "MeetingInvitationResponse", List.of("description", "coverImageUrl", "placeRecommendationStrategy", "deadlineAt"),
                 "ParticipationStatusResponse", List.of("message"),
-                "MeetingViewResponse", List.of("description", "coverImageUrl", "placeRecommendationStrategy", "deadlineAt", "remainingMinutes"),
+                "MeetingViewResponse", List.of("description", "coverImageUrl", "placeRecommendationStrategy", "deadlineAt", "remainingMinutes", "confirmedScheduleDate", "confirmedStartTime", "confirmedEndTime", "confirmedPlaceName"),
                 "MeetingConfirmationResponse", List.of("confirmedAt", "scheduleDate", "startTime", "endTime", "placeName"),
                 "MyMeetingDetailResponse", List.of("description", "coverImageUrl", "confirmedScheduleDate", "confirmedStartTime", "confirmedEndTime", "confirmedPlaceName"),
                 "Item", List.of("coverImageUrl", "deadlineAt", "confirmedScheduleDate", "confirmedStartTime", "confirmedEndTime", "confirmedPlaceName"),

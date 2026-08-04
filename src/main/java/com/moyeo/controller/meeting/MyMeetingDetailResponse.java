@@ -14,10 +14,10 @@ public record MyMeetingDetailResponse(
         @Schema(description = "모임 설명. 입력하지 않은 경우 null입니다.", nullable = true, types = {"string", "null"}) String description,
         @Schema(description = "커버 이미지 조회 API 경로. 없으면 null입니다.", nullable = true, types = {"string", "null"}) String coverImageUrl,
         @Schema(description = "모임장 닉네임", example = "moyeo1") String hostNickname,
-        @Schema(description = "확정 일정 날짜. 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalDate confirmedScheduleDate,
-        @Schema(description = "확정 시작 시간. DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedStartTime,
-        @Schema(description = "확정 종료 시간. DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedEndTime,
-        @Schema(description = "확정 장소명. 일정 전용 또는 미확정이면 null입니다.", nullable = true, types = {"string", "null"}) String confirmedPlaceName,
+        @Schema(description = "확정 일정 날짜. 일정이 아직 확정되지 않았거나 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalDate confirmedScheduleDate,
+        @Schema(description = "확정 시작 시간. 일정이 아직 확정되지 않았거나 DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedStartTime,
+        @Schema(description = "확정 종료 시간. 일정이 아직 확정되지 않았거나 DATE_ONLY 또는 장소 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) LocalTime confirmedEndTime,
+        @Schema(description = "확정 장소명. 장소가 아직 확정되지 않았거나 일정 전용 모임이면 null입니다.", nullable = true, types = {"string", "null"}) String confirmedPlaceName,
         @Schema(description = "참여자 목록") List<Participant> participants
 ) {
 

@@ -110,6 +110,8 @@ explicitly report why no update was needed.
 
 - API or error changes must follow `docs/policies/API_POLICY.md` and check
   Swagger/OpenAPI update needs.
+- When an API response adds or changes nullable fields, also follow the
+  Swagger nullable-response review route in `docs/ai/CODE_REVIEW.md`.
 - Auth/security changes must follow `docs/policies/AUTH_POLICY.md`.
 - Meeting, participant, invite, or schedule availability changes must follow
   `docs/policies/MEETING_PARTICIPATION_POLICY.md`.
