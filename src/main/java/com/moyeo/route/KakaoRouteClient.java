@@ -51,7 +51,23 @@ public class KakaoRouteClient {
                 .queryParam("end_x", destinationLongitude).queryParam("end_y", destinationLatitude)
                 .build().encode().toUri();
         JsonNode response = get(uri);
+        if ("NO_RESULTS".equals(response.path("status").asText())) {
+            return walkingDuration(originLatitude, originLongitude, destinationLatitude, destinationLongitude);
+        }
         return minimum(response.path("routes"), "properties", "totalTime");
+    }
+
+    private long walkingDuration(BigDecimal originLatitude, BigDecimal originLongitude,
+                                 BigDecimal destinationLatitude, BigDecimal destinationLongitude) {
+        URI uri = UriComponentsBuilder.fromUriString(properties.mapBaseUrl())
+                .path("/v2/routing/walk")
+                .queryParam("start_x", originLongitude).queryParam("start_y", originLatitude)
+                .queryParam("end_x", destinationLongitude).queryParam("end_y", destinationLatitude)
+                .build().encode().toUri();
+        JsonNode response = get(uri);
+        JsonNode totalTime = response.path("route").path("properties").path("totalTime");
+        if (totalTime.canConvertToLong() && totalTime.longValue() >= 0) return totalTime.longValue();
+        throw new KakaoRouteUnavailableException(null);
     }
 
     private long drivingDuration(BigDecimal originLatitude, BigDecimal originLongitude,

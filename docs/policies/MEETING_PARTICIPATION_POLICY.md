@@ -366,6 +366,10 @@ general best practice into domain policy.
 - Every active participant must have a departure coordinate and transportation
   mode before the actual-time snapshot is created. A Kakao failure fails the
   first view request; no partial or incomplete snapshot is stored.
+- When a `PUBLIC_TRANSIT` lookup returns Kakao's `NO_RESULTS`, the server retries
+  that participant-to-commercial-area leg with Kakao walking directions. A walking
+  lookup failure remains a Kakao failure and fails the first view request; the
+  server does not store a partial or incomplete snapshot.
 - Confirmed policy: preliminary place recommendations remain visible and are
   recalculated from the current departure snapshots while the meeting is open.
   Actual-travel-time calculation may run only after every active participant
