@@ -30,6 +30,10 @@ public class DeparturePlaceSearchService {
     private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
     private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
     private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
+    private static final String SEOUL_PREFIX = "서울";
+    private static final String SEOUL_METROPOLITAN_PREFIX = "서울특별시";
+    private static final String GYEONGGI_PREFIX = "경기";
+    private static final String GYEONGGI_DO_PREFIX = "경기도";
     private static final Pattern ROAD_ADDRESS_PATTERN = Pattern.compile(".*(?:대로|로|길)\\s*\\d+(?:-\\d+)?(?:\\s|$).*");
     private static final Pattern JIBUN_ADDRESS_PATTERN = Pattern.compile(
             ".*(?:동|리|\\d+가)\\s*(?:산\\s*)?\\d+(?:-\\d+)?(?:번지)?(?:\\s|$).*"
@@ -58,10 +62,10 @@ public class DeparturePlaceSearchService {
             if (stations.isEmpty()) {
                 return new DeparturePlaceSearchResult(normalizedKeyword,
                         DeparturePlaceSearchExecutionPath.STATION_CATEGORY_TO_KEYWORD,
-                        searchKeyword(normalizedKeyword, null));
+                        filterSupportedDepartureRegions(searchKeyword(normalizedKeyword, null)));
             }
             return new DeparturePlaceSearchResult(normalizedKeyword,
-                    DeparturePlaceSearchExecutionPath.STATION_CATEGORY, stations);
+                    DeparturePlaceSearchExecutionPath.STATION_CATEGORY, filterSupportedDepartureRegions(stations));
         }
 
         if (isAddressLike(normalizedKeyword)) {
@@ -69,15 +73,15 @@ public class DeparturePlaceSearchService {
             if (addresses.isEmpty()) {
                 return new DeparturePlaceSearchResult(normalizedKeyword,
                         DeparturePlaceSearchExecutionPath.ADDRESS_TO_KEYWORD,
-                        searchKeyword(normalizedKeyword, null));
+                        filterSupportedDepartureRegions(searchKeyword(normalizedKeyword, null)));
             }
             return new DeparturePlaceSearchResult(normalizedKeyword,
-                    DeparturePlaceSearchExecutionPath.ADDRESS, addresses);
+                    DeparturePlaceSearchExecutionPath.ADDRESS, filterSupportedDepartureRegions(addresses));
         }
 
         return new DeparturePlaceSearchResult(normalizedKeyword,
                 DeparturePlaceSearchExecutionPath.KEYWORD,
-                searchKeyword(normalizedKeyword, null));
+                filterSupportedDepartureRegions(searchKeyword(normalizedKeyword, null)));
     }
 
     private List<DeparturePlaceSearchResult.Place> searchKeyword(String keyword, String categoryGroupCode) {
@@ -209,6 +213,22 @@ public class DeparturePlaceSearchService {
             case "REGION", "ROAD" -> false;
             default -> throw unavailable();
         };
+    }
+
+    private List<DeparturePlaceSearchResult.Place> filterSupportedDepartureRegions(
+            List<DeparturePlaceSearchResult.Place> places
+    ) {
+        return places.stream()
+                .filter(place -> isSupportedDepartureAddress(place.address()))
+                .toList();
+    }
+
+    private boolean isSupportedDepartureAddress(String address) {
+        String normalizedAddress = address.strip();
+        return normalizedAddress.startsWith(SEOUL_PREFIX)
+                || normalizedAddress.startsWith(SEOUL_METROPOLITAN_PREFIX)
+                || normalizedAddress.startsWith(GYEONGGI_PREFIX)
+                || normalizedAddress.startsWith(GYEONGGI_DO_PREFIX);
     }
 
     private boolean hasStationNamePrefix(String placeName, String stationName) {

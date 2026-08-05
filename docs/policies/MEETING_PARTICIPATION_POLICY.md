@@ -394,6 +394,11 @@ general best practice into domain policy.
   `STATION`, `ADDRESS`, or `PLACE` candidates with a display name, representative
   address, road-name address, and lot-number address. It does not expose provider
   response shapes or provider-specific result IDs.
+- The search API returns only candidates whose representative address is in Seoul
+  or Gyeonggi. A successful provider search with no candidates in that area returns
+  an empty result list; the existing departure-save validation remains the final
+  safeguard and returns `400 UNSUPPORTED_DEPARTURE_REGION` for an out-of-area
+  direct request.
 - The candidate `displayName` is only for the search list. The client may send
   it as the final departure snapshot `name`, subject to its 30-character limit,
   but `name` is optional. When it is omitted, the place-view response uses the

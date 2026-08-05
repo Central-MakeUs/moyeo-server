@@ -69,7 +69,7 @@ class DeparturePlaceSearchServiceTest {
     }
 
     @Test
-    void stationSearchFallsBackToGeneralKeywordWhenStationNameFilteringLeavesNoResult() {
+    void stationSearchFallsBackThenFiltersOutOfAreaResults() {
         server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/keyword.json"))
                 .andExpect(decodedQueryParam("query", "김천구미역"))
                 .andExpect(queryParam("category_group_code", "SW8"))
@@ -86,10 +86,7 @@ class DeparturePlaceSearchServiceTest {
 
         assertThat(result.executionPath())
                 .isEqualTo(DeparturePlaceSearchExecutionPath.STATION_CATEGORY_TO_KEYWORD);
-        assertThat(result.places())
-                .extracting(DeparturePlaceSearchService.DeparturePlaceSearchResult.Place::displayName)
-                .containsExactly("김천구미역");
-        assertThat(result.places().getFirst().type()).isEqualTo(DeparturePlaceType.PLACE);
+        assertThat(result.places()).isEmpty();
         server.verify();
     }
 
@@ -184,8 +181,7 @@ class DeparturePlaceSearchServiceTest {
         }
 
         for (String keyword : keywords) {
-            assertThat(service.search(keyword).places()).singleElement()
-                    .satisfies(place -> assertThat(place.type()).isEqualTo(DeparturePlaceType.ADDRESS));
+            assertThat(service.search(keyword).places()).isEmpty();
         }
         server.verify();
     }
@@ -407,6 +403,28 @@ class DeparturePlaceSearchServiceTest {
 
         assertThatThrownBy(() -> service.search("서울 강남구 테헤란로 152"))
                 .isInstanceOf(MoyeoException.class);
+        server.verify();
+    }
+
+    @Test
+    void keywordSearchReturnsOnlySeoulAndGyeonggiCandidates() {
+        server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/search/keyword.json"))
+                .andExpect(decodedQueryParam("query", "regional-filter"))
+                .andRespond(withSuccess("""
+                        {
+                          "documents": [
+                            {"place_name":"Seoul Place","category_group_code":"","address_name":"\\uC11C\\uC6B8 \\uAC15\\uB0A8\\uAD6C \\uD14C\\uD5E4\\uB780\\uB85C 152","road_address_name":"","x":"127.036502","y":"37.500028"},
+                            {"place_name":"Gyeonggi Place","category_group_code":"","address_name":"\\uACBD\\uAE30\\uB3C4 \\uC131\\uB0A8\\uC2DC \\uBD84\\uB2F9\\uAD6C \\uD310\\uAD50\\uB85C 242","road_address_name":"","x":"127.108622","y":"37.402056"},
+                            {"place_name":"Busan Place","category_group_code":"","address_name":"\\uBD80\\uC0B0 \\uD574\\uC6B4\\uB300\\uAD6C \\uC13C\\uD140\\uC911\\uC559\\uB85C 97","road_address_name":"","x":"129.129508","y":"35.170902"}
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        DeparturePlaceSearchService.DeparturePlaceSearchResult result = service.search("regional-filter");
+
+        assertThat(result.places())
+                .extracting(DeparturePlaceSearchService.DeparturePlaceSearchResult.Place::displayName)
+                .containsExactly("Seoul Place", "Gyeonggi Place");
         server.verify();
     }
 
