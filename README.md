@@ -1,343 +1,152 @@
 # Moyeo Server
 
-CMC 모여(Moyeo) 프로젝트의 Spring Boot 기반 MVP 백엔드 서버입니다.
+> 함께 만날 시간과 장소를 정하는 Moyeo의 Spring Boot 백엔드입니다.
 
-현재 서버는 기본 실행 환경, health check, Swagger/OpenAPI, 공통 오류 응답, 소셜 로그인 기반 구조, dev 배포 환경을 포함합니다.
+모임 생성부터 초대 참여, 일정·장소 조율과 확정까지의 MVP 흐름을 제공합니다.
+상세 API 계약은 Swagger/OpenAPI를 기준으로 관리합니다.
 
-## Tech Stack
+**현재 기준:** 2026-08-06 · Java 21 · Spring Boot 3.5.15
 
-- Java 21
-- Spring Boot 3.5.15
-- Gradle
-- Spring Web, Validation, Data JPA
-- H2(local/test)
-- MySQL(dev/prod)
-- Springdoc OpenAPI
-- Spring Boot Actuator
-- JUnit 5
-- Docker, Docker Compose, Caddy
-- AWS EC2, ECR, EC2 Docker Compose MySQL, Systems Manager
-- GitHub Actions
+## 한눈에 보기
 
-## Local Run
+| 영역 | 제공 기능 |
+| --- | --- |
+| 인증 | Apple·Kakao 로그인, Access JWT, 닉네임 온보딩, 회원 탈퇴 |
+| 모임 | 생성, 초대 링크, 회원·웹 게스트 참여, 참여 응답 수정, 나가기 |
+| 조율 | 일정 가능 시간 집계, 중간 지점·실제 이동시간 장소 추천, 방장 확정 |
+| 개인화 | 마이페이지, 프로필 색상, 저장 출발지, 피드백 |
+| 운영 | Health/Actuator, Swagger, 요청 추적, Docker Compose 기반 dev 배포 |
 
-macOS/Linux:
+## 빠른 시작
+
+### 요구 사항
+
+- JDK 21
+- 별도 데이터베이스 없이 실행 가능: `local` 프로필은 H2 메모리 DB를 사용
+
+### 실행
 
 ```bash
+# macOS / Linux
 ./gradlew bootRun --args='--spring.profiles.active=local'
-```
 
-Windows PowerShell:
-
-```powershell
+# Windows PowerShell
 .\gradlew.bat bootRun --args="--spring.profiles.active=local"
 ```
 
-Default local port:
+서버는 기본적으로 `http://localhost:8080`에서 실행됩니다.
 
-```text
-8080
-```
+| 확인 항목 | 주소 |
+| --- | --- |
+| Health | `GET /health` |
+| Actuator Health | `GET /actuator/health` |
+| Swagger UI | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) |
+| OpenAPI JSON | [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs) |
 
-## Test and Build
-
-macOS/Linux:
+### 검증
 
 ```bash
+# macOS / Linux
 ./gradlew test
 ./gradlew build
-```
 
-Windows PowerShell:
-
-```powershell
+# Windows PowerShell
 .\gradlew.bat test
 .\gradlew.bat build
 ```
 
-## API Paths
-
-Local:
-
-- Health Check: `GET http://localhost:8080/health`
-- Actuator Health: `GET http://localhost:8080/actuator/health`
-- Swagger UI: `http://localhost:8080/swagger-ui.html`
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-
-Dev Server:
-
-- API Base URL: `https://3-35-119-70.sslip.io`
-- Health Check: `https://3-35-119-70.sslip.io/health`
-- Swagger UI: `https://3-35-119-70.sslip.io/swagger-ui.html`
-- OpenAPI JSON: `https://3-35-119-70.sslip.io/v3/api-docs`
-
-The former direct endpoint `http://3.35.119.70:8080` remains temporarily
-available while the dev frontend moves to HTTPS.
-
-Apple login has been verified end to end from the dev Vercel origin through the
-HTTPS API, including browser CORS preflight and Access JWT issuance. Frontend UI
-integration remains.
-
-TODO: After the frontend application is deployed with the HTTPS API base URL,
-remove public port `8080` from the EC2 security group and stop publishing the
-app container port to the public host.
-
-`GET /health` response:
-
-```json
-{
-  "status": "OK"
-}
-```
-
-## Current Auth APIs
-
-- `POST /api/auth/apple`
-- `POST /api/auth/kakao`
-- `GET /api/auth/me`
-- `PUT /api/users/me/onboarding`
-- `DELETE /api/users/me`
-
-Social account withdrawal requires only the current Moyeo Access JWT and no
-request body. The backend revokes the encrypted stored Apple refresh token or
-uses the server-owned Kakao Admin Key to unlink the stored Kakao user ID before
-committing local account deletion.
-
-일반 ID/비밀번호 회원가입·로그인 API는 제공하지 않습니다. Apple 또는 카카오 최초
-로그인 성공 시 사용자를 즉시 생성하고 Access JWT를 반환하며, 닉네임 등록 전 응답은
-`nickname: null`, `onboardingCompleted: false`입니다. 닉네임 등록 전에는 현재
-사용자 조회와 온보딩 API 외의 회원 API가 `403 ONBOARDING_REQUIRED`를 반환합니다.
-
-When the `local` or `dev` profile is active, the server creates these idempotent test
-accounts and exposes one token endpoint:
-
-- `POST /api/auth/dev/tokens`
-
-The endpoint requires no request body and returns the Access JWT responses for
-two fixed direct users. The returned development tokens are deterministic and
-expire on 2099-01-01, so they remain usable after a dev-server restart while
-the JWT secret is unchanged. It is not registered in the `prod` profile.
-
-Login responses include an Access JWT.
-Protected APIs use the `Authorization: Bearer {accessToken}` header.
-
-Not included yet:
-
-- Refresh Token
-- Logout
-- Social account linking
-
-## Current Meeting APIs
-
-The current meeting implementation covers the first milestone base flow.
-
-- `POST /api/meetings`
-- `POST /api/departure-places/searches`
-- `GET /api/me/places`
-- `POST /api/me/places`
-- `PATCH /api/me/places/{savedPlaceId}`
-- `DELETE /api/me/places/{savedPlaceId}`
-- `GET /api/meetings/invitations/{inviteCode}`
-- `GET /api/meetings/invitations/{inviteCode}/view`
-- `GET /api/meetings/invitations/{inviteCode}/view/schedules`
-- `GET /api/meetings/invitations/{inviteCode}/view/places`
-- `POST /api/meetings/invitations/{inviteCode}/guests`
-- `POST /api/meetings/invitations/{inviteCode}/members`
-- `PUT /api/meetings/invitations/{inviteCode}/participants/{participantId}/participation`
-
-Current meeting scope:
-
-- A logged-in user can create a meeting as host.
-- Meeting creation for the first MVP accepts the first creation flow settings in one request.
-- The server issues an invite code.
-- INV-01 invite entry uses public invite-code lookup and returns meeting basic information plus participation availability status.
-- A guest can join with nickname and password.
-- Guest join does not accept departure address, coordinates, or transportation mode directly.
-- Participant nicknames are unique only inside each meeting.
-- `deadlineAt` is calculated by the server from request `deadlineMinutes`.
-- `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 72 hours.
-- Schedule voting applies the same available time range to every selected candidate date.
-- Schedule voting time ranges are accepted in 1-hour units.
-- Guest participation is rejected after `deadlineAt`.
-- Invite-code lookup returns whether the current meeting can still be joined and the reason/message when joining is blocked.
-- Middle-point creation stores the host departure name, address, coordinates, and transportation mode as the host participant snapshot.
-- `POST /api/departure-places/searches` searches subway stations, road-name or lot-number addresses, and general places through Kakao Local. Exact `~역` queries use subway-station results first; successful zero-result primary searches fall back to a general place keyword search.
-- Web guests use the same departure search path with an `inviteCode` query parameter and no Access JWT. The server validates the invite code before calling Kakao Local; a present invalid token never falls back to invite-code access.
-- Departure-place search candidates include WGS84 latitude and longitude. A client using this search sends the selected coordinate pair with the existing meeting creation or participation request; it must not geocode the address again when saving. The existing request rule still requires latitude and longitude to be sent together, and a legacy request that omits both remains a coordinate-less snapshot handled as `COORDINATES_PENDING`.
-- Place recommendation strategy is fixed after meeting creation in the first MVP.
-- INV-02 participation input stores schedule availability for schedule-coordination meetings.
-- INV-02 participation input stores departure address, coordinates, and transportation mode for place-coordination meetings.
-- A participation save request replaces the participant's previous schedule availability slots.
-- Public pre-confirmation meeting views provide participant lists, schedule candidates, and place recommendations.
-- Schedule candidates are calculated from saved availability slots and can be sorted by longest meeting time or earliest date; each request returns up to three candidates.
-- Middle-point place recommendations use saved departure coordinates and the persistent Seoul commercial-area catalog to return up to five straight-line-distance preview candidates.
-- Random place recommendations return up to five candidates from the persistent Seoul commercial-area catalog.
-
-Not included yet:
-
-- Step-by-step meeting draft save
-- Actual travel-time-based place ranking and final place confirmation
-- Current-location lookup
-- Tmap/Tmap Transit integration
-- Voting/free-poll
-- Final decision/result
-- Meeting list/detail tabs
-- Meeting edit/delete
-- Guest re-entry authentication
-
-## Dev Deployment
-
-The dev server is deployed on AWS.
-
-The dev profile currently uses Hibernate schema update while the MVP schema is still changing. Treat this as temporary development convenience, not a production migration strategy.
+## 주요 흐름
 
 ```text
-GitHub Actions
-→ Gradle test/build
-→ Docker image build
-→ Amazon ECR push
-→ AWS Systems Manager Run Command
-→ EC2 Docker Compose deployment (Caddy + application + MySQL)
-→ EC2 Docker Compose MySQL connection
+소셜 로그인 → 닉네임 온보딩 → 모임 생성 또는 초대 링크 진입
+                                  ↓
+                   일정·출발지 응답 수집 → 추천 확인 → 방장 확정
 ```
 
-Runtime components:
+- 모임은 `SCHEDULE_ONLY`, `PLACE_ONLY`, `SCHEDULE_AND_PLACE`로 생성합니다.
+- 초대 링크는 공개 조회할 수 있으며, 웹에서는 닉네임·4자리 비밀번호로 게스트 참여를 지원합니다.
+- 출발지 검색과 저장은 서울·경기 지역을 대상으로 합니다. 좌표는 검색 결과를 그대로 사용합니다.
+- 장소 조율은 인원이 모두 찬 뒤 Kakao 경로 기반 실제 이동시간 추천을 저장해 재사용합니다.
+- 일정 또는 장소 확정은 방장만 가능하며, 확정에는 활성 참여자 2명 이상이 필요합니다.
 
-- EC2: `moyeo-api-dev`
-- MySQL container: `moyeo-mysql`
-- ECR repository: `moyeo-server`
-- App container: `moyeo-server`
-- HTTPS reverse-proxy container: `moyeo-caddy`
+현재 지원하지 않는 범위는 단계별 임시저장, 현재 위치 조회, 자유 투표, 직접 초대 외의 회원·그룹 초대입니다.
 
-Security policy for dev:
+## API 사용
 
-- HTTPS ports `80` and `443` are public for Caddy certificate issuance,
-  HTTP-to-HTTPS redirection, and API traffic.
-- API port `8080` remains temporarily public for frontend migration and direct
-  troubleshooting. Remove this exception after the dev frontend application is
-  deployed with the verified HTTPS endpoint.
-- SSH port `22` is restricted to the developer IP.
-- MySQL port `3306` is not publicly exposed.
-- MySQL may be bound to EC2 localhost `127.0.0.1:3306` for DBeaver access through SSH tunneling.
-- GitHub Actions deploys through AWS Systems Manager instead of opening SSH to GitHub Actions runners.
-- Only `ohujj/MOYEO` runs the `Deploy Dev` job. The CMC mirror runs CI but
-  skips dev deployment so mirrored pushes cannot deploy the same EC2 instance
-  twice.
+Swagger UI가 요청·응답 DTO, 인증 요구사항, enum, 오류 응답의 단일 기준입니다.
 
-## Environment Variables
+- 로컬: [Swagger UI](http://localhost:8080/swagger-ui.html)
+- 개발 서버: [Swagger UI](https://3-35-119-70.sslip.io/swagger-ui.html)
+- 개발 서버 Health: [https://3-35-119-70.sslip.io/health](https://3-35-119-70.sslip.io/health)
 
-`dev` and `prod` profiles require environment variables.
+보호된 API는 다음 헤더를 사용합니다.
 
-```text
-DB_URL
-DB_USERNAME
-DB_PASSWORD
-JWT_SECRET
-CORS_ALLOWED_ORIGINS
-APPLE_OAUTH_ENABLED
-APPLE_CLIENT_ID
-APPLE_TEAM_ID
-APPLE_KEY_ID
-APPLE_PRIVATE_KEY_BASE64
-APPLE_OAUTH_REDIRECT_URI_DEV
-APPLE_OAUTH_REDIRECT_URI_PROD
-APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64
-KAKAO_OAUTH_ENABLED
-KAKAO_OAUTH_REST_API_KEY
-KAKAO_OAUTH_CLIENT_SECRET
-KAKAO_OAUTH_ADMIN_KEY
-KAKAO_OAUTH_REDIRECT_URI_LOCAL
-KAKAO_OAUTH_REDIRECT_URI_DEV
-KAKAO_OAUTH_REDIRECT_URI_PROD
-KAKAO_LOCAL_REST_API_KEY
-MEETING_COVER_S3_BUCKET
+```http
+Authorization: Bearer {accessToken}
 ```
 
-`DEV_API_DOMAIN` is optional and defaults to `3-35-119-70.sslip.io`. Caddy uses
-it as the dev HTTPS host and stores certificate state in the persistent
-`moyeo-caddy-data` Docker volume.
+성공 응답은 DTO를 직접 반환합니다. 오류는 RFC 9457 Problem Details
+(`application/problem+json`) 형식이며, 클라이언트 분기용 `code`를 포함합니다.
+모든 응답에는 로그 추적용 `X-Trace-Id` 헤더가 포함됩니다.
 
-Caddy manages certificate issuance and renewal automatically. Keep public ports
-`80` and `443` reachable and do not delete the `moyeo-caddy-data` or
-`moyeo-caddy-config` volumes during ordinary deployments.
+`local`·`dev` 프로필에서는 `POST /api/auth/dev/tokens`로 두 테스트 계정의
+장기 Access Token을 발급할 수 있습니다. 이 경로는 `prod` 프로필에 노출되지 않습니다.
 
-The `Monitor SSL Certificate` GitHub Actions workflow checks the public
-certificate daily and fails if TLS or hostname verification fails, or if fewer
-than 21 days remain before expiration. It runs outside EC2 and therefore adds no
-resident process or memory usage to the server. The check runs only in
-`ohujj/MOYEO`, not in the CMC mirror.
+## 기술 구성
 
-Apple 로그인 활성화 시 모든 `APPLE_*` 값을 설정하고
-`APPLE_OAUTH_ENABLED=true`로 지정합니다. `.p8` 개인키는 파일 전체를 Base64로
-인코딩한 값만 `APPLE_PRIVATE_KEY_BASE64`에 저장하며 원문과 실제 값은 커밋하거나
-로그에 출력하지 않습니다. `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`는 별도의
-무작위 32바이트 키를 Base64로 인코딩한 값이며, DB와 분리해 런타임 환경에만
-보관합니다.
+- Java 21, Spring Boot 3.5.15, Gradle
+- Spring Web, Validation, Data JPA, Spring Security Crypto
+- H2 (`local`/test), MySQL (`dev`/`prod`)
+- Springdoc OpenAPI, Spring Boot Actuator, JUnit 5
+- Docker Compose, Caddy, AWS EC2/ECR/Systems Manager, GitHub Actions
 
-카카오 로그인 활성화 시 `KAKAO_OAUTH_REST_API_KEY`,
-`KAKAO_OAUTH_CLIENT_SECRET`, `KAKAO_OAUTH_ADMIN_KEY`, 정확한
-`KAKAO_OAUTH_REDIRECT_URI`를 설정하고
-`KAKAO_OAUTH_ENABLED=true`로 지정합니다. 프론트엔드는 콜백의 `state`를 검증한
-뒤 일회용 인가 코드만 `POST /api/auth/kakao`로 전달합니다. 로그인 설정은 장소
-검색용 `KAKAO_LOCAL_REST_API_KEY`와 이름을 분리하며, 실제 키와 시크릿은 런타임
-환경에만 저장합니다.
+## 환경 설정
 
-기존 운영 DB에 소셜 로그인을 처음 배포하기 전에는 DB를 백업하고
-`scripts/db/2026-07-24-social-login.sql`을 1회 적용해야 합니다. 기존 DB에서
-재로그인 없는 Apple 탈퇴를 활성화하기 전에는
-`scripts/db/2026-07-26-social-refresh-token.sql`도 1회 적용해야 합니다. 운영 프로필의
-기본 CORS 프론트 주소는 `https://moyeo-web.vercel.app`이며, 변경 시
-`CORS_ALLOWED_ORIGINS`로 덮어씁니다.
+`dev`·`prod`는 런타임 환경 변수로 설정합니다. 실제 키와 시크릿은 소스, 로그,
+GitHub Actions 명령에 넣지 않습니다.
 
-`KAKAO_LOCAL_REST_API_KEY` is the Kakao Local REST API key used only by the
-server for departure place search.
-Keep the real key only in the runtime environment; do not add it to source code,
-configuration files, or GitHub Actions deployment commands.
+| 범주 | 주요 환경 변수 |
+| --- | --- |
+| 데이터베이스 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` |
+| 인증/CORS | `JWT_SECRET`, `CORS_ALLOWED_ORIGINS` |
+| Apple 로그인 | `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64` |
+| Kakao 로그인·장소 | `KAKAO_OAUTH_*`, `KAKAO_LOCAL_REST_API_KEY`, `KAKAO_ROUTE_REST_API_KEY` |
+| 커버 이미지 | `MEETING_COVER_S3_BUCKET`, `AWS_REGION` |
 
-`MEETING_COVER_S3_BUCKET` is the private S3 bucket used to retain resized meeting
-cover images. The EC2 instance role, not an AWS access key in the environment,
-must have access to this bucket.
+`KAKAO_ROUTE_REST_API_KEY`가 없으면 권한이 있는 `KAKAO_LOCAL_REST_API_KEY`를
+경로 조회에도 사용합니다. 실제 이동시간 추천 수는
+`MEETING_ACTUAL_ROUTE_PRELIMINARY_CANDIDATE_COUNT`,
+`MEETING_ACTUAL_ROUTE_FINAL_RECOMMENDATION_COUNT`로 조정할 수 있습니다.
 
-Dev CORS origin example:
+전체 환경 변수, CORS, 로그, 배포 절차는 [프로젝트 설정 문서](docs/00-project-setup.md)를
+확인합니다.
 
-```text
-CORS_ALLOWED_ORIGINS=https://moyeo-web.vercel.app,https://moyeo-dev.vercel.app,http://localhost:3000
-```
+## 개발 배포
 
-The dev profile separately allows Vercel PR Preview origins matching
-`https://moyeo-*-hyeonjirohs-projects.vercel.app`.
+개발 환경은 GitHub Actions → Gradle 검증/이미지 빌드 → ECR → AWS Systems Manager →
+EC2 Docker Compose(Caddy, 애플리케이션, MySQL) 흐름으로 배포합니다.
 
-The EC2 dev server stores runtime values in:
+- HTTPS 개발 도메인: `3-35-119-70.sslip.io`
+- Caddy가 TLS 인증서 발급·갱신을 관리합니다.
+- MySQL은 외부에 공개하지 않고, 필요 시 SSH 터널로 접근합니다.
 
-```text
-/home/ubuntu/moyeo/.env
-```
+운영 전제와 내구성·백업 규칙은 반드시
+[프로젝트 설정 문서](docs/00-project-setup.md)를 따릅니다.
 
-Add the departure place-search key to that file before deploying or recreating the app
-container:
+## 문서 안내
 
-```text
-KAKAO_LOCAL_REST_API_KEY=your-kakao-local-rest-api-key
-MEETING_COVER_S3_BUCKET=moyeo-meeting-covers-dev-533232489687-ap-northeast-2-an
-```
+| 문서 | 용도 |
+| --- | --- |
+| [프로젝트 설정](docs/00-project-setup.md) | MVP 범위, 기술 결정, 배포, 운영 준비 |
+| [API 정책](docs/policies/API_POLICY.md) | 성공·오류 응답, Swagger 기준 |
+| [인증 정책](docs/policies/AUTH_POLICY.md) | 로그인, JWT, 보안 규칙 |
+| [모임 참여 정책](docs/policies/MEETING_PARTICIPATION_POLICY.md) | 생성, 초대, 참여, 조율, 확정 |
+| [DB 다이어그램](docs/01-dbdiagram.md) | DBML 및 스키마 계약 |
+| [UI 흐름 맵](docs/02-ui-flow-map.md) | 화면 흐름과 백엔드 라우팅 |
+| [작업 규칙](AGENTS.md) | 변경·검증·문서 동기화 규칙 |
 
-Do not commit real secrets to the repository.
+## README 유지 관리
 
-## Logging
-
-The `dev` and `prod` profiles write application logs to `/app/logs/moyeo.log`
-and `ERROR`-level exception logs to `/app/logs/moyeo-error.log`. Logs roll over
-daily and again at 25 MB per file. They are kept for up to 30 days with a
-combined size cap of 256 MB (general 192 MB, exception 64 MB). The local
-profile keeps console-only logging. Each HTTP response contains an
-`X-Trace-Id` header, and the same ID is included in request logs.
-
-For Docker Compose, logs are persisted to `./logs` by default. Set `LOG_DIR` in
-the runtime environment to use a different host directory.
-
-## Documentation
-
-- Codex working rules: `AGENTS.md`
-- Project setup and technical decisions: `docs/00-project-setup.md`
-- DB diagram DBML: `docs/01-dbdiagram.md`
-- Product-design flow map and backend routing: `docs/02-ui-flow-map.md`
+README는 시작 방법과 현재 제공 기능의 요약만 유지합니다. API 세부 스펙은 Swagger,
+도메인 정책은 정책 문서를 기준으로 합니다. Markdown 문서를 변경할 때는 README에
+영향이 있는지 반드시 검토하고, 영향이 있으면 같은 변경에 반영합니다.

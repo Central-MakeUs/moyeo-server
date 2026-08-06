@@ -108,6 +108,11 @@ explicitly report why no update was needed.
 
 ## Documentation Synchronization
 
+- Any Markdown (`.md`) document change must include a README impact review before
+  completion. Update `README.md` in the same change when the project overview,
+  supported feature summary, getting-started instructions, runtime/deployment
+  guidance, or documentation navigation is affected; otherwise report that the
+  README review was completed and no update was needed.
 - API or error changes must follow `docs/policies/API_POLICY.md` and check
   Swagger/OpenAPI update needs.
 - When an API response adds or changes nullable fields, also follow the

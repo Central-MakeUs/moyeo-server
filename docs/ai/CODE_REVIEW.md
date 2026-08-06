@@ -232,6 +232,9 @@ self-code review.
 3. In the review result, state the changed-surface classification and the
    policy documents reviewed before reporting findings or `No actionable
    findings.`
+4. When the diff changes any Markdown document, review whether `README.md`
+   requires a synchronized update under the Documentation Synchronization rule
+   in `AGENTS.md`.
 
 Do not claim that a review followed the project harness when these routing and
 reporting steps were not completed.
