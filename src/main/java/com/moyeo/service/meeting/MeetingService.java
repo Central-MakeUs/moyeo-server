@@ -363,6 +363,7 @@ public class MeetingService {
                 && meetingParticipantRepository.existsByMeetingIdAndUserId(meeting.getId(), member.userId());
         return MeetingInvitationResult.from(
                 meeting,
+                findHostParticipantNickname(meeting),
                 participantCount,
                 scheduleCandidates,
                 scheduleCandidateAvailabilities,
@@ -422,7 +423,7 @@ public class MeetingService {
                     LocalDateTime scheduledAt = meeting.getConfirmedScheduleDate() == null ? null
                             : LocalDateTime.of(meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime() != null ? meeting.getConfirmedStartTime() : LocalTime.MIDNIGHT);
                     return new MyMeetingListResult.Item(meeting.getId(), meeting.getInviteCode(), meeting.getName(), MeetingCoverUrl.from(meeting),
-                            meeting.getHostUser().getNickname(), participant.getParticipantType().name(),
+                            findHostParticipantNickname(meeting), participant.getParticipantType().name(),
                             (int) meetingParticipantRepository.countByMeetingId(meeting.getId()),
                             meeting.getMaxParticipants(), deadlineStatus, meeting.getDeadlineAt(), meeting.getConfirmedAt(), scheduledAt,
                             meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime(), meeting.getConfirmedEndTime(), meeting.getConfirmedPlaceName());
@@ -459,13 +460,19 @@ public class MeetingService {
                 meeting.getName(),
                 meeting.getDescription(),
                 MeetingCoverUrl.from(meeting),
-                meeting.getHostUser().getNickname(),
+                findHostParticipantNickname(meeting),
                 meeting.getConfirmedScheduleDate(),
                 meeting.getConfirmedStartTime(),
                 meeting.getConfirmedEndTime(),
                 meeting.getConfirmedPlaceName(),
                 participants
         );
+    }
+
+    private String findHostParticipantNickname(Meeting meeting) {
+        return meetingParticipantRepository.findByMeetingIdAndUserId(meeting.getId(), meeting.getHostUser().getId())
+                .map(MeetingParticipant::getNickname)
+                .orElseThrow(() -> new MoyeoException(MeetingErrorCode.MEETING_PARTICIPANT_NOT_FOUND));
     }
 
     public MyParticipationResult getMyParticipation(String inviteCode, AuthenticatedMember member) {

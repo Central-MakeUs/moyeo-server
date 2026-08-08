@@ -125,18 +125,31 @@ class MeetingControllerTest {
         String memberToken = signupAndGetAccessToken("home-detail-member", "homemember");
         joinMember(inviteCode, memberToken, "memberone");
 
+        mockMvc.perform(patch("/api/meetings/{meetingId}/participants/me/nickname", meetingId)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nickname": "hostmeet" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("hostmeet"));
+
         mockMvc.perform(get("/api/meetings/me")
                         .header("Authorization", "Bearer " + hostToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.planningMeetings[0].inviteCode").value(inviteCode))
-                .andExpect(jsonPath("$.planningMeetings[0].hostNickname").value("homehost"))
+                .andExpect(jsonPath("$.planningMeetings[0].hostNickname").value("hostmeet"))
                 .andExpect(jsonPath("$.planningMeetings[0].role").value("HOST"));
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.hostNickname").value("hostmeet"));
 
         mockMvc.perform(get("/api/meetings/{meetingId}", meetingId)
                         .header("Authorization", "Bearer " + memberToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.meetingId").value(meetingId))
-                .andExpect(jsonPath("$.hostNickname").value("homehost"))
+                .andExpect(jsonPath("$.hostNickname").value("hostmeet"))
                 .andExpect(jsonPath("$.participants.length()").value(2))
                 .andExpect(jsonPath("$.participants[0].userId").isNumber())
                 .andExpect(jsonPath("$.participants[1].userId").isNumber())

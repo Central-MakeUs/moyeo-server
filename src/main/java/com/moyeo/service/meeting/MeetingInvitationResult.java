@@ -34,6 +34,7 @@ public record MeetingInvitationResult(
 
     public static MeetingInvitationResult from(
             Meeting meeting,
+            String hostNickname,
             long participantCount,
             List<MeetingScheduleCandidate> scheduleCandidates,
             List<MeetingScheduleCandidateAvailability> scheduleCandidateAvailabilities,
@@ -79,7 +80,7 @@ public record MeetingInvitationResult(
                 meeting.getPlaceRecommendationStrategy() != null ? meeting.getPlaceRecommendationStrategy().name() : null,
                 meeting.getDeadlineAt(),
                 participantCount,
-                meeting.getHostUser().getNickname(),
+                hostNickname,
                 participationStatus
         );
     }

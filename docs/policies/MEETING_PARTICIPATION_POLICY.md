@@ -180,6 +180,8 @@ general best practice into domain policy.
   the same Korean/English 2-10-character rule as join. This does not change the
   user's default nickname. Nickname duplication remains prohibited only between
   guests in the same meeting.
+- Responses that display `hostNickname` use the `HOST` participant's
+  meeting-scoped nickname, not the user's default nickname.
 
 ## Invite and Guest Join
 
