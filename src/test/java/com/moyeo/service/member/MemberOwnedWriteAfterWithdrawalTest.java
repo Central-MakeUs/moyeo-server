@@ -1,9 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.controller.TestMemberFactory;
-import com.moyeo.departure.DeparturePlaceSearchService.DeparturePlaceSearchResult;
 import com.moyeo.departure.DeparturePlaceType;
-import com.moyeo.domain.departure.DeparturePlaceSearchExecutionPath;
 import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleInputType;
@@ -14,7 +12,6 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.repository.member.UserRepository;
-import com.moyeo.service.departure.DeparturePlaceSearchHistoryRecorder;
 import com.moyeo.service.meeting.CreateMeetingCommand;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.MeetingService;
@@ -68,9 +65,6 @@ class MemberOwnedWriteAfterWithdrawalTest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
-    @Autowired
-    private DeparturePlaceSearchHistoryRecorder searchHistoryRecorder;
-
     @MockitoBean
     private MeetingCoverStorage meetingCoverStorage;
 
@@ -123,15 +117,6 @@ class MemberOwnedWriteAfterWithdrawalTest {
                         new BigDecimal("127.0")
                 )
         ));
-        assertAuthenticationRequired(() -> searchHistoryRecorder.recordMemberSearch(
-                userId,
-                new DeparturePlaceSearchResult(
-                        "회사",
-                        DeparturePlaceSearchExecutionPath.KEYWORD,
-                        List.of()
-                )
-        ));
-
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from meetings where host_user_id = ?",
                 Long.class,
@@ -139,11 +124,6 @@ class MemberOwnedWriteAfterWithdrawalTest {
         )).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "select count(*) from saved_places where user_id = ?",
-                Long.class,
-                userId
-        )).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "select count(*) from departure_place_searches where user_id = ?",
                 Long.class,
                 userId
         )).isZero();

@@ -113,6 +113,10 @@ Finalize decision
   `scripts/db/2026-08-02-user-profile-color.sql`.
 - Before deploying member feedback to an existing production database, back up
   the target database and apply `scripts/db/2026-08-02-feedbacks.sql`.
+- Before removing departure-place search-history storage from an existing
+  database, back up the target database and apply
+  `scripts/db/2026-08-09-remove-departure-place-search-history.sql` after the
+  application version that no longer reads or writes those tables is deployed.
 - Before deploying meeting-owned participant schedule-selection snapshots to an
   existing production database, back up the target database and apply
   `scripts/db/2026-08-03-meeting-schedule-candidate-availabilities.sql`.

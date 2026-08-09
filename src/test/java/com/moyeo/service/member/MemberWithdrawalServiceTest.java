@@ -5,7 +5,6 @@ import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
-import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.feedback.FeedbackRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
@@ -49,8 +48,6 @@ class MemberWithdrawalServiceTest {
     @Mock
     private FeedbackRepository feedbackRepository;
     @Mock
-    private DeparturePlaceSearchRepository departurePlaceSearchRepository;
-    @Mock
     private MeetingRepository meetingRepository;
     @Mock
     private MeetingParticipantRepository meetingParticipantRepository;
@@ -84,7 +81,6 @@ class MemberWithdrawalServiceTest {
                 socialAccountRepository,
                 savedPlaceRepository,
                 feedbackRepository,
-                departurePlaceSearchRepository,
                 meetingRepository,
                 meetingParticipantRepository,
                 meetingPlaceRecommendationSnapshotRepository,
@@ -113,7 +109,6 @@ class MemberWithdrawalServiceTest {
                         "encrypted-refresh-token"
                 )));
         when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
-        when(departurePlaceSearchRepository.findAllByUserId(1L)).thenReturn(List.of());
 
         memberWithdrawalService.withdraw(1L);
 
@@ -132,7 +127,6 @@ class MemberWithdrawalServiceTest {
         when(socialAccountRepository.findAllByUserId(1L))
                 .thenReturn(List.of(new SocialAccount(user, AuthProvider.KAKAO, "1234567890", null)));
         when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
-        when(departurePlaceSearchRepository.findAllByUserId(1L)).thenReturn(List.of());
         org.mockito.Mockito.doThrow(new DataAccessResourceFailureException("flush failed"))
                 .when(userRepository)
                 .flush();
@@ -164,7 +158,6 @@ class MemberWithdrawalServiceTest {
         when(socialAccountRepository.findAllByUserId(1L)).thenReturn(List.of());
         when(exemption.appliesTo(user)).thenReturn(true);
         when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
-        when(departurePlaceSearchRepository.findAllByUserId(1L)).thenReturn(List.of());
 
         memberWithdrawalService.withdraw(1L);
 
@@ -179,7 +172,6 @@ class MemberWithdrawalServiceTest {
         when(socialAccountRepository.findAllByUserId(1L)).thenReturn(List.of());
         when(exemption.appliesTo(user)).thenReturn(true);
         when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
-        when(departurePlaceSearchRepository.findAllByUserId(1L)).thenReturn(List.of());
 
         memberWithdrawalService.withdraw(1L);
 

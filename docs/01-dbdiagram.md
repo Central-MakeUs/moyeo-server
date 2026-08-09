@@ -228,33 +228,6 @@ Table meeting_participants {
   }
 }
 
-Table departure_place_searches {
-  id bigint [pk, increment, note: "출발지 검색 실행 ID"]
-  user_id bigint [note: "검색한 서비스 사용자 ID. 게스트 검색은 null"]
-  meeting_id bigint [note: "게스트 검색이 발생한 모임 ID. 회원 검색은 null"]
-  keyword varchar(100) [not null, note: "외부 검색 API에 전달한 정규화된 검색어"]
-  provider varchar(20) [not null, note: "검색 제공자: KAKAO_LOCAL"]
-  execution_path varchar(40) [not null, note: "검색 및 fallback 실행 경로"]
-  created_at datetime [not null, note: "검색 실행 기록 일시"]
-}
-
-Table departure_place_search_candidates {
-  id bigint [pk, increment, note: "출발지 검색 결과 후보 ID"]
-  search_id bigint [not null, note: "출발지 검색 실행 ID"]
-  position int [not null, note: "클라이언트 응답 내 결과 순서. 1부터 시작"]
-  type varchar(20) [not null, note: "검색 결과 유형: STATION/ADDRESS/PLACE"]
-  display_name varchar(255) [note: "검색 목록 표시명"]
-  address varchar(255) [note: "대표 주소"]
-  road_address varchar(255) [note: "도로명주소"]
-  jibun_address varchar(255) [note: "지번주소"]
-  latitude decimal(18,15) [not null, note: "응답 정밀도를 보존한 WGS84 위도"]
-  longitude decimal(18,15) [not null, note: "응답 정밀도를 보존한 WGS84 경도"]
-
-  indexes {
-    (search_id, position) [unique, name: "uk_departure_place_search_candidates_position"]
-  }
-}
-
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
 Ref fk_saved_places_user: saved_places.user_id > users.id
 Ref fk_feedbacks_user: feedbacks.user_id > users.id
@@ -269,9 +242,6 @@ Ref fk_meeting_participant_schedule_availabilities_participant: meeting_particip
 Ref fk_meeting_participant_schedule_availabilities_candidate: meeting_participant_schedule_availabilities.schedule_candidate_id > meeting_schedule_candidates.id
 Ref fk_meeting_participant_schedule_date_availabilities_participant: meeting_participant_schedule_date_availabilities.participant_id > meeting_participants.id
 Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_participant_schedule_date_availabilities.schedule_candidate_id > meeting_schedule_candidates.id
-Ref fk_departure_place_searches_user: departure_place_searches.user_id > users.id
-Ref fk_departure_place_searches_meeting: departure_place_searches.meeting_id > meetings.id
-Ref fk_departure_place_search_candidates_search: departure_place_search_candidates.search_id > departure_place_searches.id
 ```
 
 ## Notes
@@ -291,7 +261,7 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
   Apple provider user ID; Kakao rows keep this field null.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - Social accounts are never merged automatically by email.
-- `saved_places` stores member-owned place snapshots independently from supplementary search history. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
+- `saved_places` stores member-owned place snapshots. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
 - `feedbacks` stores authenticated members' submitted feedback with the submitting user, content, and submission time. Members can retrieve only their own history; feedback is deleted when its submitting member withdraws; no operator-facing feedback API is defined yet.
 - `commercial_areas` stores source-owned recommendation candidates independently from meetings. The initial seed contains only Seoul development areas and tourist-special areas from `SEOUL_COMMERCIAL_ANALYSIS`; later regional sources can use the same table through a different `source` value and source-owned code.
@@ -326,11 +296,3 @@ Ref fk_departure_place_search_candidates_search: departure_place_search_candidat
 - Guest `meeting_participants.nickname` duplication is rejected only against other guests in the same meeting by the join application logic; the table does not keep a general nickname unique constraint.
 - `meeting_participants.user_id` is unique only inside a meeting when a participant is linked to a service user.
 - Logged-in member participants use `users.id`; guest participants keep `meeting_participants.user_id` null.
-- `departure_place_searches` stores only successful Kakao Local search executions.
-  Exactly one of `user_id` and `meeting_id` is present: member searches reference
-  the authenticated user, and invite-code guest searches reference the validated
-  meeting.
-- `departure_place_searches.execution_path` records `STATION_CATEGORY`,
-  `STATION_CATEGORY_TO_KEYWORD`, `ADDRESS`, `ADDRESS_TO_KEYWORD`, or `KEYWORD`.
-- `departure_place_search_candidates` stores only the final unified candidates
-  returned to the client. A successful zero-result search has no candidate rows.

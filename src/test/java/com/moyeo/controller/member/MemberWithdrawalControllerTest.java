@@ -99,12 +99,9 @@ class MemberWithdrawalControllerTest {
                 coverObjectKey,
                 hostedMeetingId
         );
-        long meetingSearchId = insertDepartureSearch(null, hostedMeetingId, "withdraw-meeting-search");
-        insertDepartureSearchCandidate(meetingSearchId);
 
         assertThat(count("social_accounts", "user_id", userId)).isEqualTo(1);
         assertThat(count("saved_places", "user_id", userId)).isEqualTo(1);
-        assertThat(count("departure_place_searches", "user_id", userId)).isEqualTo(1);
         assertThat(count("meeting_schedule_candidates", "meeting_id", hostedMeetingId)).isPositive();
         assertThat(count("meeting_participants", "meeting_id", hostedMeetingId)).isPositive();
 
@@ -126,9 +123,7 @@ class MemberWithdrawalControllerTest {
         assertThat(withdrawnUser.get("deleted_at")).isNotNull();
         assertThat(count("social_accounts", "user_id", userId)).isZero();
         assertThat(count("saved_places", "user_id", userId)).isZero();
-        assertThat(count("departure_place_searches", "user_id", userId)).isZero();
         assertThat(count("meetings", "id", hostedMeetingId)).isZero();
-        assertThat(count("departure_place_searches", "meeting_id", hostedMeetingId)).isZero();
         assertThat(count("meeting_cover_cleanup_tasks", "object_key", coverObjectKey)).isZero();
         verify(meetingCoverStorage).delete(coverObjectKey);
 
@@ -394,12 +389,6 @@ class MemberWithdrawalControllerTest {
                 coverObjectKey,
                 hostedMeetingId
         );
-        long meetingSearchId = insertDepartureSearch(
-                null,
-                hostedMeetingId,
-                "withdraw-provider-failure-meeting-search"
-        );
-        insertDepartureSearchCandidate(meetingSearchId);
         doThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE))
                 .when(appleLoginService)
                 .disconnectStoredAuthorization(providerUserId, "encrypted-refresh-token");
@@ -416,11 +405,9 @@ class MemberWithdrawalControllerTest {
         )).isTrue();
         assertThat(count("social_accounts", "user_id", userId)).isEqualTo(1);
         assertThat(count("saved_places", "user_id", userId)).isEqualTo(1);
-        assertThat(count("departure_place_searches", "user_id", userId)).isEqualTo(1);
         assertThat(count("meetings", "id", hostedMeetingId)).isEqualTo(1);
         assertThat(count("meeting_participants", "meeting_id", hostedMeetingId)).isPositive();
         assertThat(count("meeting_schedule_candidates", "meeting_id", hostedMeetingId)).isPositive();
-        assertThat(count("departure_place_searches", "meeting_id", hostedMeetingId)).isEqualTo(1);
         assertThat(count("meeting_cover_cleanup_tasks", "object_key", coverObjectKey)).isZero();
     }
 
@@ -472,8 +459,6 @@ class MemberWithdrawalControllerTest {
                 """,
                 userId
         );
-        long memberSearchId = insertDepartureSearch(userId, null, "withdraw-member-search");
-        insertDepartureSearchCandidate(memberSearchId);
     }
 
     private JsonNode createMeeting(String accessToken, String name) throws Exception {
@@ -538,37 +523,6 @@ class MemberWithdrawalControllerTest {
                                 )
                         ))))
                 .andExpect(status().isCreated());
-    }
-
-    private long insertDepartureSearch(Long userId, Long meetingId, String keyword) {
-        jdbcTemplate.update(
-                """
-                insert into departure_place_searches(
-                    user_id, meeting_id, keyword, provider, execution_path, created_at
-                )
-                values (?, ?, ?, 'KAKAO_LOCAL', 'KEYWORD', current_timestamp)
-                """,
-                userId,
-                meetingId,
-                keyword
-        );
-        return jdbcTemplate.queryForObject(
-                "select id from departure_place_searches where keyword = ?",
-                Long.class,
-                keyword
-        );
-    }
-
-    private void insertDepartureSearchCandidate(long searchId) {
-        jdbcTemplate.update(
-                """
-                insert into departure_place_search_candidates(
-                    search_id, position, type, display_name, address, latitude, longitude
-                )
-                values (?, 1, 'PLACE', '검색 후보', '서울', 37.5, 127.0)
-                """,
-                searchId
-        );
     }
 
     private long count(String table, String column, Object value) {

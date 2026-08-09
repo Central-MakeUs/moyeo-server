@@ -810,7 +810,9 @@ class MeetingControllerTest {
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"))
+                .andExpect(jsonPath("$.title").value("지원하지 않는 출발지 지역"))
+                .andExpect(jsonPath("$.detail").value("현재 출발지는 서울특별시 또는 경기도 내에서만 설정할 수 있습니다."));
     }
 
     @Test
@@ -1795,13 +1797,6 @@ class MeetingControllerTest {
                 .map(participant -> participant.getId())
                 .toList();
         jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", "meeting-covers/delete-test.jpg", meetingId);
-        jdbcTemplate.update(
-                """
-                insert into departure_place_searches(meeting_id, keyword, provider, execution_path, created_at)
-                values (?, 'delete-search', 'KAKAO_LOCAL', 'KEYWORD', current_timestamp)
-                """,
-                meetingId
-        );
 
         mockMvc.perform(delete("/api/meetings/{meetingId}", meetingId)
                         .header("Authorization", "Bearer " + otherToken))

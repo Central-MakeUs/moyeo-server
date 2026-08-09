@@ -3,7 +3,6 @@ package com.moyeo.service.meeting;
 import com.moyeo.domain.member.User;
 import com.moyeo.domain.commercial.CommercialAreaSource;
 import com.moyeo.domain.commercial.CommercialAreaStationLineEntity;
-import com.moyeo.domain.departure.DeparturePlaceSearch;
 import com.moyeo.domain.meeting.ParticipantType;
 import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
@@ -24,7 +23,6 @@ import com.moyeo.route.KakaoRouteClient;
 import com.moyeo.route.KakaoRouteUnavailableException;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.commercial.CommercialAreaStationLineRepository;
-import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleDateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
@@ -70,7 +68,6 @@ public class MeetingService {
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
     private final MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
     private final MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
-    private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final UserRepository userRepository;
     private final CommercialAreaCatalog commercialAreaCatalog;
     private final CommercialAreaStationLineRepository commercialAreaStationLineRepository;
@@ -90,7 +87,6 @@ public class MeetingService {
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
             MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository,
             MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository,
-            DeparturePlaceSearchRepository departurePlaceSearchRepository,
             UserRepository userRepository,
             CommercialAreaCatalog commercialAreaCatalog,
             CommercialAreaStationLineRepository commercialAreaStationLineRepository,
@@ -109,7 +105,6 @@ public class MeetingService {
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
         this.meetingScheduleCandidateAvailabilityRepository = meetingScheduleCandidateAvailabilityRepository;
         this.meetingPlaceRecommendationSnapshotRepository = meetingPlaceRecommendationSnapshotRepository;
-        this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.userRepository = userRepository;
         this.commercialAreaCatalog = commercialAreaCatalog;
         this.commercialAreaStationLineRepository = commercialAreaStationLineRepository;
@@ -215,7 +210,6 @@ public class MeetingService {
         }
 
         Long cleanupTaskId = meetingCoverCleanupProcessor.createDeletionTask(meeting.getCoverImageKey());
-        deleteMeetingSearchHistory(meeting.getId());
         deletePlaceRecommendationSnapshots(meeting.getId());
         deleteMeetingParticipants(meeting.getId());
         meetingScheduleCandidateAvailabilityRepository.deleteAllByMeetingId(meeting.getId());
@@ -288,14 +282,6 @@ public class MeetingService {
     private void validateCoverModificationAuthority(Meeting meeting, AuthenticatedMember member) {
         if (!meeting.getHostUser().getId().equals(member.userId())) {
             throw new MoyeoException(MeetingCoverErrorCode.MEETING_COVER_IMAGE_MODIFICATION_FORBIDDEN);
-        }
-    }
-
-    private void deleteMeetingSearchHistory(Long meetingId) {
-        List<DeparturePlaceSearch> searches = departurePlaceSearchRepository.findAllByMeetingIdIn(List.of(meetingId));
-        if (!searches.isEmpty()) {
-            departurePlaceSearchRepository.deleteAll(searches);
-            departurePlaceSearchRepository.flush();
         }
     }
 

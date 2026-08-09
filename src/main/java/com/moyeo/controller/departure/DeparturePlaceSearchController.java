@@ -93,15 +93,15 @@ public class DeparturePlaceSearchController {
     ) {
         if (member != null) {
             return DeparturePlaceSearchResponse.from(
-                    departurePlaceSearchService.searchForMember(member.userId(), request.keyword())
+                    departurePlaceSearchService.search(request.keyword())
             );
         }
         if (inviteCode == null || inviteCode.isBlank()) {
             throw new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED);
         }
-        Long meetingId = meetingService.validateInvitationExists(inviteCode.strip());
+        meetingService.validateInvitationExists(inviteCode.strip());
         return DeparturePlaceSearchResponse.from(
-                departurePlaceSearchService.searchForGuest(meetingId, request.keyword())
+                departurePlaceSearchService.search(request.keyword())
         );
     }
 }

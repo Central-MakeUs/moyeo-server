@@ -2,7 +2,6 @@ package com.moyeo.service.member;
 
 import com.moyeo.auth.apple.AppleLoginService;
 import com.moyeo.auth.kakao.KakaoLoginService;
-import com.moyeo.domain.departure.DeparturePlaceSearch;
 import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingCoverCleanupTask;
 import com.moyeo.domain.meeting.MeetingParticipant;
@@ -11,7 +10,6 @@ import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
-import com.moyeo.repository.departure.DeparturePlaceSearchRepository;
 import com.moyeo.repository.feedback.FeedbackRepository;
 import com.moyeo.repository.meeting.MeetingCoverCleanupTaskRepository;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
@@ -39,7 +37,6 @@ public class MemberWithdrawalService {
     private final SocialAccountRepository socialAccountRepository;
     private final SavedPlaceRepository savedPlaceRepository;
     private final FeedbackRepository feedbackRepository;
-    private final DeparturePlaceSearchRepository departurePlaceSearchRepository;
     private final MeetingRepository meetingRepository;
     private final MeetingParticipantRepository meetingParticipantRepository;
     private final MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository;
@@ -58,7 +55,6 @@ public class MemberWithdrawalService {
             SocialAccountRepository socialAccountRepository,
             SavedPlaceRepository savedPlaceRepository,
             FeedbackRepository feedbackRepository,
-            DeparturePlaceSearchRepository departurePlaceSearchRepository,
             MeetingRepository meetingRepository,
             MeetingParticipantRepository meetingParticipantRepository,
             MeetingPlaceRecommendationSnapshotRepository meetingPlaceRecommendationSnapshotRepository,
@@ -76,7 +72,6 @@ public class MemberWithdrawalService {
         this.socialAccountRepository = socialAccountRepository;
         this.savedPlaceRepository = savedPlaceRepository;
         this.feedbackRepository = feedbackRepository;
-        this.departurePlaceSearchRepository = departurePlaceSearchRepository;
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
         this.meetingPlaceRecommendationSnapshotRepository = meetingPlaceRecommendationSnapshotRepository;
@@ -162,9 +157,6 @@ public class MemberWithdrawalService {
             return;
         }
 
-        List<Long> meetingIds = hostedMeetings.stream().map(Meeting::getId).toList();
-        deleteSearchHistory(departurePlaceSearchRepository.findAllByMeetingIdIn(meetingIds));
-
         for (Meeting meeting : hostedMeetings) {
             deletePlaceRecommendationSnapshots(meeting.getId());
             List<MeetingParticipant> participants =
@@ -189,7 +181,6 @@ public class MemberWithdrawalService {
     }
 
     private void deleteMemberOwnedData(Long userId) {
-        deleteSearchHistory(departurePlaceSearchRepository.findAllByUserId(userId));
         savedPlaceRepository.deleteAllByUserId(userId);
         savedPlaceRepository.flush();
         feedbackRepository.deleteAllByUserId(userId);
@@ -223,14 +214,6 @@ public class MemberWithdrawalService {
     private void deletePlaceRecommendationSnapshots(Long meetingId) {
         meetingPlaceRecommendationSnapshotRepository.deleteAllByMeetingId(meetingId);
         meetingPlaceRecommendationSnapshotRepository.flush();
-    }
-
-    private void deleteSearchHistory(List<DeparturePlaceSearch> searches) {
-        if (searches.isEmpty()) {
-            return;
-        }
-        departurePlaceSearchRepository.deleteAll(searches);
-        departurePlaceSearchRepository.flush();
     }
 
     private List<Long> createCoverCleanupTasks(List<String> objectKeys) {
