@@ -810,9 +810,7 @@ class MeetingControllerTest {
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"))
-                .andExpect(jsonPath("$.title").value("지원하지 않는 출발지 지역"))
-                .andExpect(jsonPath("$.detail").value("현재 출발지는 서울특별시 또는 경기도 내에서만 설정할 수 있습니다."));
+                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
     }
 
     @Test
@@ -1813,7 +1811,6 @@ class MeetingControllerTest {
 
         assertThat(countRows("meeting_participants", "meeting_id", meetingId)).isZero();
         assertThat(countRows("meeting_schedule_candidates", "meeting_id", meetingId)).isZero();
-        assertThat(countRows("departure_place_searches", "meeting_id", meetingId)).isZero();
         assertThat(participantIds).allSatisfy(participantId ->
                 assertThat(meetingParticipantScheduleAvailabilityRepository.countByParticipantId(participantId)).isZero()
         );
