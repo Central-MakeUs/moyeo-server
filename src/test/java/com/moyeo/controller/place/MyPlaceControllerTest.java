@@ -18,6 +18,7 @@ import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -193,8 +194,14 @@ class MyPlaceControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/me/places']['get']['security'][0]['bearerAuth']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['required']",
                         hasItem("alias")))
+                .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['required']",
+                        not(hasItem("category"))))
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['properties']['category']['enum']",
                         hasItem("HOME")))
+                .andExpect(jsonPath("$['components']['schemas']['SavedPlaceResponse']['properties']['category']['enum']",
+                        hasItem("HOME")))
+                .andExpect(jsonPath("$['paths']['/api/me/places']['post']['requestBody']['content']['application/json']['examples']['WORK']['value']['category']")
+                        .value("WORK"))
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['properties']['type']['description']",
                         containsString("STATION")));
     }
