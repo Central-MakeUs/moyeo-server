@@ -452,10 +452,10 @@ class MemberWithdrawalControllerTest {
         jdbcTemplate.update(
                 """
                 insert into saved_places(
-                    user_id, alias, type, display_name, address,
+                    user_id, alias, category, type, display_name, address,
                     latitude, longitude, created_at, updated_at
                 )
-                values (?, '회사', 'PLACE', '회사', '서울', 37.5, 127.0, current_timestamp, current_timestamp)
+                values (?, '회사', 'OTHER', 'PLACE', '회사', '서울', 37.5, 127.0, current_timestamp, current_timestamp)
                 """,
                 userId
         );
