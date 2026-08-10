@@ -82,7 +82,7 @@ needed dimensions for its planning type have been confirmed.
 - Default member nicknames may duplicate outside a meeting. Guest nickname
   duplication is checked only among guests in the same meeting.
 - A deadline may be absent. Otherwise it is submitted as 10-minute units from
-  10 minutes to 7 days; the server calculates the authoritative deadline time.
+  10 minutes to 7 days 23 hours; the server calculates the authoritative deadline time.
 - Date-and-time selections and the meeting-wide time range use one-hour units.
 - Place-coordination departure input requires address, latitude/longitude as a
   pair, and transportation mode. Current MVP address validation accepts Seoul

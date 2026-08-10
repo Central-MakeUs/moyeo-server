@@ -24,7 +24,7 @@ public record ScheduleViewResponse(
         @Schema(description = "현재 참여 인원. 방장을 포함합니다.", example = "4")
         long participantCount,
 
-        @Schema(description = "2명 이상 참여 가능한 일정 후보 목록입니다. 가능 인원이 많은 후보부터 정렬 방식에 따라 최대 5개를 반환합니다.")
+        @Schema(description = "1명 이상 참여 가능한 일정 후보 목록입니다. 가능 인원이 많은 후보부터 정렬 방식에 따라 최대 5개를 반환합니다.")
         List<CandidateResponse> candidates,
 
         @Schema(description = "일정 응답 현황 블록입니다. DATE_ONLY는 날짜별 블록이며 시작·종료 시간은 null입니다. DATE_AND_TIME은 같은 가능 참여자 집합의 연속 1시간 슬롯을 합쳐 반환합니다. 클라이언트는 availableParticipantCount / participantCount 비율로 화면 색상을 표시합니다.")

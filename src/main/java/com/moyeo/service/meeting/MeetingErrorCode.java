@@ -82,6 +82,13 @@ public enum MeetingErrorCode implements ErrorCode {
             "모임 참여 입력 오류",
             "모임 참여 입력 값이 모임 설정과 맞지 않습니다."
     ),
+    UNSUPPORTED_DEPARTURE_REGION(
+            HttpStatus.BAD_REQUEST,
+            "UNSUPPORTED_DEPARTURE_REGION",
+            "unsupported-departure-region",
+            "지원하지 않는 출발지 지역",
+            "현재 출발지는 서울특별시 또는 경기도 내에서만 설정할 수 있습니다."
+    ),
     ACTUAL_ROUTE_RECOMMENDATION_FORBIDDEN(HttpStatus.FORBIDDEN, "ACTUAL_ROUTE_RECOMMENDATION_FORBIDDEN", "actual-route-recommendation-forbidden", "실제시간 추천 권한 없음", "방장만 실제시간 장소 추천을 계산할 수 있습니다."),
     ACTUAL_ROUTE_RECOMMENDATION_NOT_READY(HttpStatus.CONFLICT, "ACTUAL_ROUTE_RECOMMENDATION_NOT_READY", "actual-route-recommendation-not-ready", "실제시간 추천 준비 안 됨", "모든 참여자의 출발지와 이동수단 입력 후 계산할 수 있습니다."),
     ACTUAL_ROUTE_RECOMMENDATION_COOLDOWN(HttpStatus.TOO_MANY_REQUESTS, "ACTUAL_ROUTE_RECOMMENDATION_COOLDOWN", "actual-route-recommendation-cooldown", "실제시간 추천 재호출 제한", "잠시 후 다시 계산할 수 있습니다."),

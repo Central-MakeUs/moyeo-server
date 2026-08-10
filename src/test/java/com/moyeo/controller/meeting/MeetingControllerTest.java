@@ -258,28 +258,28 @@ class MeetingControllerTest {
     }
 
     @Test
-    void createMeetingAllowsDeadlineUpToSevenDays() throws Exception {
-        String accessToken = signupAndGetAccessToken("meetinghost-seven-day-deadline", "host-seven-day-deadline");
-        ObjectNode sevenDayDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
-        sevenDayDeadline.put("deadlineMinutes", 10_080);
+    void createMeetingAllowsDeadlineUpToSevenDaysAndTwentyThreeHours() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-deadline-7d23h", "host-deadline-7d23h");
+        ObjectNode sevenDayTwentyThreeHourDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        sevenDayTwentyThreeHourDeadline.put("deadlineMinutes", 11_460);
 
         mockMvc.perform(post("/api/meetings")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(sevenDayDeadline)))
+                        .content(objectMapper.writeValueAsString(sevenDayTwentyThreeHourDeadline)))
                 .andExpect(status().isCreated());
     }
 
     @Test
-    void createMeetingRejectsDeadlineBeyondSevenDays() throws Exception {
-        String accessToken = signupAndGetAccessToken("meetinghost-over-seven-day-deadline", "host-over-seven-day-deadline");
-        ObjectNode overSevenDayDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
-        overSevenDayDeadline.put("deadlineMinutes", 10_090);
+    void createMeetingRejectsDeadlineBeyondSevenDaysAndTwentyThreeHours() throws Exception {
+        String accessToken = signupAndGetAccessToken("meetinghost-deadline-over-7d23h", "host-deadline-over-7d23h");
+        ObjectNode overSevenDayTwentyThreeHourDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        overSevenDayTwentyThreeHourDeadline.put("deadlineMinutes", 11_470);
 
         mockMvc.perform(post("/api/meetings")
                         .header("Authorization", "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(overSevenDayDeadline)))
+                        .content(objectMapper.writeValueAsString(overSevenDayTwentyThreeHourDeadline)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
     }
@@ -833,7 +833,70 @@ class MeetingControllerTest {
                         ))))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.code").value("INVALID_MEETING_PARTICIPATION_INPUT"));
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"))
+                .andExpect(jsonPath("$.title").value("지원하지 않는 출발지 지역"))
+                .andExpect(jsonPath("$.detail").value("현재 출발지는 서울특별시 또는 경기도 내에서만 설정할 수 있습니다."));
+    }
+
+    @Test
+    void participationDepartureRejectsUnsupportedRegionAcrossJoinAndUpdateFlows() throws Exception {
+        String hostToken = signupAndGetAccessToken("departure-region-host", "regionhost");
+        String memberToken = signupAndGetAccessToken("departure-region-member", "regionmember");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, createMeetingRequest(
+                "region-meeting",
+                "region validation",
+                6,
+                com.moyeo.domain.meeting.PlanningType.PLACE_ONLY,
+                null,
+                null,
+                null,
+                1440
+        ));
+        String unsupportedDeparture = """
+                {
+                  "address": "부산광역시 해운대구",
+                  "latitude": 35.163134,
+                  "longitude": 129.163547,
+                  "transportationMode": "PUBLIC_TRANSIT"
+                }
+                """;
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/members", inviteCode)
+                        .header("Authorization", "Bearer " + memberToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nickname":"memberone","departure":%s}
+                                """.formatted(unsupportedDeparture)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nickname":"guestone","password":"1234","departure":%s}
+                                """.formatted(unsupportedDeparture)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"));
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(unsupportedDeparture))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"));
+
+        mockMvc.perform(post("/api/meetings/invitations/{inviteCode}/guests", inviteCode)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nickname":"guesttwo","password":"1234","departure":{"address":"서울 마포구 월드컵북로 120","latitude":37.5665,"longitude":126.9780,"transportationMode":"PUBLIC_TRANSIT"}}
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure", inviteCode, "guesttwo")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(unsupportedDeparture))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"));
     }
 
     @Test
@@ -1403,6 +1466,9 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/schedules", inviteCode))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidates.length()").value(1))
+                .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-02"))
+                .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(1))
                 .andExpect(jsonPath("$.availabilityStatuses.length()").value(1))
                 .andExpect(jsonPath("$.availabilityStatuses[0].candidateDate").value("2026-07-02"))
                 .andExpect(jsonPath("$.availabilityStatuses[0].availableParticipantCount").value(1));
@@ -2118,6 +2184,10 @@ class MeetingControllerTest {
                 .andExpect(jsonPath(
                         "$.components.schemas.ScheduleViewResponse.properties.scheduleInputType.enum",
                         containsInAnyOrder("DATE_ONLY", "DATE_AND_TIME", "NONE")
+                ))
+                .andExpect(jsonPath(
+                        "$.components.schemas.ScheduleViewResponse.properties.candidates.description",
+                        org.hamcrest.Matchers.containsString("1명 이상")
                 ));
     }
 
@@ -2378,7 +2448,15 @@ class MeetingControllerTest {
         assertThat(errorContents).allSatisfy(errorContent -> {
             assertThat(errorContent).contains("COMMON_VALIDATION_FAILED");
             assertThat(errorContent).contains("INVALID_MEETING_PARTICIPATION_INPUT");
+            assertThat(errorContent).contains("UNSUPPORTED_DEPARTURE_REGION");
         });
+        List<String> departureUpdateErrorContents = List.of(
+                paths.path("/api/meetings/invitations/{inviteCode}/members/me/participation/departure").path("patch").path("responses").path("400").path("content").toString(),
+                paths.path("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure").path("patch").path("responses").path("400").path("content").toString()
+        );
+        assertThat(departureUpdateErrorContents).allSatisfy(errorContent ->
+                assertThat(errorContent).contains("UNSUPPORTED_DEPARTURE_REGION")
+        );
     }
 
     @Test
@@ -2524,7 +2602,10 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates[0].endTime").doesNotExist())
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(2))
                 .andExpect(jsonPath("$.candidates[0].availableParticipants.length()").value(2))
-                .andExpect(jsonPath("$.candidates.length()").value(1))
+                .andExpect(jsonPath("$.candidates[1].candidateDate").value("2026-07-01"))
+                .andExpect(jsonPath("$.candidates[1].availableParticipantCount").value(1))
+                .andExpect(jsonPath("$.candidates[1].availableParticipants.length()").value(1))
+                .andExpect(jsonPath("$.candidates.length()").value(2))
                 .andExpect(jsonPath("$.availabilityStatuses[1].candidateDate").value("2026-07-02"))
                 .andExpect(jsonPath("$.availabilityStatuses[1].availableParticipantCount").value(2));
     }

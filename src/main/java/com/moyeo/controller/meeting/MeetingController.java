@@ -172,7 +172,12 @@ public class MeetingController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "내 출발지 참여 응답 수정 성공"),
-            @ApiResponse(responseCode = "400", description = "모임 유형과 맞지 않거나 유효하지 않은 출발지 응답"),
+            @ApiResponse(responseCode = "400", description = "모임 유형과 맞지 않거나 유효하지 않은 출발지 응답", content = @Content(examples = @ExampleObject(name = "지원하지 않는 출발지 지역", value = """
+                    {
+                      "code": "UNSUPPORTED_DEPARTURE_REGION",
+                      "status": 400
+                    }
+                    """))),
             @ApiResponse(responseCode = "401", description = "인증 필요"),
             @ApiResponse(responseCode = "403", description = "닉네임 온보딩 필요", content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(name = "ONBOARDING_REQUIRED", value = """
                     { "code": "ONBOARDING_REQUIRED", "status": 403 }
@@ -253,7 +258,12 @@ public class MeetingController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "게스트 출발지 참여 응답 수정 성공"),
-            @ApiResponse(responseCode = "400", description = "유효하지 않은 출발지 응답"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 출발지 응답", content = @Content(examples = @ExampleObject(name = "지원하지 않는 출발지 지역", value = """
+                    {
+                      "code": "UNSUPPORTED_DEPARTURE_REGION",
+                      "status": 400
+                    }
+                    """))),
             @ApiResponse(responseCode = "404", description = "초대 코드 또는 게스트 참여 정보 없음"),
             @ApiResponse(responseCode = "409", description = "마감 또는 확정된 모임")
     })
@@ -468,6 +478,15 @@ public class MeetingController {
                                     value = """
                                             {
                                               "code": "INVALID_MEETING_PARTICIPATION_INPUT",
+                                              "status": 400
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "지원하지 않는 출발지 지역",
+                                    value = """
+                                            {
+                                              "code": "UNSUPPORTED_DEPARTURE_REGION",
                                               "status": 400
                                             }
                                             """
@@ -925,6 +944,15 @@ public class MeetingController {
                                               "status": 400
                                             }
                                             """
+                            ),
+                            @ExampleObject(
+                                    name = "지원하지 않는 출발지 지역",
+                                    value = """
+                                            {
+                                              "code": "UNSUPPORTED_DEPARTURE_REGION",
+                                              "status": 400
+                                            }
+                                            """
                             )
                     })
             ),
@@ -1136,7 +1164,7 @@ public class MeetingController {
             summary = "일정 조율 현황 조회",
             description = """
                     확정 전 모임 상세 화면의 일정 조율 현황을 조회합니다.<br>
-                    저장된 참여자 가능 시간 슬롯을 집계해 2명 이상 참여 가능한 후보를 가능 인원순으로 최대 5개 반환합니다.
+                    저장된 참여자 가능 시간 슬롯을 집계해 1명 이상 참여 가능한 후보를 가능 인원순으로 최대 5개 반환합니다.
                     sort는 LONGEST_MEETING 또는 EARLIEST_DATE를 사용할 수 있으며, 생략하면 EARLIEST_DATE로 정렬합니다.
                     """
     )
@@ -1389,6 +1417,15 @@ public class MeetingController {
                                               "status": 400
                                             }
                                             """
+                            ),
+                            @ExampleObject(
+                                    name = "지원하지 않는 출발지 지역",
+                                    value = """
+                                            {
+                                              "code": "UNSUPPORTED_DEPARTURE_REGION",
+                                              "status": 400
+                                            }
+                                            """
                             )
                     })
             ),
@@ -1578,6 +1615,15 @@ public class MeetingController {
                                     value = """
                                             {
                                               "code": "INVALID_MEETING_PARTICIPATION_INPUT",
+                                              "status": 400
+                                            }
+                                            """
+                            ),
+                            @ExampleObject(
+                                    name = "지원하지 않는 출발지 지역",
+                                    value = """
+                                            {
+                                              "code": "UNSUPPORTED_DEPARTURE_REGION",
                                               "status": 400
                                             }
                                             """

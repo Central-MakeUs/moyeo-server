@@ -1195,7 +1195,7 @@ public class MeetingService {
             String sort
     ) {
         return availabilityBlocks.stream()
-                .filter(candidate -> candidate.availableParticipantCount() >= 2)
+                .filter(candidate -> candidate.availableParticipantCount() >= 1)
                 .sorted(Comparator.comparing(
                         ScheduleViewResult.Candidate::availableParticipantCount,
                         Comparator.reverseOrder()
@@ -1651,7 +1651,7 @@ public class MeetingService {
                 || address.startsWith("경기도 ")) {
             return;
         }
-        throw new MoyeoException(MeetingErrorCode.INVALID_MEETING_PARTICIPATION_INPUT);
+        throw new MoyeoException(MeetingErrorCode.UNSUPPORTED_DEPARTURE_REGION);
     }
 
     private boolean isHourUnit(LocalTime time) {

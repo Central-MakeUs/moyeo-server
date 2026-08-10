@@ -49,7 +49,7 @@ general best practice into domain policy.
   and `deadlineAt` is stored as null.
 - The meeting-creation success response returns `meetingId` and `inviteCode`.
 - When `noDeadline` is false or omitted, `deadlineMinutes` is required and is
-  accepted in 10-minute units from 10 minutes up to 7 days. A zero-minute
+  accepted in 10-minute units from 10 minutes up to 7 days 23 hours. A zero-minute
   deadline is not allowed. When `noDeadline=true`, `deadlineMinutes` is
   omitted or null.
 - For a deadline-bound meeting, `deadlineAt` is calculated from the server
@@ -295,6 +295,7 @@ general best practice into domain policy.
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
 - Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Departure `name` is optional; when omitted, the place-view response uses the saved departure address as its display name. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
 - The current MVP accepts place-coordination departure addresses only in Seoul or Gyeonggi. The server validates the normalized address prefix (`서울`, `서울특별시`, `경기`, or `경기도`) when creating or saving a host/member/guest participation snapshot.
+- A departure address outside that range returns `400 UNSUPPORTED_DEPARTURE_REGION`, so clients can show the Seoul/Gyeonggi availability guidance separately from general participation-input errors.
 - Join rejects mismatched input, such as departure input for schedule-only
   meetings or schedule availability input for place-only meetings.
 
@@ -316,8 +317,10 @@ general best practice into domain policy.
   same available participant set. It returns every merged availability block with
   its available-participant count so the client can calculate the response-rate
   color from that count and the meeting participant count.
-- VIEW-01-A returns up to five schedule candidates with at least two simultaneous
-  available participants. It first sorts by available-participant count descending.
+- Temporary MVP policy: VIEW-01-A returns up to five schedule candidates with at
+  least one simultaneous available participant, so a host can review their own
+  availability before another participant joins. Final confirmation still requires
+  at least two active participants. It first sorts by available-participant count descending.
   For candidates with the same count, `LONGEST_MEETING` sorts by duration
   descending then date/start time ascending, and `EARLIEST_DATE` sorts by
   date/start time ascending. The default sort is `EARLIEST_DATE`.

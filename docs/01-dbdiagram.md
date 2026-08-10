@@ -282,7 +282,7 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
   change. Transaction-rollback callbacks also queue failed immediate deletions.
   A successful idempotent S3 deletion removes the task; failed attempts remain
   for scheduled retry.
-- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 7 days.
+- `meetings.deadline_at` is calculated by the server from request `deadlineMinutes` when `noDeadline` is false or omitted. `noDeadline=true` stores null and means there is no participation/response deadline. A present `deadlineMinutes` is accepted in 10-minute units from 10 minutes up to 7 days 23 hours.
 - `meetings.available_start_time` and `meetings.available_end_time` are used only for `DATE_AND_TIME`, are shared by all schedule voting candidate dates, and are currently accepted in 1-hour units. They remain null for `DATE_ONLY` and `NONE`.
 - `meeting_schedule_candidates` stores variable-length date candidates for schedule voting.
 - `meeting_schedule_candidate_availabilities` stores the host-selected time ranges copied at `DATE_AND_TIME` meeting creation. Invite lookup exposes only candidate dates with these snapshots, so later changes to the host's personal response do not change the participant selection range.
