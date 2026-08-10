@@ -415,8 +415,7 @@ public class MeetingService {
                             meeting.getConfirmedScheduleDate(), meeting.getConfirmedStartTime(), meeting.getConfirmedEndTime(), meeting.getConfirmedPlaceName());
                 }).toList();
         List<MyMeetingListResult.Item> planning = items.stream().filter(item -> item.confirmedAt() == null)
-                .sorted(Comparator.comparing((MyMeetingListResult.Item item) -> !"CLOSED".equals(item.deadlineStatus()))
-                        .thenComparing(item -> item.deadlineAt() == null ? LocalDateTime.MAX : item.deadlineAt())).toList();
+                .sorted(Comparator.comparing(MyMeetingListResult.Item::meetingId).reversed()).toList();
         List<MyMeetingListResult.Item> confirmedItems = items.stream().filter(item -> item.confirmedAt() != null).toList();
         List<MyMeetingListResult.Item> confirmed = new ArrayList<>();
         confirmed.addAll(confirmedItems.stream().filter(item -> item.scheduledAt() != null && !item.scheduledAt().isBefore(now))

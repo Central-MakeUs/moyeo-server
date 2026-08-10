@@ -235,6 +235,29 @@ class MeetingControllerTest {
     }
 
     @Test
+    void homeListsPlanningMeetingsByMostRecentlyCreatedFirstWithoutDeadlines() throws Exception {
+        String accessToken = signupAndGetAccessToken("planning-order-host", "planning-order-host");
+        ObjectNode firstRequest = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        firstRequest.put("name", "first-meeting");
+        firstRequest.remove("deadlineMinutes");
+        firstRequest.put("noDeadline", true);
+        String firstInviteCode = createMeetingAndGetInviteCode(accessToken, objectMapper.treeToValue(firstRequest, CreateMeetingRequest.class));
+
+        ObjectNode secondRequest = objectMapper.valueToTree(defaultCreateMeetingRequest(6));
+        secondRequest.put("name", "second-meeting");
+        secondRequest.remove("deadlineMinutes");
+        secondRequest.put("noDeadline", true);
+        String secondInviteCode = createMeetingAndGetInviteCode(accessToken, objectMapper.treeToValue(secondRequest, CreateMeetingRequest.class));
+
+        mockMvc.perform(get("/api/meetings/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.planningMeetings.length()").value(2))
+                .andExpect(jsonPath("$.planningMeetings[0].inviteCode").value(secondInviteCode))
+                .andExpect(jsonPath("$.planningMeetings[1].inviteCode").value(firstInviteCode));
+    }
+
+    @Test
     void createMeetingAllowsDeadlineUpToSevenDays() throws Exception {
         String accessToken = signupAndGetAccessToken("meetinghost-seven-day-deadline", "host-seven-day-deadline");
         ObjectNode sevenDayDeadline = objectMapper.valueToTree(defaultCreateMeetingRequest(6));

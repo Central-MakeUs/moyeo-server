@@ -470,10 +470,10 @@ general best practice into domain policy.
 - A place selection must be from the current preliminary recommendation or its
   actual-route reranking. Store commercial-area name and coordinates; address is
   nullable because the catalog has no road address.
-- Home lists account-linked host/member meetings only. Planning order is closed
-  deadline, nearest open deadline, then no deadline. Confirmed order is upcoming
-  schedule then past schedules. Place-only hides schedule and schedule-only hides
-  place.
+- Home lists account-linked host/member meetings only. Temporary MVP policy:
+  planning meetings sort by most recently created first (meeting ID descending)
+  while the deadline feature is removed. Confirmed order is upcoming schedule then
+  past schedules. Place-only hides schedule and schedule-only hides place.
 - Each home card exposes the host nickname and the current user's `HOST` or
   `MEMBER` role. User profile images are deferred because the current User model
   has no profile-image policy or field.
