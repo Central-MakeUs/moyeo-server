@@ -204,6 +204,11 @@ class MyPlaceControllerTest {
                         .value("WORK"))
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['properties']['type']['description']",
                         containsString("STATION")));
+
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['paths']['/api/me/places']['post']['description']",
+                        containsString("category")));
     }
 
     private JsonNode savePlace(String accessToken, String alias) throws Exception {
