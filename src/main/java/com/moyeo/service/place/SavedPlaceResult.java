@@ -2,6 +2,7 @@ package com.moyeo.service.place;
 
 import com.moyeo.departure.DeparturePlaceType;
 import com.moyeo.domain.place.SavedPlace;
+import com.moyeo.domain.place.SavedPlaceCategory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 public record SavedPlaceResult(
         Long id,
         String alias,
+        SavedPlaceCategory category,
         DeparturePlaceType type,
         String displayName,
         String address,
@@ -24,6 +26,7 @@ public record SavedPlaceResult(
         return new SavedPlaceResult(
                 place.getId(),
                 place.getAlias(),
+                place.getCategory(),
                 place.getType(),
                 place.getDisplayName(),
                 place.getAddress(),

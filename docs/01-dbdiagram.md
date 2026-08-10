@@ -34,6 +34,7 @@ Table saved_places {
   id bigint [pk, increment, note: "회원 저장 장소 ID"]
   user_id bigint [not null, note: "장소를 저장한 서비스 사용자 ID"]
   alias varchar(30) [not null, note: "회원이 입력한 장소 별칭"]
+  category varchar(20) [not null, default: 'OTHER', note: "회원 지정 장소 용도: HOME/WORK/OTHER. 요청 생략 시 OTHER"]
   type varchar(20) [not null, note: "검색 결과 유형: STATION/ADDRESS/PLACE"]
   display_name varchar(255) [not null, note: "검색 결과의 원본 표시명"]
   address varchar(255) [not null, note: "대표 주소"]
@@ -262,6 +263,7 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
+- `saved_places.category` stores the member-selected icon category: `HOME`, `WORK`, or `OTHER`. Existing saved places are migrated as `OTHER`.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
 - `feedbacks` stores authenticated members' submitted feedback with the submitting user, content, and submission time. Members can retrieve only their own history; feedback is deleted when its submitting member withdraws; no operator-facing feedback API is defined yet.
 - `commercial_areas` stores source-owned recommendation candidates independently from meetings. The initial seed contains only Seoul development areas and tourist-special areas from `SEOUL_COMMERCIAL_ANALYSIS`; later regional sources can use the same table through a different `source` value and source-owned code.

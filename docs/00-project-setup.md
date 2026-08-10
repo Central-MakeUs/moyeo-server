@@ -113,6 +113,10 @@ Finalize decision
   `scripts/db/2026-08-02-user-profile-color.sql`.
 - Before deploying member feedback to an existing production database, back up
   the target database and apply `scripts/db/2026-08-02-feedbacks.sql`.
+- Before deploying saved-place categories to an existing production database,
+  back up the target database and apply
+  `scripts/db/2026-08-10-saved-place-category.sql`. Existing saved places are
+  assigned `OTHER`.
 - Before removing departure-place search-history storage from an existing
   database, back up the target database and apply
   `scripts/db/2026-08-09-remove-departure-place-search-history.sql` after the

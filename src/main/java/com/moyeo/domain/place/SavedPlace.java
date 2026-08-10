@@ -53,6 +53,11 @@ public class SavedPlace {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Comment("Member-selected place category: HOME/WORK/OTHER")
+    private SavedPlaceCategory category;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
     @Comment("검색 결과 유형: STATION/ADDRESS/PLACE")
     private DeparturePlaceType type;
 
@@ -94,6 +99,7 @@ public class SavedPlace {
     public SavedPlace(
             User user,
             String alias,
+            SavedPlaceCategory category,
             DeparturePlaceType type,
             String displayName,
             String address,
@@ -104,6 +110,7 @@ public class SavedPlace {
     ) {
         this.user = user;
         this.alias = alias.strip();
+        this.category = category;
         this.type = type;
         this.displayName = displayName.strip();
         this.address = address.strip();
@@ -147,6 +154,10 @@ public class SavedPlace {
 
     public String getAlias() {
         return alias;
+    }
+
+    public SavedPlaceCategory getCategory() {
+        return category;
     }
 
     public DeparturePlaceType getType() {

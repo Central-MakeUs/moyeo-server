@@ -2,6 +2,7 @@ package com.moyeo.service.place;
 
 import com.moyeo.domain.member.User;
 import com.moyeo.domain.place.SavedPlace;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.UserRepository;
@@ -27,6 +28,7 @@ public class SavedPlaceService {
         SavedPlace place = new SavedPlace(
                 findActiveUserForUpdate(userId),
                 command.alias(),
+                command.category() == null ? SavedPlaceCategory.OTHER : command.category(),
                 command.type(),
                 command.displayName(),
                 command.address(),

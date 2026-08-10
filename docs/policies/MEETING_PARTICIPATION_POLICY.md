@@ -435,7 +435,11 @@ general best practice into domain policy.
   as a personal place. Guests cannot use member saved-place APIs.
 - A saved place is a durable member-owned snapshot that is independent from
   supplementary search history. It stores the member-entered alias and the
-  selected candidate's type, display name, addresses, and WGS84 coordinates.
+  member-selected category (`HOME`, `WORK`, or `OTHER`), plus the selected
+  candidate's type, display name, addresses, and WGS84 coordinates. The
+  category is optional in a create request; when omitted, the server stores
+  `OTHER`. The category is returned to clients so they can display the matching
+  icon.
 - The alias is required, contains 1 to 30 characters after trimming, and is the
   only mutable place field. To replace the selected location snapshot, delete
   the saved place and create a new one from a search result.

@@ -2,6 +2,7 @@ package com.moyeo.service.member;
 
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.departure.DeparturePlaceType;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleInputType;
@@ -108,6 +109,7 @@ class MemberOwnedWriteAfterWithdrawalTest {
                 userId,
                 new SavePlaceCommand(
                         "회사",
+                        SavedPlaceCategory.OTHER,
                         DeparturePlaceType.PLACE,
                         "회사",
                         "서울",
@@ -264,6 +266,7 @@ class MemberOwnedWriteAfterWithdrawalTest {
     private SavePlaceCommand savedPlaceCommand(String alias) {
         return new SavePlaceCommand(
                 alias,
+                SavedPlaceCategory.OTHER,
                 DeparturePlaceType.PLACE,
                 alias,
                 "서울",

@@ -1,6 +1,7 @@
 package com.moyeo.controller.place;
 
 import com.moyeo.departure.DeparturePlaceType;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import com.moyeo.service.place.SavedPlaceResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,6 +17,12 @@ public record SavedPlaceResponse(
                 example = "PLACE"
         )
         DeparturePlaceType type,
+        @Schema(
+                description = "회원이 지정한 장소 용도입니다. 프론트엔드는 이 값으로 아이콘을 표시합니다.",
+                allowableValues = {"HOME", "WORK", "OTHER"},
+                example = "WORK"
+        )
+        SavedPlaceCategory category,
         @Schema(description = "검색 결과의 원본 표시명", example = "강남파이낸스센터") String displayName,
         @Schema(description = "대표 주소", example = "서울 강남구 테헤란로 152") String address,
         @Schema(description = "도로명주소. 없으면 null입니다.", nullable = true) String roadAddress,
@@ -29,6 +36,7 @@ public record SavedPlaceResponse(
                 result.id(),
                 result.alias(),
                 result.type(),
+                result.category(),
                 result.displayName(),
                 result.address(),
                 result.roadAddress(),

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.departure.DeparturePlaceType;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -110,11 +111,27 @@ class MyPlaceControllerTest {
     }
 
     @Test
+    void savedPlaceCreationAndListReturnMemberSelectedCategories() throws Exception {
+        String accessToken = signupAndGetAccessToken("saved-place-category");
+        JsonNode home = savePlace(accessToken, "home", SavedPlaceCategory.HOME);
+        JsonNode work = savePlace(accessToken, "work", SavedPlaceCategory.WORK);
+
+        mockMvc.perform(get("/api/me/places")
+                        .header("Authorization", bearer(accessToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].id").value(work.get("id").asLong()))
+                .andExpect(jsonPath("$.places[0].category").value("WORK"))
+                .andExpect(jsonPath("$.places[1].id").value(home.get("id").asLong()))
+                .andExpect(jsonPath("$.places[1].category").value("HOME"));
+    }
+
+    @Test
     void createAndRenameValidatePlaceInput() throws Exception {
         String accessToken = signupAndGetAccessToken("saved-place-validation");
 
         SavePlaceRequest invalidRequest = new SavePlaceRequest(
                 "",
+                SavedPlaceCategory.OTHER,
                 DeparturePlaceType.PLACE,
                 "강남파이낸스센터",
                 "서울 강남구 테헤란로 152",
@@ -140,6 +157,27 @@ class MyPlaceControllerTest {
     }
 
     @Test
+    void savedPlaceCreationDefaultsMissingCategoryToOther() throws Exception {
+        String accessToken = signupAndGetAccessToken("saved-place-missing-category");
+
+        mockMvc.perform(post("/api/me/places")
+                        .header("Authorization", bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "alias": "home",
+                                  "type": "PLACE",
+                                  "displayName": "home",
+                                  "address": "Seoul",
+                                  "latitude": 37.5,
+                                  "longitude": 127.0
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.category").value("OTHER"));
+    }
+
+    @Test
     void openApiPublishesSavedPlaceCrudContract() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
@@ -155,13 +193,20 @@ class MyPlaceControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/me/places']['get']['security'][0]['bearerAuth']").exists())
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['required']",
                         hasItem("alias")))
+                .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['properties']['category']['enum']",
+                        hasItem("HOME")))
                 .andExpect(jsonPath("$['components']['schemas']['SavePlaceRequest']['properties']['type']['description']",
                         containsString("STATION")));
     }
 
     private JsonNode savePlace(String accessToken, String alias) throws Exception {
+        return savePlace(accessToken, alias, SavedPlaceCategory.OTHER);
+    }
+
+    private JsonNode savePlace(String accessToken, String alias, SavedPlaceCategory category) throws Exception {
         SavePlaceRequest request = new SavePlaceRequest(
                 alias,
+                category,
                 DeparturePlaceType.PLACE,
                 "강남파이낸스센터",
                 "서울 강남구 테헤란로 152",
@@ -176,6 +221,7 @@ class MyPlaceControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.alias").value(alias.strip()))
+                .andExpect(jsonPath("$.category").value(category.name()))
                 .andExpect(jsonPath("$.type").value("PLACE"))
                 .andExpect(jsonPath("$.createdAt").doesNotExist())
                 .andExpect(jsonPath("$.updatedAt").doesNotExist())

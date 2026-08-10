@@ -3,6 +3,7 @@ package com.moyeo.controller.member;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.departure.DeparturePlaceType;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -45,6 +46,7 @@ class MyPageControllerTest {
                 .andExpect(jsonPath("$.profile.type").value("COLOR"))
                 .andExpect(jsonPath("$.profile.color").value("GRAY"))
                 .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].category").value("HOME"))
                 .andExpect(jsonPath("$.places[0].alias").value("집"));
     }
 
@@ -64,6 +66,7 @@ class MyPageControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "alias", alias,
+                                "category", SavedPlaceCategory.HOME,
                                 "type", DeparturePlaceType.PLACE,
                                 "displayName", "강남역",
                                 "address", "서울 강남구",

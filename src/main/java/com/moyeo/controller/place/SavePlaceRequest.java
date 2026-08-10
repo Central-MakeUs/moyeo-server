@@ -1,6 +1,7 @@
 package com.moyeo.controller.place;
 
 import com.moyeo.departure.DeparturePlaceType;
+import com.moyeo.domain.place.SavedPlaceCategory;
 import com.moyeo.service.place.SavePlaceCommand;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMax;
@@ -25,6 +26,15 @@ import java.math.BigDecimal;
 public record SavePlaceRequest(
         @Schema(description = "회원이 지정한 장소 별칭", example = "회사", maxLength = 30)
         @NotBlank @Size(max = 30) String alias,
+
+        @Schema(
+                description = "회원이 지정한 장소 용도입니다. 프론트엔드는 이 값으로 아이콘을 표시합니다. 생략하면 서버가 `OTHER`로 저장합니다.",
+                allowableValues = {"HOME", "WORK", "OTHER"},
+                example = "WORK",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        SavedPlaceCategory category,
 
         @Schema(
                 description = """
@@ -66,6 +76,7 @@ public record SavePlaceRequest(
     public SavePlaceCommand toCommand() {
         return new SavePlaceCommand(
                 alias,
+                category,
                 type,
                 displayName,
                 address,

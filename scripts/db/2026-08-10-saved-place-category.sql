@@ -1,0 +1,2 @@
+ALTER TABLE saved_places
+    ADD COLUMN category VARCHAR(20) NOT NULL DEFAULT 'OTHER' AFTER alias;
