@@ -132,6 +132,9 @@ entry.
   authentication.
 - Validate Access JWT format, signature, required headers and claims, expiration,
   and required JWT configuration at startup.
+- Newly issued production Access JWTs expire 30 days after their `iat`. Changing
+  this issuance setting does not alter an already-issued JWT; each token remains
+  valid only until the `exp` value embedded and signed at issuance.
 - Keep the current JWT implementation minimal: no refresh token, logout, or
   token rotation.
 - Guest meeting participation does not issue an Access JWT or a guest JWT.

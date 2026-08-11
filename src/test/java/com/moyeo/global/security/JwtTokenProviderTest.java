@@ -63,6 +63,20 @@ class JwtTokenProviderTest {
     }
 
     @Test
+    void parsesExistingTokenUsingItsEmbeddedExpirationAfterIssuanceValidityChanges() {
+        String existingToken = jwtTokenProvider.createAccessToken(new AuthenticatedMember(1L, "moyeo", true));
+        JwtTokenProvider parserAfterValidityChange = new JwtTokenProvider(
+                new JwtProperties(SECRET, 2_592_000),
+                OBJECT_MAPPER,
+                Clock.fixed(Instant.parse("2026-06-27T00:30:00Z"), ZoneOffset.UTC)
+        );
+
+        JwtClaims claims = parserAfterValidityChange.parse(existingToken);
+
+        assertThat(claims.userId()).isEqualTo(1L);
+    }
+
+    @Test
     void parseRejectsMalformedToken() {
         assertThatThrownBy(() -> jwtTokenProvider.parse("header..signature"))
                 .isInstanceOf(IllegalArgumentException.class);

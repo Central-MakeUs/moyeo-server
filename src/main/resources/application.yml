@@ -27,7 +27,7 @@ logging:
 
 moyeo:
   jwt:
-    access-token-validity-seconds: 86400
+    access-token-validity-seconds: 2592000
   oauth:
     apple:
       enabled: ${APPLE_OAUTH_ENABLED:false}
