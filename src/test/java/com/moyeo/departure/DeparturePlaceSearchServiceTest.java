@@ -440,6 +440,47 @@ class DeparturePlaceSearchServiceTest {
         server.verify();
     }
 
+    @Test
+    void reverseGeocodingMapsRoadAndJibunAddresses() {
+        server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
+                .andExpect(queryParam("x", "126.9780"))
+                .andExpect(queryParam("y", "37.5665"))
+                .andExpect(queryParam("input_coord", "WGS84"))
+                .andExpect(header("Authorization", "KakaoAK test-rest-api-key"))
+                .andRespond(withSuccess("""
+                        {"documents":[{"road_address":{"address_name":"Road address"},"address":{"address_name":"Lot number address"}}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        DeparturePlaceSearchService.ReverseGeocodingResult result = service.reverseGeocode(
+                new java.math.BigDecimal("37.5665"), new java.math.BigDecimal("126.9780")
+        );
+
+        assertThat(result.roadAddress()).isEqualTo("Road address");
+        assertThat(result.jibunAddress()).isEqualTo("Lot number address");
+        server.verify();
+    }
+
+    @Test
+    void reverseGeocodingAllowsMissingRoadAddressAndNoMatch() {
+        server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
+                .andRespond(withSuccess("{\"documents\":[{\"road_address\":null,\"address\":{\"address_name\":\"Lot number address\"}}]}", MediaType.APPLICATION_JSON));
+        server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
+                .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
+
+        DeparturePlaceSearchService.ReverseGeocodingResult missingRoad = service.reverseGeocode(
+                new java.math.BigDecimal("37.5665"), new java.math.BigDecimal("126.9780")
+        );
+        DeparturePlaceSearchService.ReverseGeocodingResult noMatch = service.reverseGeocode(
+                new java.math.BigDecimal("37.5665"), new java.math.BigDecimal("126.9780")
+        );
+
+        assertThat(missingRoad.roadAddress()).isNull();
+        assertThat(missingRoad.jibunAddress()).isEqualTo("Lot number address");
+        assertThat(noMatch.roadAddress()).isNull();
+        assertThat(noMatch.jibunAddress()).isNull();
+        server.verify();
+    }
+
     private RequestMatcher decodedQueryParam(String name, String expectedValue) {
         return request -> {
             String decodedQuery = URLDecoder.decode(request.getURI().getRawQuery(), StandardCharsets.UTF_8);

@@ -432,6 +432,8 @@ general best practice into domain policy.
   candidates, or search execution history. It sends the keyword to Kakao Local
   only to fulfill the current search request.
 
+The departure-place reverse-geocoding endpoint accepts a WGS84 latitude and longitude and returns only road-name and lot-number addresses from Kakao Local. It uses the same member-or-valid-invite authorization rule as place search, does not persist coordinates or results, and returns null for either address that Kakao does not provide. A provider configuration, quota, network, or response failure returns `503 REVERSE_GEOCODING_UNAVAILABLE`.
+
 ## Saved Member Places
 
 - An authenticated member may save a selected departure-place search candidate

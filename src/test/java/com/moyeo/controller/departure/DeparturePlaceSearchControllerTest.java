@@ -91,6 +91,17 @@ class DeparturePlaceSearchControllerTest {
     }
 
     @Test
+    void openApiPublishesReverseGeocodingEndpointWithNullableAddresses() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$['paths']['/api/departure-places/reverse-geocodes']['get']").exists())
+                .andExpect(jsonPath("$['paths']['/api/departure-places/reverse-geocodes']['get']['parameters'][?(@.name == 'latitude')]").exists())
+                .andExpect(jsonPath("$['paths']['/api/departure-places/reverse-geocodes']['get']['parameters'][?(@.name == 'longitude')]").exists())
+                .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.roadAddress.type[1]").value("null"))
+                .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.jibunAddress.type[1]").value("null"));
+    }
+
+    @Test
     void searchRequiresAccessTokenOrInviteCode() throws Exception {
         mockMvc.perform(post("/api/departure-places/searches")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -183,6 +194,38 @@ class DeparturePlaceSearchControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("COMMON_ENDPOINT_NOT_FOUND"));
+    }
+
+    @Test
+    void reverseGeocodingRequiresAccessTokenOrInviteCode() throws Exception {
+        mockMvc.perform(get("/api/departure-places/reverse-geocodes")
+                        .queryParam("latitude", "37.5665")
+                        .queryParam("longitude", "126.9780"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void reverseGeocodingReturnsServiceUnavailableWithoutKakaoRestApiKey() throws Exception {
+        mockMvc.perform(get("/api/departure-places/reverse-geocodes")
+                        .header("Authorization", "Bearer " + signupAndGetAccessToken("reverse-geocoding-unavailable"))
+                        .queryParam("latitude", "37.5665")
+                        .queryParam("longitude", "126.9780"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("REVERSE_GEOCODING_UNAVAILABLE"));
+    }
+
+    @Test
+    void reverseGeocodingValidatesWgs84Coordinates() throws Exception {
+        mockMvc.perform(get("/api/departure-places/reverse-geocodes")
+                        .header("Authorization", "Bearer " + signupAndGetAccessToken("reverse-geocoding-validation"))
+                        .queryParam("latitude", "90.1")
+                        .queryParam("longitude", "126.9780"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
     }
 
     private String signupAndGetAccessToken(String loginId) throws Exception {

@@ -1,6 +1,7 @@
 package com.moyeo.service.departure;
 
 import com.moyeo.departure.DeparturePlaceSearchService.DeparturePlaceSearchResult;
+import com.moyeo.departure.DeparturePlaceSearchService.ReverseGeocodingResult;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,5 +15,9 @@ public class DeparturePlaceSearchApplicationService {
 
     public DeparturePlaceSearchResult search(String keyword) {
         return providerSearchService.search(keyword);
+    }
+
+    public ReverseGeocodingResult reverseGeocode(java.math.BigDecimal latitude, java.math.BigDecimal longitude) {
+        return providerSearchService.reverseGeocode(latitude, longitude);
     }
 }

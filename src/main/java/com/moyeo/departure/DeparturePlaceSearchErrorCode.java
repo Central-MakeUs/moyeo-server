@@ -13,6 +13,13 @@ public enum DeparturePlaceSearchErrorCode implements ErrorCode {
             "departure-place-search-unavailable",
             "Departure place search unavailable",
             "The departure place search service is temporarily unavailable."
+    ),
+    REVERSE_GEOCODING_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "REVERSE_GEOCODING_UNAVAILABLE",
+            "reverse-geocoding-unavailable",
+            "Reverse geocoding unavailable",
+            "The reverse geocoding service is temporarily unavailable."
     );
 
     private static final String TYPE_PREFIX = "urn:moyeo:problem:";

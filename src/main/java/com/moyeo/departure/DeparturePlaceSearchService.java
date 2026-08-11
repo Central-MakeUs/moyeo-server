@@ -84,6 +84,42 @@ public class DeparturePlaceSearchService {
                 filterSupportedDepartureRegions(searchKeyword(normalizedKeyword, null)));
     }
 
+    public ReverseGeocodingResult reverseGeocode(BigDecimal latitude, BigDecimal longitude) {
+        requireApiKey(DeparturePlaceSearchErrorCode.REVERSE_GEOCODING_UNAVAILABLE);
+        URI uri = UriComponentsBuilder.fromUriString(properties.baseUrl())
+                .path("/v2/local/geo/coord2address.json")
+                .queryParam("x", longitude)
+                .queryParam("y", latitude)
+                .queryParam("input_coord", "WGS84")
+                .build()
+                .encode()
+                .toUri();
+        try {
+            KakaoReverseGeocodingResponse response = restClient.get()
+                    .uri(uri)
+                    .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + properties.restApiKey().strip())
+                    .retrieve()
+                    .body(KakaoReverseGeocodingResponse.class);
+            if (response == null || response.documents() == null) {
+                throw reverseGeocodingUnavailable();
+            }
+            if (response.documents().isEmpty()) {
+                return new ReverseGeocodingResult(null, null);
+            }
+            KakaoReverseGeocodingDocument document = response.documents().getFirst();
+            if (document == null) {
+                throw reverseGeocodingUnavailable();
+            }
+            return new ReverseGeocodingResult(
+                    document.roadAddress() != null ? blankToNull(document.roadAddress().addressName()) : null,
+                    document.address() != null ? blankToNull(document.address().addressName()) : null
+            );
+        } catch (RestClientException exception) {
+            log.warn("Kakao reverse geocoding request failed: {}", exception.getClass().getSimpleName());
+            throw reverseGeocodingUnavailable();
+        }
+    }
+
     private List<DeparturePlaceSearchResult.Place> searchKeyword(String keyword, String categoryGroupCode) {
         URI uri = UriComponentsBuilder.fromUriString(properties.baseUrl())
                 .path("/v2/local/search/keyword.json")
@@ -140,14 +176,22 @@ public class DeparturePlaceSearchService {
     }
 
     private void requireApiKey() {
+        requireApiKey(DeparturePlaceSearchErrorCode.DEPARTURE_PLACE_SEARCH_UNAVAILABLE);
+    }
+
+    private void requireApiKey(DeparturePlaceSearchErrorCode errorCode) {
         if (properties.restApiKey() == null || properties.restApiKey().isBlank()) {
-            log.warn("Departure place search is unavailable because KAKAO_LOCAL_REST_API_KEY is not configured.");
-            throw unavailable();
+            log.warn("Kakao Local is unavailable because KAKAO_LOCAL_REST_API_KEY is not configured.");
+            throw new MoyeoException(errorCode);
         }
     }
 
     private MoyeoException unavailable() {
         return new MoyeoException(DeparturePlaceSearchErrorCode.DEPARTURE_PLACE_SEARCH_UNAVAILABLE);
+    }
+
+    private MoyeoException reverseGeocodingUnavailable() {
+        return new MoyeoException(DeparturePlaceSearchErrorCode.REVERSE_GEOCODING_UNAVAILABLE);
     }
 
     private boolean isExactStationQuery(String keyword) {
@@ -319,6 +363,9 @@ public class DeparturePlaceSearchService {
         }
     }
 
+    public record ReverseGeocodingResult(String roadAddress, String jibunAddress) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     private record KakaoKeywordResponse(List<KakaoKeywordDocument> documents) {
     }
@@ -357,6 +404,17 @@ public class DeparturePlaceSearchService {
     private record KakaoRoadAddress(
             @JsonProperty("address_name") String addressName,
             @JsonProperty("building_name") String buildingName
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record KakaoReverseGeocodingResponse(List<KakaoReverseGeocodingDocument> documents) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record KakaoReverseGeocodingDocument(
+            KakaoJibunAddress address,
+            @JsonProperty("road_address") KakaoRoadAddress roadAddress
     ) {
     }
 }

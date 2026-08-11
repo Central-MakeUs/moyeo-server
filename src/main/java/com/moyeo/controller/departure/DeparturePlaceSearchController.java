@@ -15,15 +15,20 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.validation.annotation.Validated;
 
 @RestController
 @RequestMapping("/api/departure-places")
 @Tag(name = "Departure place", description = "출발지 통합 검색 API")
+@Validated
 public class DeparturePlaceSearchController {
 
     private final DeparturePlaceSearchApplicationService departurePlaceSearchService;
@@ -103,5 +108,52 @@ public class DeparturePlaceSearchController {
         return DeparturePlaceSearchResponse.from(
                 departurePlaceSearchService.search(request.keyword())
         );
+    }
+
+    @GetMapping("/reverse-geocodes")
+    @Operation(
+            summary = "좌표로 출발지 주소 조회",
+            description = """
+                    WGS84 위도와 경도를 카카오 Local로 변환해 도로명주소와 지번주소를 반환합니다.
+
+                    인증은 출발지 통합 검색과 같습니다.
+                    - Access Token을 보낸 회원은 inviteCode 없이 요청할 수 있습니다.
+                    - Access Token이 없으면 유효한 모임 inviteCode가 필요합니다.
+                    - 도로명주소는 카카오 결과에 없을 수 있으며, 이때 null입니다.
+                    - 주소를 찾지 못하면 두 주소 필드가 모두 null인 200 응답을 반환합니다.
+                    """
+    )
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "주소 변환 성공 또는 해당 좌표의 주소 없음"),
+            @ApiResponse(responseCode = "400", description = "좌표 검증 실패", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                    """))),
+            @ApiResponse(responseCode = "401", description = "Access Token과 inviteCode가 모두 없거나 Access Token이 유효하지 않음", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
+                    """))),
+            @ApiResponse(responseCode = "404", description = "게스트 요청의 inviteCode에 해당하는 모임 없음", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "MEETING_INVITATION_NOT_FOUND", "status": 404 }
+                    """))),
+            @ApiResponse(responseCode = "503", description = "카카오 Local API를 사용할 수 없음", content = @Content(examples = @ExampleObject(value = """
+                    { "code": "REVERSE_GEOCODING_UNAVAILABLE", "status": 503 }
+                    """)))
+    })
+    public ReverseGeocodingResponse reverseGeocode(
+            @Parameter(hidden = true) @CurrentMember(required = false) AuthenticatedMember member,
+            @Parameter(description = "회원은 선택이며 게스트는 유효한 모임 초대코드가 필요합니다.", example = "ABCD234567")
+            @RequestParam(required = false) String inviteCode,
+            @Parameter(description = "WGS84 위도", example = "37.5665")
+            @RequestParam @DecimalMin("-90.0") @DecimalMax("90.0") java.math.BigDecimal latitude,
+            @Parameter(description = "WGS84 경도", example = "126.9780")
+            @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") java.math.BigDecimal longitude
+    ) {
+        if (member == null) {
+            if (inviteCode == null || inviteCode.isBlank()) {
+                throw new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED);
+            }
+            meetingService.validateInvitationExists(inviteCode.strip());
+        }
+        return ReverseGeocodingResponse.from(departurePlaceSearchService.reverseGeocode(latitude, longitude));
     }
 }
