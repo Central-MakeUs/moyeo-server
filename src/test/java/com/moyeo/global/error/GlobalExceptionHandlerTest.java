@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -141,6 +142,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/errors/custom"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                .andExpect(header().string("X-Trace-Id", matchesPattern("[0-9a-f-]{36}")))
                 .andExpect(jsonPath("$.code").value("COMMON_INVALID_REQUEST"));
     }
 
@@ -149,6 +151,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/errors/unexpected"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(content().contentTypeCompatibleWith(PROBLEM_JSON))
+                .andExpect(header().string("X-Trace-Id", matchesPattern("[0-9a-f-]{36}")))
                 .andExpect(jsonPath("$.code").value("COMMON_INTERNAL_SERVER_ERROR"))
                 .andExpect(jsonPath("$.detail").value("서버 내부 오류가 발생했습니다."))
                 .andExpect(content().string(org.hamcrest.Matchers.not(containsString("secret-internal-message"))));

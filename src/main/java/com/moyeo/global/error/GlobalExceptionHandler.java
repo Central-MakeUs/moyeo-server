@@ -70,7 +70,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleUnexpectedException(Exception exception, WebRequest request) {
-        log.error("Unhandled exception for {}", request.getDescription(false), exception);
         return handleProblem(
                 exception,
                 CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -245,9 +244,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request
     ) {
-        if (status.is5xxServerError()) {
-            log.error("Framework error response for {}", request.getDescription(false), exception);
-        }
         return handleProblem(exception, mapStatus(status), headers, request, List.of());
     }
 
@@ -296,7 +292,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpHeaders headers,
             WebRequest request
     ) {
-        log.error("Server-side request handling failure for {}", request.getDescription(false), exception);
         return handleProblem(exception, CommonErrorCode.INTERNAL_SERVER_ERROR, headers, request, List.of());
     }
 
@@ -307,8 +302,24 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request,
             List<FieldViolation> violations
     ) {
+        logHandledException(exception, errorCode, request);
         ProblemDetail problemDetail = ProblemDetailFactory.create(errorCode, request, violations);
         return handleExceptionInternal(exception, problemDetail, headers, errorCode.status(), request);
+    }
+
+    private void logHandledException(Exception exception, ErrorCode errorCode, WebRequest request) {
+        String path = request.getDescription(false);
+        if (errorCode.status().is5xxServerError()) {
+            log.error(
+                    "Handled request exception: type={} code={} status={} path={}",
+                    exception.getClass().getSimpleName(), errorCode.code(), errorCode.status().value(), path, exception
+            );
+            return;
+        }
+        log.warn(
+                "Handled request exception: type={} code={} status={} path={}",
+                exception.getClass().getSimpleName(), errorCode.code(), errorCode.status().value(), path
+        );
     }
 
     private CommonErrorCode mapStatus(HttpStatusCode status) {

@@ -305,6 +305,11 @@ current RFC 9457-based error response policy, and documented working rules.
   host-directory mount, which defaults to `./logs`.
 - Generate a server-owned trace ID for each HTTP request, return it through
   `X-Trace-Id`, and include it in application and exception logs.
+- Log the start and completion of every HTTP request with its method, path,
+  response status, and duration. Log every controller-handled exception with
+  its exception type, stable error code, HTTP status, path, and trace ID;
+  retain stack traces for 5xx failures. Never log request bodies, authorization
+  headers, OAuth codes, provider tokens, private keys, or other secrets.
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in
   repository files.
 - Serve the dev API through Caddy at `https://3-35-119-70.sslip.io`; keep ports
