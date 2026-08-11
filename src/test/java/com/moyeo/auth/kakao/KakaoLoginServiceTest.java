@@ -40,6 +40,18 @@ class KakaoLoginServiceTest {
     }
 
     @Test
+    void logsInWithVerifiedKakaoNativeAccessToken() {
+        AuthenticatedMember expected = new AuthenticatedMember(10L, null, true);
+        when(oauthClient.getProviderUserId("native-access-token")).thenReturn("1234567890");
+        when(memberAuthService.loginSocial(AuthProvider.KAKAO, "1234567890")).thenReturn(expected);
+
+        AuthenticatedMember result = kakaoLoginService.loginWithAccessToken("native-access-token");
+
+        assertThat(result).isEqualTo(expected);
+        verify(memberAuthService).loginSocial(AuthProvider.KAKAO, "1234567890");
+    }
+
+    @Test
     void disconnectsStoredKakaoAccountWithoutReauthentication() {
         kakaoLoginService.disconnectStoredAccount("1234567890");
 

@@ -59,8 +59,19 @@ then issues a Moyeo Access JWT.
   never accepts a redirect URI string from the API request.
 - Do not request or store Kakao profile, email, CI, phone number, or other
   additional consent information for the current login flow.
+- Native Kakao SDK login uses `POST /api/auth/kakao/native` with
+  `{ "accessToken": "..." }`. The backend verifies this provider-issued
+  access token only by retrieving the Kakao user-information response `id`,
+  then issues a Moyeo Access JWT with the same `SocialAccount` identity model.
+  It does not accept `redirectTarget`, `state`, or a redirect URI for this
+  non-redirecting flow. Keep `POST /api/auth/kakao` unchanged for browser
+  login, Vercel preview, and an unavailable native-SDK fallback.
+- A user-cancelled native SDK login does not call this API and does not trigger
+  the browser fallback. The frontend may use the browser flow only when the
+  native SDK or WebView bridge is unavailable before authentication completes.
 - Treat an invalid, expired, or already-used Kakao authorization code, or an
-  invalid Kakao access token response, as `401 SOCIAL_LOGIN_FAILED`.
+  invalid Kakao access token response, including an invalid native SDK access
+  token, as `401 SOCIAL_LOGIN_FAILED`.
 - Treat a Kakao timeout, service failure, malformed provider response, or
   invalid server credentials/configuration as
   `503 SOCIAL_LOGIN_UNAVAILABLE`.

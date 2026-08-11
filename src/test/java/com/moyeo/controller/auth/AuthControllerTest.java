@@ -201,6 +201,57 @@ class AuthControllerTest {
     }
 
     @Test
+    void kakaoNativeLoginReturnsPendingUserAndAccessToken() throws Exception {
+        when(kakaoLoginService.loginWithAccessToken("native-access-token"))
+                .thenReturn(new AuthenticatedMember(201L, null, true));
+
+        mockMvc.perform(post("/api/auth/kakao/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "native-access-token"))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.user.id").value(201))
+                .andExpect(jsonPath("$.user.onboardingCompleted").value(false));
+    }
+
+    @Test
+    void kakaoNativeLoginMapsInvalidAccessTokenToVerificationFailure() throws Exception {
+        when(kakaoLoginService.loginWithAccessToken("invalid-access-token"))
+                .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
+
+        mockMvc.perform(post("/api/auth/kakao/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "invalid-access-token"))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
+    }
+
+    @Test
+    void kakaoNativeLoginMapsProviderFailureToUnavailable() throws Exception {
+        when(kakaoLoginService.loginWithAccessToken("native-access-token"))
+                .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE));
+
+        mockMvc.perform(post("/api/auth/kakao/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", "native-access-token"))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_UNAVAILABLE"));
+    }
+
+    @Test
+    void kakaoNativeLoginValidatesRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/kakao/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("accessToken", ""))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void generalSignupAndLoginEndpointsAreRemoved() throws Exception {
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -375,6 +426,8 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/auth/apple']['post']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['401']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['503']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/kakao/native']['post']['responses']['401']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/kakao/native']['post']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/onboarding']['put']['responses']['409']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/profile-color']['patch']['responses']['200']").exists())
                 .andExpect(jsonPath(

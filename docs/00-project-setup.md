@@ -476,6 +476,11 @@ current RFC 9457-based error response policy, and documented working rules.
 - The backend exchanges the code with the server-owned REST API key, client
   secret, and exact redirect URI, then uses only the Kakao user-information
   response `id` as `providerUserId`.
+- Native-app WebView login may use `POST /api/auth/kakao/native` with the
+  Kakao native SDK access token. The backend does not exchange this token or
+  store it; it retrieves only the Kakao user-information response `id` and
+  issues the normal Moyeo Access JWT. Keep the authorization-code endpoint for
+  browser, Vercel preview, and native-SDK-unavailable fallback flows.
 - Kakao account withdrawal uses the server-owned Admin Key and stored Kakao
   service user ID to call the Unlink API without another Kakao login.
 - Required runtime names are `KAKAO_OAUTH_ENABLED`,

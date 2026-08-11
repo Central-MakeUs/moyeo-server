@@ -117,6 +117,45 @@ public class AuthController {
         return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
     }
 
+    @PostMapping("/kakao/native")
+    @Operation(
+            summary = "카카오 네이티브 SDK 로그인",
+            description = """
+                    네이티브 앱이 카카오 SDK로 발급받은 Access Token을 전달합니다.
+                    서버는 토큰으로 카카오 사용자 정보를 조회해 회원번호를 확인한 뒤 Moyeo Access Token을 발급합니다.
+                    카카오 Access Token은 로그인 요청 처리 후 저장하지 않습니다.
+                    브라우저 로그인은 별도 `POST /api/auth/kakao` API를 사용합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "카카오 네이티브 SDK 로그인 및 Access Token 발급 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "accessToken 요청값 검증 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "카카오 Access Token이 유효하지 않거나 만료됨",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_FAILED", "status": 401 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "카카오 로그인 서비스의 일시적 장애 또는 서버 설정 미완료",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
+                            """))
+            )
+    })
+    public AuthResponse loginKakaoNative(@Valid @RequestBody KakaoNativeLoginRequest request) {
+        AuthenticatedMember member = kakaoLoginService.loginWithAccessToken(request.accessToken());
+        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+    }
+
     @GetMapping("/me")
     @Operation(
             summary = "현재 사용자 조회",

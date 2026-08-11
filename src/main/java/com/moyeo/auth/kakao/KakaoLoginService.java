@@ -23,6 +23,11 @@ public class KakaoLoginService {
         return memberAuthService.loginSocial(AuthProvider.KAKAO, providerUserId);
     }
 
+    public AuthenticatedMember loginWithAccessToken(String accessToken) {
+        String providerUserId = oauthClient.getProviderUserId(accessToken);
+        return memberAuthService.loginSocial(AuthProvider.KAKAO, providerUserId);
+    }
+
     public void disconnectStoredAccount(String providerUserId) {
         oauthClient.unlinkByAdminKey(providerUserId);
     }
