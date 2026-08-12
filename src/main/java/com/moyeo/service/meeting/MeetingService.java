@@ -1195,12 +1195,15 @@ public class MeetingService {
             List<ScheduleViewResult.Candidate> availabilityBlocks,
             String sort
     ) {
-        return availabilityBlocks.stream()
+        long maximumAvailableParticipantCount = availabilityBlocks.stream()
                 .filter(candidate -> candidate.availableParticipantCount() >= 1)
-                .sorted(Comparator.comparing(
-                        ScheduleViewResult.Candidate::availableParticipantCount,
-                        Comparator.reverseOrder()
-                ).thenComparing(scheduleCandidateComparator(sort)))
+                .mapToLong(ScheduleViewResult.Candidate::availableParticipantCount)
+                .max()
+                .orElse(0);
+
+        return availabilityBlocks.stream()
+                .filter(candidate -> candidate.availableParticipantCount() == maximumAvailableParticipantCount)
+                .sorted(scheduleCandidateComparator(sort))
                 .limit(5)
                 .toList();
     }

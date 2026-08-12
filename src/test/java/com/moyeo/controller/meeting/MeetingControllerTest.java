@@ -2187,7 +2187,7 @@ class MeetingControllerTest {
                 ))
                 .andExpect(jsonPath(
                         "$.components.schemas.ScheduleViewResponse.properties.candidates.description",
-                        org.hamcrest.Matchers.containsString("1명 이상")
+                        org.hamcrest.Matchers.containsString("최대 참여 가능 인원")
                 ));
     }
 
@@ -2602,16 +2602,13 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates[0].endTime").doesNotExist())
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(2))
                 .andExpect(jsonPath("$.candidates[0].availableParticipants.length()").value(2))
-                .andExpect(jsonPath("$.candidates[1].candidateDate").value("2026-07-01"))
-                .andExpect(jsonPath("$.candidates[1].availableParticipantCount").value(1))
-                .andExpect(jsonPath("$.candidates[1].availableParticipants.length()").value(1))
-                .andExpect(jsonPath("$.candidates.length()").value(2))
+                .andExpect(jsonPath("$.candidates.length()").value(1))
                 .andExpect(jsonPath("$.availabilityStatuses[1].candidateDate").value("2026-07-02"))
                 .andExpect(jsonPath("$.availabilityStatuses[1].availableParticipantCount").value(2));
     }
 
     @Test
-    void getScheduleViewPrioritizesHigherAvailabilityAndLimitsCandidatesToFive() throws Exception {
+    void getScheduleViewReturnsOnlyMaximumAvailabilityCandidatesAndLimitsToFive() throws Exception {
         String hostToken = signupAndGetAccessToken("schedule-five-host", "schedule-five-host");
         List<LocalDate> candidateDates = List.of(
                 LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 2), LocalDate.of(2026, 7, 3),
@@ -2638,7 +2635,7 @@ class MeetingControllerTest {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "nickname", "fiveother",
                                 "password", "1234",
-                                "scheduleResponse", Map.of("availableDates", List.of("2026-07-01", "2026-07-02"))
+                                "scheduleResponse", Map.of("availableDates", candidateDates.stream().map(LocalDate::toString).toList())
                         ))))
                 .andExpect(status().isCreated());
 
@@ -2647,10 +2644,8 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.candidates.length()").value(5))
                 .andExpect(jsonPath("$.candidates[0].candidateDate").value("2026-07-01"))
                 .andExpect(jsonPath("$.candidates[0].availableParticipantCount").value(3))
-                .andExpect(jsonPath("$.candidates[1].candidateDate").value("2026-07-02"))
-                .andExpect(jsonPath("$.candidates[1].availableParticipantCount").value(3))
                 .andExpect(jsonPath("$.candidates[4].candidateDate").value("2026-07-05"))
-                .andExpect(jsonPath("$.candidates[4].availableParticipantCount").value(2));
+                .andExpect(jsonPath("$.candidates[4].availableParticipantCount").value(3));
     }
 
     @Test

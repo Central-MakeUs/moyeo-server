@@ -317,13 +317,13 @@ general best practice into domain policy.
   same available participant set. It returns every merged availability block with
   its available-participant count so the client can calculate the response-rate
   color from that count and the meeting participant count.
-- Temporary MVP policy: VIEW-01-A returns up to five schedule candidates with at
-  least one simultaneous available participant, so a host can review their own
-  availability before another participant joins. Final confirmation still requires
-  at least two active participants. It first sorts by available-participant count descending.
-  For candidates with the same count, `LONGEST_MEETING` sorts by duration
-  descending then date/start time ascending, and `EARLIEST_DATE` sorts by
-  date/start time ascending. The default sort is `EARLIEST_DATE`.
+- Temporary MVP policy: VIEW-01-A returns only schedule candidates with the maximum
+  simultaneous available-participant count, up to five. This lets a host review
+  their own availability before another participant joins. Final confirmation still
+  requires at least two active participants. Among candidates with that maximum count,
+  `LONGEST_MEETING` sorts by duration descending then date/start time ascending, and
+  `EARLIEST_DATE` sorts by date/start time ascending. The default sort is
+  `EARLIEST_DATE`.
 - Each schedule candidate includes the meeting-scoped participant IDs and
   nicknames that are available for that candidate. VIEW-01 remains invite-link
   readable without login, so this candidate-specific availability list is also
