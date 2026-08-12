@@ -11,6 +11,7 @@ import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.meeting.TransportationMode;
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.JwtTokenProvider;
@@ -112,7 +113,8 @@ class MemberWithdrawalControllerTest {
 
         verify(appleLoginService).disconnectStoredAuthorization(
                 providerUserId,
-                "encrypted-refresh-token"
+                "encrypted-refresh-token",
+                AppleRefreshTokenClient.WEB
         );
 
         Map<String, Object> withdrawnUser = jdbcTemplate.queryForMap(
@@ -391,7 +393,7 @@ class MemberWithdrawalControllerTest {
         );
         doThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE))
                 .when(appleLoginService)
-                .disconnectStoredAuthorization(providerUserId, "encrypted-refresh-token");
+                .disconnectStoredAuthorization(providerUserId, "encrypted-refresh-token", AppleRefreshTokenClient.WEB);
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", bearer(accessToken)))

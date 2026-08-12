@@ -3,6 +3,7 @@ package com.moyeo.service.member;
 import com.moyeo.auth.apple.AppleLoginService;
 import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.repository.feedback.FeedbackRepository;
@@ -116,7 +117,8 @@ class MemberWithdrawalServiceTest {
         order.verify(userRepository).flush();
         order.verify(appleLoginService).disconnectStoredAuthorization(
                 "apple-subject",
-                "encrypted-refresh-token"
+                "encrypted-refresh-token",
+                AppleRefreshTokenClient.WEB
         );
     }
 
