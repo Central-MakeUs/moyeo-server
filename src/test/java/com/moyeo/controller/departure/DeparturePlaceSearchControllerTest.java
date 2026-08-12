@@ -98,7 +98,8 @@ class DeparturePlaceSearchControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/departure-places/reverse-geocodes']['get']['parameters'][?(@.name == 'latitude')]").exists())
                 .andExpect(jsonPath("$['paths']['/api/departure-places/reverse-geocodes']['get']['parameters'][?(@.name == 'longitude')]").exists())
                 .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.roadAddress.type[1]").value("null"))
-                .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.jibunAddress.type[1]").value("null"));
+                .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.jibunAddress.type[1]").value("null"))
+                .andExpect(jsonPath("$.components.schemas.ReverseGeocodingResponse.properties.isSupportedRegion.type").value("boolean"));
     }
 
     @Test

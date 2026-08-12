@@ -3,6 +3,7 @@ package com.moyeo.departure;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.moyeo.domain.departure.DeparturePlaceSearchExecutionPath;
+import com.moyeo.domain.departure.DepartureRegionPolicy;
 import com.moyeo.global.error.MoyeoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,10 +31,6 @@ public class DeparturePlaceSearchService {
     private static final BigDecimal MAX_LATITUDE = BigDecimal.valueOf(90);
     private static final BigDecimal MIN_LONGITUDE = BigDecimal.valueOf(-180);
     private static final BigDecimal MAX_LONGITUDE = BigDecimal.valueOf(180);
-    private static final String SEOUL_PREFIX = "서울";
-    private static final String SEOUL_METROPOLITAN_PREFIX = "서울특별시";
-    private static final String GYEONGGI_PREFIX = "경기";
-    private static final String GYEONGGI_DO_PREFIX = "경기도";
     private static final Pattern ROAD_ADDRESS_PATTERN = Pattern.compile(".*(?:대로|로|길)\\s*\\d+(?:-\\d+)?(?:\\s|$).*");
     private static final Pattern JIBUN_ADDRESS_PATTERN = Pattern.compile(
             ".*(?:동|리|\\d+가)\\s*(?:산\\s*)?\\d+(?:-\\d+)?(?:번지)?(?:\\s|$).*"
@@ -104,15 +101,21 @@ public class DeparturePlaceSearchService {
                 throw reverseGeocodingUnavailable();
             }
             if (response.documents().isEmpty()) {
-                return new ReverseGeocodingResult(null, null);
+                return new ReverseGeocodingResult(null, null, false);
             }
             KakaoReverseGeocodingDocument document = response.documents().getFirst();
             if (document == null) {
                 throw reverseGeocodingUnavailable();
             }
+            String roadAddress = document.roadAddress() != null
+                    ? blankToNull(document.roadAddress().addressName()) : null;
+            String jibunAddress = document.address() != null
+                    ? blankToNull(document.address().addressName()) : null;
             return new ReverseGeocodingResult(
-                    document.roadAddress() != null ? blankToNull(document.roadAddress().addressName()) : null,
-                    document.address() != null ? blankToNull(document.address().addressName()) : null
+                    roadAddress,
+                    jibunAddress,
+                    DepartureRegionPolicy.isSupportedAddress(roadAddress)
+                            || DepartureRegionPolicy.isSupportedAddress(jibunAddress)
             );
         } catch (RestClientException exception) {
             log.warn("Kakao reverse geocoding request failed: {}", exception.getClass().getSimpleName());
@@ -263,16 +266,8 @@ public class DeparturePlaceSearchService {
             List<DeparturePlaceSearchResult.Place> places
     ) {
         return places.stream()
-                .filter(place -> isSupportedDepartureAddress(place.address()))
+                .filter(place -> DepartureRegionPolicy.isSupportedAddress(place.address()))
                 .toList();
-    }
-
-    private boolean isSupportedDepartureAddress(String address) {
-        String normalizedAddress = address.strip();
-        return normalizedAddress.startsWith(SEOUL_PREFIX)
-                || normalizedAddress.startsWith(SEOUL_METROPOLITAN_PREFIX)
-                || normalizedAddress.startsWith(GYEONGGI_PREFIX)
-                || normalizedAddress.startsWith(GYEONGGI_DO_PREFIX);
     }
 
     private boolean hasStationNamePrefix(String placeName, String stationName) {
@@ -363,7 +358,7 @@ public class DeparturePlaceSearchService {
         }
     }
 
-    public record ReverseGeocodingResult(String roadAddress, String jibunAddress) {
+    public record ReverseGeocodingResult(String roadAddress, String jibunAddress, boolean isSupportedRegion) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

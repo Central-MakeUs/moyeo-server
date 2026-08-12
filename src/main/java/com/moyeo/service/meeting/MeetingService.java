@@ -3,6 +3,7 @@ package com.moyeo.service.meeting;
 import com.moyeo.domain.member.User;
 import com.moyeo.domain.commercial.CommercialAreaSource;
 import com.moyeo.domain.commercial.CommercialAreaStationLineEntity;
+import com.moyeo.domain.departure.DepartureRegionPolicy;
 import com.moyeo.domain.meeting.ParticipantType;
 import com.moyeo.domain.meeting.PlaceMode;
 import com.moyeo.domain.meeting.PlaceRecommendationStrategy;
@@ -1641,14 +1642,7 @@ public class MeetingService {
     }
 
     private void validateSupportedDepartureRegion(String address) {
-        if (address.equals("서울")
-                || address.startsWith("서울 ")
-                || address.equals("서울특별시")
-                || address.startsWith("서울특별시 ")
-                || address.equals("경기")
-                || address.startsWith("경기 ")
-                || address.equals("경기도")
-                || address.startsWith("경기도 ")) {
+        if (DepartureRegionPolicy.isSupportedAddress(address)) {
             return;
         }
         throw new MoyeoException(MeetingErrorCode.UNSUPPORTED_DEPARTURE_REGION);

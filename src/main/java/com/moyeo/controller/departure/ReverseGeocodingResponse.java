@@ -10,10 +10,13 @@ public record ReverseGeocodingResponse(
         String roadAddress,
         @Schema(description = "지번주소. 해당 좌표에 지번주소가 없으면 null입니다.", nullable = true,
                 example = "서울 중구 태평로1가 31")
-        String jibunAddress
+        String jibunAddress,
+        @Schema(description = "도로명주소 또는 지번주소 중 하나라도 서울특별시 또는 경기도이면 true입니다. "
+                + "주소가 모두 없거나 지역을 판정할 수 없으면 false입니다.", example = "true")
+        boolean isSupportedRegion
 ) {
 
     static ReverseGeocodingResponse from(DeparturePlaceSearchService.ReverseGeocodingResult result) {
-        return new ReverseGeocodingResponse(result.roadAddress(), result.jibunAddress());
+        return new ReverseGeocodingResponse(result.roadAddress(), result.jibunAddress(), result.isSupportedRegion());
     }
 }

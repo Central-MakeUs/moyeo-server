@@ -441,29 +441,30 @@ class DeparturePlaceSearchServiceTest {
     }
 
     @Test
-    void reverseGeocodingMapsRoadAndJibunAddresses() {
+    void reverseGeocodingMarksSupportedWhenEitherAddressIsInSeoulOrGyeonggi() {
         server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
                 .andExpect(queryParam("x", "126.9780"))
                 .andExpect(queryParam("y", "37.5665"))
                 .andExpect(queryParam("input_coord", "WGS84"))
                 .andExpect(header("Authorization", "KakaoAK test-rest-api-key"))
                 .andRespond(withSuccess("""
-                        {"documents":[{"road_address":{"address_name":"Road address"},"address":{"address_name":"Lot number address"}}]}
+                        {"documents":[{"road_address":{"address_name":"서울 중구 세종대로 110"},"address":{"address_name":"부산광역시 중구 중앙대로 1"}}]}
                         """, MediaType.APPLICATION_JSON));
 
         DeparturePlaceSearchService.ReverseGeocodingResult result = service.reverseGeocode(
                 new java.math.BigDecimal("37.5665"), new java.math.BigDecimal("126.9780")
         );
 
-        assertThat(result.roadAddress()).isEqualTo("Road address");
-        assertThat(result.jibunAddress()).isEqualTo("Lot number address");
+        assertThat(result.roadAddress()).isEqualTo("서울 중구 세종대로 110");
+        assertThat(result.jibunAddress()).isEqualTo("부산광역시 중구 중앙대로 1");
+        assertThat(result.isSupportedRegion()).isTrue();
         server.verify();
     }
 
     @Test
     void reverseGeocodingAllowsMissingRoadAddressAndNoMatch() {
         server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
-                .andRespond(withSuccess("{\"documents\":[{\"road_address\":null,\"address\":{\"address_name\":\"Lot number address\"}}]}", MediaType.APPLICATION_JSON));
+                        .andRespond(withSuccess("{\"documents\":[{\"road_address\":null,\"address\":{\"address_name\":\"경기도 성남시 분당구\"}}]}", MediaType.APPLICATION_JSON));
         server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
                 .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
 
@@ -475,9 +476,26 @@ class DeparturePlaceSearchServiceTest {
         );
 
         assertThat(missingRoad.roadAddress()).isNull();
-        assertThat(missingRoad.jibunAddress()).isEqualTo("Lot number address");
+        assertThat(missingRoad.jibunAddress()).isEqualTo("경기도 성남시 분당구");
+        assertThat(missingRoad.isSupportedRegion()).isTrue();
         assertThat(noMatch.roadAddress()).isNull();
         assertThat(noMatch.jibunAddress()).isNull();
+        assertThat(noMatch.isSupportedRegion()).isFalse();
+        server.verify();
+    }
+
+    @Test
+    void reverseGeocodingMarksUnsupportedRegionAsFalse() {
+        server.expect(request -> assertThat(request.getURI().getPath()).isEqualTo("/v2/local/geo/coord2address.json"))
+                .andRespond(withSuccess("""
+                        {"documents":[{"road_address":{"address_name":"부산광역시 중구 중앙대로 1"},"address":{"address_name":"부산광역시 중구 중앙동 1가"}}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        DeparturePlaceSearchService.ReverseGeocodingResult result = service.reverseGeocode(
+                new java.math.BigDecimal("35.1796"), new java.math.BigDecimal("129.0756")
+        );
+
+        assertThat(result.isSupportedRegion()).isFalse();
         server.verify();
     }
 
