@@ -6,6 +6,7 @@ import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingCoverCleanupTask;
 import com.moyeo.domain.meeting.MeetingParticipant;
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.MoyeoException;
@@ -129,7 +130,8 @@ public class MemberWithdrawalService {
         return new SocialDisconnectTarget(
                 socialAccount.getProvider(),
                 socialAccount.getProviderUserId(),
-                socialAccount.getProviderRefreshTokenCiphertext()
+                socialAccount.getProviderRefreshTokenCiphertext(),
+                socialAccount.getAppleRefreshTokenClient()
         );
     }
 
@@ -145,7 +147,8 @@ public class MemberWithdrawalService {
         if (target.provider() == AuthProvider.APPLE) {
             appleLoginService.disconnectStoredAuthorization(
                     target.providerUserId(),
-                    target.providerRefreshTokenCiphertext()
+                    target.providerRefreshTokenCiphertext(),
+                    target.appleRefreshTokenClient()
             );
             return;
         }
@@ -242,7 +245,8 @@ public class MemberWithdrawalService {
     private record SocialDisconnectTarget(
             AuthProvider provider,
             String providerUserId,
-            String providerRefreshTokenCiphertext
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
     ) {
     }
 }

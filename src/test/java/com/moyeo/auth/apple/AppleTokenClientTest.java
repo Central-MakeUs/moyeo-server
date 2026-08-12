@@ -2,6 +2,7 @@ package com.moyeo.auth.apple;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moyeo.auth.OAuthRedirectTarget;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,9 +41,11 @@ class AppleTokenClientTest {
         server = MockRestServiceServer.bindTo(restClientBuilder).build();
         AppleClientSecretGenerator clientSecretGenerator = mock(AppleClientSecretGenerator.class);
         when(clientSecretGenerator.generate()).thenReturn("signed-client-secret");
+        when(clientSecretGenerator.generateForNative()).thenReturn("signed-native-client-secret");
         tokenClient = new AppleTokenClient(
                 restClientBuilder.build(),
                 properties(),
+                nativeProperties(),
                 clientSecretGenerator,
                 new ObjectMapper()
         );
@@ -103,6 +106,47 @@ class AppleTokenClientTest {
     }
 
     @Test
+    void exchangesNativeCodeWithNativeClientIdWithoutRedirectUri() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("client_id=com.moyeozo.moyeo"),
+                        org.hamcrest.Matchers.containsString("client_secret=signed-native-client-secret"),
+                        org.hamcrest.Matchers.containsString("code=native-one-time-code"),
+                        org.hamcrest.Matchers.containsString("grant_type=authorization_code"),
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("redirect_uri"))
+                )))
+                .andRespond(withSuccess("""
+                        {
+                          "id_token": "native-identity-token",
+                          "access_token": "apple-access-token",
+                          "refresh_token": "apple-refresh-token"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        AppleTokenClient.AppleTokenResult result = tokenClient.exchangeNative("native-one-time-code");
+
+        assertThat(result.idToken()).isEqualTo("native-identity-token");
+        assertThat(result.refreshToken()).isEqualTo("apple-refresh-token");
+        server.verify();
+    }
+
+    @Test
+    void rejectsNativeTokenExchangeWithoutRefreshToken() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withSuccess("""
+                        { "id_token": "native-identity-token", "access_token": "apple-access-token" }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> tokenClient.exchangeNative("native-one-time-code"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode())
+                                .isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
+                );
+        server.verify();
+    }
+
+    @Test
     void revokesAuthorizationUsingRefreshToken() {
         server.expect(requestTo("https://appleid.apple.com/auth/revoke"))
                 .andExpect(method(HttpMethod.POST))
@@ -116,6 +160,22 @@ class AppleTokenClientTest {
                 .andRespond(withSuccess());
 
         tokenClient.revokeRefreshToken("apple-refresh-token");
+
+        server.verify();
+    }
+
+    @Test
+    void revokesNativeAuthorizationUsingNativeClientId() {
+        server.expect(requestTo("https://appleid.apple.com/auth/revoke"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("client_id=com.moyeozo.moyeo"),
+                        org.hamcrest.Matchers.containsString("client_secret=signed-native-client-secret"),
+                        org.hamcrest.Matchers.containsString("token=apple-native-refresh-token")
+                )))
+                .andRespond(withSuccess());
+
+        tokenClient.revokeRefreshToken("apple-native-refresh-token", AppleRefreshTokenClient.NATIVE);
 
         server.verify();
     }
@@ -218,5 +278,9 @@ class AppleTokenClientTest {
                 Duration.ofSeconds(3),
                 Duration.ofHours(1)
         );
+    }
+
+    private AppleNativeOAuthProperties nativeProperties() {
+        return new AppleNativeOAuthProperties(true, "com.moyeozo.moyeo");
     }
 }

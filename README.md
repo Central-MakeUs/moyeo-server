@@ -11,7 +11,7 @@
 
 | 영역 | 제공 기능 |
 | --- | --- |
-| 인증 | Apple·Kakao 로그인, Access JWT, 닉네임 온보딩, 회원 탈퇴 |
+| 인증 | Apple 웹·네이티브 SDK 로그인, Kakao 로그인, Access JWT, 닉네임 온보딩, 회원 탈퇴 |
 | 모임 | 생성, 초대 링크, 회원·웹 게스트 참여, 참여 응답 수정, 나가기 |
 | 조율 | 일정 가능 시간 집계, 중간 지점·실제 이동시간 장소 추천, 방장 확정 |
 | 개인화 | 마이페이지, 프로필 색상, 저장 출발지, 피드백 |
@@ -109,7 +109,7 @@ GitHub Actions 명령에 넣지 않습니다.
 | --- | --- |
 | 데이터베이스 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` |
 | 인증/CORS | `JWT_SECRET`, `CORS_ALLOWED_ORIGINS` |
-| Apple 로그인 | `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64` |
+| Apple 로그인 | `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`, `APPLE_NATIVE_ENABLED`, `APPLE_NATIVE_CLIENT_ID` |
 | Kakao 로그인·장소 | `KAKAO_OAUTH_*`, `KAKAO_LOCAL_REST_API_KEY`, `KAKAO_ROUTE_REST_API_KEY` |
 | 커버 이미지 | `MEETING_COVER_S3_BUCKET`, `AWS_REGION` |
 

@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.domain.member.SocialAccount;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.MoyeoException;
@@ -38,13 +39,24 @@ public class SocialAccountRegistrationService {
             String providerUserId,
             String providerRefreshTokenCiphertext
     ) {
+        return register(provider, providerUserId, providerRefreshTokenCiphertext, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public AuthenticatedMember register(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
+    ) {
         User user = userRepository.save(User.pendingOnboarding());
         SocialAccount socialAccount = new SocialAccount(
                 user,
                 provider,
                 providerUserId,
                 null,
-                providerRefreshTokenCiphertext
+                providerRefreshTokenCiphertext,
+                appleRefreshTokenClient
         );
         socialAccountRepository.saveAndFlush(socialAccount);
         return AuthenticatedMember.from(user, true);
@@ -61,6 +73,16 @@ public class SocialAccountRegistrationService {
             String providerUserId,
             String providerRefreshTokenCiphertext
     ) {
+        return findRegistered(provider, providerUserId, providerRefreshTokenCiphertext, null);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<AuthenticatedMember> findRegistered(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
+    ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
                     User user = socialAccount.getUser();
@@ -68,7 +90,11 @@ public class SocialAccountRegistrationService {
                         throw new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED);
                     }
                     if (providerRefreshTokenCiphertext != null) {
-                        socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
+                        if (appleRefreshTokenClient == null) {
+                            socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
+                        } else {
+                            socialAccount.updateAppleRefreshToken(providerRefreshTokenCiphertext, appleRefreshTokenClient);
+                        }
                     }
                     return AuthenticatedMember.from(user, false);
                 });

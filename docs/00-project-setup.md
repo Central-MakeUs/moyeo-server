@@ -103,6 +103,10 @@ Finalize decision
 - Before deploying re-login-free Apple withdrawal to an existing database,
   apply `scripts/db/2026-07-26-social-refresh-token.sql`. Existing Apple users
   populate the new nullable ciphertext column on their next successful login.
+- Before deploying native Apple login to an existing production database, back
+  up the target database and apply
+  `scripts/db/2026-08-12-apple-refresh-token-client.sql`. Existing null values
+  remain compatible and are treated as web-issued Apple refresh tokens.
 - Before deploying no-deadline meeting creation to an existing production
   database, back up the target database and apply
   `scripts/db/2026-07-27-meeting-deadline-nullable.sql` so
@@ -433,8 +437,10 @@ current RFC 9457-based error response policy, and documented working rules.
 - Required runtime names are `APPLE_OAUTH_ENABLED`, `APPLE_CLIENT_ID`,
   `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY_BASE64`,
   `APPLE_OAUTH_REDIRECT_URI_DEV`, `APPLE_OAUTH_REDIRECT_URI_PROD`, plus
-  `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`. `APPLE_REDIRECT_URI` remains a
-  temporary compatibility fallback for the dev URI.
+  `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64`. Native iOS login additionally
+  uses `APPLE_NATIVE_ENABLED` and `APPLE_NATIVE_CLIENT_ID` (the App ID).
+  `APPLE_REDIRECT_URI` remains a temporary compatibility fallback for the dev
+  URI.
   The encryption key must be a separate Base64-encoded random 32-byte value.
   Set `APPLE_OAUTH_ENABLED=true` only when all values are ready; enabled
   configuration is validated at application startup.
@@ -444,6 +450,13 @@ current RFC 9457-based error response policy, and documented working rules.
   testing is unsupported.
 - The backend exchanges and verifies the code, identifies the user by Apple's
   `sub`, and issues the Moyeo Access JWT.
+- Native iOS login may use `POST /api/auth/apple/native` with an Apple native
+  identity token, authorization code, and per-attempt nonce. Its token
+  validation and code exchange use the App ID in `APPLE_NATIVE_CLIENT_ID`; the
+  existing web endpoint continues to use the Services ID and configured return
+  URL. Set `APPLE_NATIVE_ENABLED=true` only after the iOS capability and native
+  App ID configuration are complete. Native login also requires the shared
+  Apple key configuration and `APPLE_OAUTH_ENABLED=true`.
 - The backend encrypts the Apple refresh token with AES-256-GCM, binds it to the
   verified `sub`, and stores only the ciphertext. Account withdrawal decrypts
   and revokes this stored refresh token without another Apple login.

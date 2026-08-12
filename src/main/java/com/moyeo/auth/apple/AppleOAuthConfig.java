@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 @Configuration
 @EnableConfigurationProperties({
         AppleOAuthProperties.class,
+        AppleNativeOAuthProperties.class,
         AppleRefreshTokenEncryptionProperties.class
 })
 public class AppleOAuthConfig {

@@ -47,6 +47,25 @@ class AppleClientSecretGeneratorTest {
                 .isEqualTo(now.plus(Duration.ofMinutes(5)));
     }
 
+    @Test
+    void generatesNativeClientSecretWithNativeAppIdSubject() throws Exception {
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+        keyPairGenerator.initialize(256);
+        KeyPair keyPair = keyPairGenerator.generateKeyPair();
+        AppleClientSecretGenerator generator = new AppleClientSecretGenerator(
+                properties(Base64.getEncoder().encodeToString(keyPair.getPrivate().getEncoded())),
+                new AppleNativeOAuthProperties(true, "com.moyeozo.moyeo"),
+                Clock.systemUTC()
+        );
+
+        SignedJWT jwt = SignedJWT.parse(generator.generateForNative());
+
+        assertThat(jwt.verify(new ECDSAVerifier((ECPublicKey) keyPair.getPublic()))).isTrue();
+        assertThat(jwt.getJWTClaimsSet().getIssuer()).isEqualTo("TEAM_ID");
+        assertThat(jwt.getJWTClaimsSet().getSubject()).isEqualTo("com.moyeozo.moyeo");
+        assertThat(jwt.getJWTClaimsSet().getAudience()).containsExactly("https://appleid.apple.com");
+    }
+
     private AppleOAuthProperties properties(String privateKeyBase64) {
         return new AppleOAuthProperties(
                 true,

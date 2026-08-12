@@ -44,6 +44,9 @@ moyeo:
       connect-timeout: 2s
       read-timeout: 3s
       jwks-cache-ttl: 1h
+      native:
+        enabled: ${APPLE_NATIVE_ENABLED:false}
+        client-id: ${APPLE_NATIVE_CLIENT_ID:}
     apple-token-storage:
       encryption-key-base64: ${APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64:}
     kakao:

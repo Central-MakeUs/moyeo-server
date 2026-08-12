@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.domain.member.User;
 import com.moyeo.global.error.CommonErrorCode;
 import com.moyeo.global.error.MoyeoException;
@@ -48,17 +49,32 @@ public class MemberAuthService {
             String providerUserId,
             String providerRefreshTokenCiphertext
     ) {
+        return loginSocial(provider, providerUserId, providerRefreshTokenCiphertext, null);
+    }
+
+    @Transactional
+    public AuthenticatedMember loginSocial(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
+    ) {
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
                     if (providerRefreshTokenCiphertext != null) {
-                        socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
+                        if (appleRefreshTokenClient == null) {
+                            socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
+                        } else {
+                            socialAccount.updateAppleRefreshToken(providerRefreshTokenCiphertext, appleRefreshTokenClient);
+                        }
                     }
                     return authenticatedLoginMember(socialAccount.getUser());
                 })
                 .orElseGet(() -> registerOrRecoverConcurrentLogin(
                         provider,
                         providerUserId,
-                        providerRefreshTokenCiphertext
+                        providerRefreshTokenCiphertext,
+                        appleRefreshTokenClient
                 ));
     }
 
@@ -72,19 +88,22 @@ public class MemberAuthService {
     private AuthenticatedMember registerOrRecoverConcurrentLogin(
             AuthProvider provider,
             String providerUserId,
-            String providerRefreshTokenCiphertext
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
     ) {
         try {
             return socialAccountRegistrationService.register(
                     provider,
                     providerUserId,
-                    providerRefreshTokenCiphertext
+                    providerRefreshTokenCiphertext,
+                    appleRefreshTokenClient
             );
         } catch (DataIntegrityViolationException exception) {
             return socialAccountRegistrationService.findRegistered(
                             provider,
                             providerUserId,
-                            providerRefreshTokenCiphertext
+                            providerRefreshTokenCiphertext,
+                            appleRefreshTokenClient
                     )
                     .orElseThrow(() -> exception);
         }

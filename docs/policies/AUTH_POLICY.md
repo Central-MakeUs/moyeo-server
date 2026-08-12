@@ -47,6 +47,20 @@ then issues a Moyeo Access JWT.
 - Never persist or log an Apple provider token in plaintext. Keep
   `APPLE_REFRESH_TOKEN_ENCRYPTION_KEY_BASE64` separate from the database and
   other Apple credentials.
+- Native Apple SDK login uses `POST /api/auth/apple/native` with
+  `{ "identityToken": "...", "authorizationCode": "...", "nonce": "..." }`.
+  The frontend generates a new nonce for each native login attempt and passes
+  it to the SDK. The backend verifies both the SDK-provided identity token and
+  the identity token returned by authorization-code exchange against the native
+  App ID audience and the nonce. Their verified `sub` claims must match before
+  the exchanged refresh token is encrypted and persisted. The native exchange
+  uses the server-configured native App ID and client secret without a redirect
+  URI. Keep `POST /api/auth/apple` unchanged for browser login and native-SDK
+  fallback.
+- Persist which Apple client issued each stored refresh token. On account
+  withdrawal, revoke that token with the same client ID and client secret used
+  for its authorization request. Existing rows without this value are treated as
+  web-issued tokens for backward compatibility.
 - Kakao login uses `POST /api/auth/kakao` with `{ "code": "..." }`.
 - The frontend must generate a unique `state` for each Kakao login request and
   verify that the callback returns the same value before sending the code to the

@@ -24,26 +24,47 @@ class AppleClientSecretGenerator {
     private static final String APPLE_ISSUER = "https://appleid.apple.com";
 
     private final AppleOAuthProperties properties;
+    private final AppleNativeOAuthProperties nativeProperties;
     private final Clock clock;
     private final ECPrivateKey privateKey;
 
     @Autowired
-    AppleClientSecretGenerator(AppleOAuthProperties properties) {
-        this(properties, Clock.systemUTC());
+    AppleClientSecretGenerator(AppleOAuthProperties properties, AppleNativeOAuthProperties nativeProperties) {
+        this(properties, nativeProperties, Clock.systemUTC());
     }
 
     AppleClientSecretGenerator(AppleOAuthProperties properties, Clock clock) {
+        this(properties, new AppleNativeOAuthProperties(false, null), clock);
+    }
+
+    AppleClientSecretGenerator(
+            AppleOAuthProperties properties,
+            AppleNativeOAuthProperties nativeProperties,
+            Clock clock
+    ) {
         this.properties = properties;
+        this.nativeProperties = nativeProperties;
         this.clock = clock;
         properties.validateWhenEnabled();
+        nativeProperties.validateWhenEnabled();
+        if (nativeProperties.enabled() && !properties.enabled()) {
+            throw new IllegalStateException("APPLE_OAUTH_ENABLED must be true when native Apple OAuth is enabled.");
+        }
         this.privateKey = properties.enabled() ? parsePrivateKey(properties.privateKeyBase64()) : null;
     }
 
     String generate() {
-        if (!properties.enabled() || privateKey == null) {
+        return generate(properties.enabled(), properties.clientId());
+    }
+
+    String generateForNative() {
+        return generate(nativeProperties.enabled(), nativeProperties.clientId());
+    }
+
+    private String generate(boolean enabled, String clientId) {
+        if (!enabled || privateKey == null) {
             throw AppleOAuthException.unavailable();
         }
-
         Instant issuedAt = Instant.now(clock);
         try {
             SignedJWT clientSecret = new SignedJWT(
@@ -52,7 +73,7 @@ class AppleClientSecretGenerator {
                             .build(),
                     new JWTClaimsSet.Builder()
                             .issuer(properties.teamId())
-                            .subject(properties.clientId())
+                            .subject(clientId)
                             .audience(APPLE_ISSUER)
                             .issueTime(Date.from(issuedAt))
                             .expirationTime(Date.from(issuedAt.plus(5, ChronoUnit.MINUTES)))

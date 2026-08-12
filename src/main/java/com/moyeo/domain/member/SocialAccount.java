@@ -62,6 +62,11 @@ public class SocialAccount {
     @Comment("서버 암호화 키로 암호화한 제공자 refresh token. 현재 Apple만 저장")
     private String providerRefreshTokenCiphertext;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "apple_refresh_token_client", length = 20)
+    @Comment("Apple refresh token??諛쒓툒??client: WEB/ NATIVE. 湲곗〈 null? WEB濡?媛꾩＜")
+    private AppleRefreshTokenClient appleRefreshTokenClient;
+
     @Column(nullable = false)
     @Comment("소셜 계정 연결 생성 일시")
     private LocalDateTime createdAt;
@@ -80,11 +85,23 @@ public class SocialAccount {
             String email,
             String providerRefreshTokenCiphertext
     ) {
+        this(user, provider, providerUserId, email, providerRefreshTokenCiphertext, null);
+    }
+
+    public SocialAccount(
+            User user,
+            AuthProvider provider,
+            String providerUserId,
+            String email,
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
+    ) {
         this.user = user;
         this.provider = provider;
         this.providerUserId = providerUserId;
         this.email = email;
         this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
+        this.appleRefreshTokenClient = appleRefreshTokenClient;
     }
 
     @PrePersist
@@ -118,5 +135,17 @@ public class SocialAccount {
 
     public void updateProviderRefreshTokenCiphertext(String providerRefreshTokenCiphertext) {
         this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
+    }
+
+    public void updateAppleRefreshToken(
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient
+    ) {
+        this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
+        this.appleRefreshTokenClient = appleRefreshTokenClient;
+    }
+
+    public AppleRefreshTokenClient getAppleRefreshTokenClient() {
+        return appleRefreshTokenClient == null ? AppleRefreshTokenClient.WEB : appleRefreshTokenClient;
     }
 }

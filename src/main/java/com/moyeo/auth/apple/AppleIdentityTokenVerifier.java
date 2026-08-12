@@ -28,6 +28,7 @@ class AppleIdentityTokenVerifier {
 
     private final RestClient restClient;
     private final AppleOAuthProperties properties;
+    private final AppleNativeOAuthProperties nativeProperties;
     private final Clock clock;
 
     private volatile CachedJwkSet cachedJwkSet;
@@ -35,18 +36,40 @@ class AppleIdentityTokenVerifier {
     @Autowired
     AppleIdentityTokenVerifier(
             @Qualifier("appleOAuthRestClient") RestClient restClient,
-            AppleOAuthProperties properties
+            AppleOAuthProperties properties,
+            AppleNativeOAuthProperties nativeProperties
     ) {
-        this(restClient, properties, Clock.systemUTC());
+        this(restClient, properties, nativeProperties, Clock.systemUTC());
     }
 
     AppleIdentityTokenVerifier(RestClient restClient, AppleOAuthProperties properties, Clock clock) {
+        this(restClient, properties, new AppleNativeOAuthProperties(false, null), clock);
+    }
+
+    AppleIdentityTokenVerifier(
+            RestClient restClient,
+            AppleOAuthProperties properties,
+            AppleNativeOAuthProperties nativeProperties,
+            Clock clock
+    ) {
         this.restClient = restClient;
         this.properties = properties;
+        this.nativeProperties = nativeProperties;
         this.clock = clock;
     }
 
     String verifyAndGetSubject(String identityToken, String expectedNonce) {
+        return verifyAndGetSubject(identityToken, expectedNonce, properties.clientId());
+    }
+
+    String verifyNativeAndGetSubject(String identityToken, String expectedNonce) {
+        if (!nativeProperties.enabled()) {
+            throw AppleOAuthException.unavailable();
+        }
+        return verifyAndGetSubject(identityToken, expectedNonce, nativeProperties.clientId());
+    }
+
+    private String verifyAndGetSubject(String identityToken, String expectedNonce, String expectedAudience) {
         try {
             SignedJWT signedJwt = SignedJWT.parse(identityToken);
             if (!JWSAlgorithm.RS256.equals(signedJwt.getHeader().getAlgorithm())) {
@@ -59,7 +82,7 @@ class AppleIdentityTokenVerifier {
             }
 
             JWTClaimsSet claims = signedJwt.getJWTClaimsSet();
-            validateClaims(claims, expectedNonce);
+            validateClaims(claims, expectedNonce, expectedAudience);
             String subject = claims.getSubject();
             if (subject == null || subject.isBlank()) {
                 throw verificationFailed("missing_subject");
@@ -76,12 +99,16 @@ class AppleIdentityTokenVerifier {
         }
     }
 
-    private void validateClaims(JWTClaimsSet claims, String expectedNonce) throws java.text.ParseException {
+    private void validateClaims(
+            JWTClaimsSet claims,
+            String expectedNonce,
+            String expectedAudience
+    ) throws java.text.ParseException {
         Date expirationTime = claims.getExpirationTime();
         if (!APPLE_ISSUER.equals(claims.getIssuer())) {
             throw verificationFailed("invalid_issuer");
         }
-        if (!claims.getAudience().contains(properties.clientId())) {
+        if (!claims.getAudience().contains(expectedAudience)) {
             throw verificationFailed("invalid_audience");
         }
         if (expirationTime == null) {

@@ -59,6 +59,7 @@ class AppleIdentityTokenVerifierTest {
         verifier = new AppleIdentityTokenVerifier(
                 restClientBuilder.build(),
                 properties(),
+                nativeProperties(),
                 Clock.fixed(NOW, ZoneOffset.UTC)
         );
     }
@@ -139,6 +140,38 @@ class AppleIdentityTokenVerifierTest {
                 "other-client",
                 "apple-user-sub"
         ));
+    }
+
+    @Test
+    void verifiesNativeAudienceAndNonce() throws Exception {
+        expectAppleJwks();
+
+        String subject = verifier.verifyNativeAndGetSubject(
+                identityToken(
+                        "expected-nonce",
+                        NOW.plusSeconds(300),
+                        keyPair,
+                        "https://appleid.apple.com",
+                        "com.moyeozo.moyeo",
+                        "apple-user-sub"
+                ),
+                "expected-nonce"
+        );
+
+        assertThat(subject).isEqualTo("apple-user-sub");
+        server.verify();
+    }
+
+    @Test
+    void rejectsWebAudienceForNativeVerification() throws Exception {
+        expectAppleJwks();
+
+        assertThatThrownBy(() -> verifier.verifyNativeAndGetSubject(
+                identityToken("expected-nonce", NOW.plusSeconds(300)),
+                "expected-nonce"
+        )).isInstanceOfSatisfying(MoyeoException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
+        );
     }
 
     @Test
@@ -229,5 +262,9 @@ class AppleIdentityTokenVerifierTest {
                 Duration.ofSeconds(3),
                 Duration.ofHours(1)
         );
+    }
+
+    private AppleNativeOAuthProperties nativeProperties() {
+        return new AppleNativeOAuthProperties(true, "com.moyeozo.moyeo");
     }
 }

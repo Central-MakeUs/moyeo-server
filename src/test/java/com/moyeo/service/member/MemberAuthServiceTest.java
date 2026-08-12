@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.SocialAccountRepository;
@@ -83,6 +84,44 @@ class MemberAuthServiceTest {
         )).get()
                 .extracting(account -> account.getProviderRefreshTokenCiphertext())
                 .isEqualTo("encrypted-token-v2");
+    }
+
+    @Test
+    void appleLoginStoresTheClientThatIssuedTheRefreshToken() {
+        memberAuthService.loginSocial(
+                AuthProvider.APPLE,
+                "apple-token-client-user",
+                "encrypted-native-token",
+                AppleRefreshTokenClient.NATIVE
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(socialAccountRepository.findByProviderAndProviderUserId(
+                AuthProvider.APPLE,
+                "apple-token-client-user"
+        )).get()
+                .extracting(account -> account.getAppleRefreshTokenClient())
+                .isEqualTo(AppleRefreshTokenClient.NATIVE);
+
+        memberAuthService.loginSocial(
+                AuthProvider.APPLE,
+                "apple-token-client-user",
+                "encrypted-web-token",
+                AppleRefreshTokenClient.WEB
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(socialAccountRepository.findByProviderAndProviderUserId(
+                AuthProvider.APPLE,
+                "apple-token-client-user"
+        )).get()
+                .extracting(
+                        account -> account.getProviderRefreshTokenCiphertext(),
+                        account -> account.getAppleRefreshTokenClient()
+                )
+                .containsExactly("encrypted-web-token", AppleRefreshTokenClient.WEB);
     }
 
     @Test

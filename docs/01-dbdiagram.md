@@ -16,6 +16,7 @@ Table users {
 }
 
 Table social_accounts {
+  apple_refresh_token_client varchar(20) [note: "Apple refresh token 발급 client: WEB/NATIVE. 기존 null은 WEB으로 간주"]
   id bigint [pk, increment, note: "소셜 계정 연결 ID"]
   user_id bigint [not null, note: "연결된 서비스 사용자 ID"]
   provider varchar(20) [not null, note: "소셜 로그인 제공자"]

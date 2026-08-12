@@ -140,6 +140,65 @@ class AuthControllerTest {
     }
 
     @Test
+    void appleNativeLoginReturnsPendingUserAndAccessToken() throws Exception {
+        when(appleLoginService.loginNative("native-identity-token", "native-code", "native-nonce"))
+                .thenReturn(new AuthenticatedMember(101L, null, true));
+
+        String response = mockMvc.perform(post("/api/auth/apple/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "identityToken", "native-identity-token",
+                                "authorizationCode", "native-code",
+                                "nonce", "native-nonce"
+                        ))))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.user.id").value(101))
+                .andReturn().getResponse().getContentAsString();
+
+        AuthResponse authResponse = objectMapper.readValue(response, AuthResponse.class);
+        assertThat(jwtTokenProvider.parse(authResponse.accessToken()).userId()).isEqualTo(101L);
+    }
+
+    @Test
+    void appleNativeLoginMapsVerificationAndProviderFailures() throws Exception {
+        when(appleLoginService.loginNative("invalid-token", "native-code", "native-nonce"))
+                .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
+
+        mockMvc.perform(post("/api/auth/apple/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "identityToken", "invalid-token", "authorizationCode", "native-code", "nonce", "native-nonce"
+                        ))))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
+
+        when(appleLoginService.loginNative("unavailable-token", "native-code", "native-nonce"))
+                .thenThrow(new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE));
+
+        mockMvc.perform(post("/api/auth/apple/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "identityToken", "unavailable-token", "authorizationCode", "native-code", "nonce", "native-nonce"
+                        ))))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_UNAVAILABLE"));
+    }
+
+    @Test
+    void appleNativeLoginValidatesRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/apple/native")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "identityToken", "", "authorizationCode", "", "nonce", ""
+                        ))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
     void kakaoLoginReturnsPendingUserAndAccessToken() throws Exception {
         when(kakaoLoginService.login("kakao-code", OAuthRedirectTarget.DEV))
                 .thenReturn(new AuthenticatedMember(200L, null, true));
