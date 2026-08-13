@@ -193,8 +193,9 @@ Finalize decision
 
 - Use one Caddy container as the dev HTTPS reverse proxy in the existing EC2
   Docker Compose deployment.
-- Use `3-35-119-70.sslip.io` as the temporary dev hostname backed by the current
-  Elastic IP.
+- Use `api.moyeo.app` as the dev hostname backed by the current Elastic IP.
+  Keep `3-35-119-70.sslip.io` available as a temporary legacy hostname during
+  the frontend migration.
 - Let Caddy manage ACME certificate issuance and renewal automatically; keep
   public ports `80` and `443` reachable for this lifecycle.
 - In the `dev` Spring profile, use `server.forward-headers-strategy=framework`
@@ -316,9 +317,10 @@ current RFC 9457-based error response policy, and documented working rules.
   headers, OAuth codes, provider tokens, private keys, or other secrets.
 - Keep dev/prod secrets in GitHub Secrets or AWS-managed secret storage, not in
   repository files.
-- Serve the dev API through Caddy at `https://3-35-119-70.sslip.io`; keep ports
-  `80` and `443` public for certificate issuance, HTTP-to-HTTPS redirection, and
-  HTTPS traffic.
+- Serve the dev API through Caddy at `https://api.moyeo.app`; keep
+  `https://3-35-119-70.sslip.io` available temporarily during the frontend
+  migration. Keep ports `80` and `443` public for certificate issuance,
+  HTTP-to-HTTPS redirection, and HTTPS traffic.
 - Keep dev API port `8080` temporarily public while the frontend application
   migrates from the former direct HTTP endpoint.
 - Apple login has been verified end to end from the dev Vercel origin through
@@ -355,7 +357,8 @@ current RFC 9457-based error response policy, and documented working rules.
 
 ## Current Dev Infrastructure
 
-- Dev API base URL: `https://3-35-119-70.sslip.io`
+- Dev API base URL: `https://api.moyeo.app`
+- Temporary legacy dev API URL: `https://3-35-119-70.sslip.io`
 - Temporary direct dev API URL: `http://3.35.119.70:8080`
 - EC2 instance: `moyeo-api-dev`
 - Elastic IP: `3.35.119.70`

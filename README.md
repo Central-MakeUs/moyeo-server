@@ -76,8 +76,8 @@
 Swagger UI가 요청·응답 DTO, 인증 요구사항, enum, 오류 응답의 단일 기준입니다.
 
 - 로컬: [Swagger UI](http://localhost:8080/swagger-ui.html)
-- 개발 서버: [Swagger UI](https://3-35-119-70.sslip.io/swagger-ui.html)
-- 개발 서버 Health: [https://3-35-119-70.sslip.io/health](https://3-35-119-70.sslip.io/health)
+- 개발 서버: [Swagger UI](https://api.moyeo.app/swagger-ui.html)
+- 개발 서버 Health: [https://api.moyeo.app/health](https://api.moyeo.app/health)
 
 보호된 API는 다음 헤더를 사용합니다.
 
@@ -126,7 +126,7 @@ GitHub Actions 명령에 넣지 않습니다.
 개발 환경은 GitHub Actions → Gradle 검증/이미지 빌드 → ECR → AWS Systems Manager →
 EC2 Docker Compose(Caddy, 애플리케이션, MySQL) 흐름으로 배포합니다.
 
-- HTTPS 개발 도메인: `3-35-119-70.sslip.io`
+- HTTPS 개발 도메인: `api.moyeo.app`
 - Caddy가 TLS 인증서 발급·갱신을 관리합니다.
 - MySQL은 외부에 공개하지 않고, 필요 시 SSH 터널로 접근합니다.
 

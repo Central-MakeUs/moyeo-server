@@ -26,15 +26,16 @@ services:
     restart: unless-stopped
     command:
       - caddy
-      - reverse-proxy
-      - --from
-      - ${DEV_API_DOMAIN:-3-35-119-70.sslip.io}
-      - --to
-      - app:8080
+      - run
+      - --config
+      - /etc/caddy/Caddyfile
+      - --adapter
+      - caddyfile
     ports:
       - "80:80"
       - "443:443"
     volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

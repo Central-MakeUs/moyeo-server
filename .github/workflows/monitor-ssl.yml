@@ -13,7 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TLS_HOST: 3-35-119-70.sslip.io
   TLS_PORT: "443"
   TLS_WARNING_DAYS: "21"
 
@@ -22,6 +21,14 @@ jobs:
     if: github.repository == 'ohujj/MOYEO'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        tls_host:
+          - api.moyeo.app
+          - 3-35-119-70.sslip.io
+    env:
+      TLS_HOST: ${{ matrix.tls_host }}
 
     steps:
       - name: Check certificate validity and expiration

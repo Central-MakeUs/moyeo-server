@@ -93,6 +93,9 @@ jobs:
           compose_base64 = base64.b64encode(
               Path("docker-compose.yml").read_bytes()
           ).decode("ascii")
+          caddyfile_base64 = base64.b64encode(
+              Path("Caddyfile").read_bytes()
+          ).decode("ascii")
           cleanup_base64 = base64.b64encode(
               Path("scripts/retain-app-images.sh").read_bytes()
           ).decode("ascii")
@@ -109,6 +112,8 @@ jobs:
               f"test -f '{app_dir}/.env'",
               f"printf '%s' '{compose_base64}' | base64 --decode > "
               f"'{app_dir}/docker-compose.yml'",
+              f"printf '%s' '{caddyfile_base64}' | base64 --decode > "
+              f"'{app_dir}/Caddyfile'",
               f"printf '%s' '{cleanup_base64}' | base64 --decode > "
               f"'{app_dir}/retain-app-images.sh'",
               f"printf '%s' '{deploy_base64}' | base64 --decode > "
