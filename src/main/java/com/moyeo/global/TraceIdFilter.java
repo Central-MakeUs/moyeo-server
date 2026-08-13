@@ -34,7 +34,10 @@ public class TraceIdFilter extends OncePerRequestFilter {
         long startedAt = System.nanoTime();
         MDC.put(MDC_KEY, traceId);
         response.setHeader(HEADER_NAME, traceId);
-        log.info("HTTP request started: method={} path={}", request.getMethod(), request.getRequestURI());
+        log.info(
+                "HTTP request started: host={} method={} path={}",
+                request.getServerName(), request.getMethod(), request.getRequestURI()
+        );
 
         try {
             filterChain.doFilter(request, response);
@@ -49,21 +52,21 @@ public class TraceIdFilter extends OncePerRequestFilter {
         int status = response.getStatus();
         if (status >= HttpServletResponse.SC_INTERNAL_SERVER_ERROR) {
             log.error(
-                    "HTTP request completed: method={} path={} status={} durationMs={}",
-                    request.getMethod(), request.getRequestURI(), status, durationMillis
+                    "HTTP request completed: host={} method={} path={} status={} durationMs={}",
+                    request.getServerName(), request.getMethod(), request.getRequestURI(), status, durationMillis
             );
             return;
         }
         if (status >= HttpServletResponse.SC_BAD_REQUEST) {
             log.warn(
-                    "HTTP request completed: method={} path={} status={} durationMs={}",
-                    request.getMethod(), request.getRequestURI(), status, durationMillis
+                    "HTTP request completed: host={} method={} path={} status={} durationMs={}",
+                    request.getServerName(), request.getMethod(), request.getRequestURI(), status, durationMillis
             );
             return;
         }
         log.info(
-                "HTTP request completed: method={} path={} status={} durationMs={}",
-                request.getMethod(), request.getRequestURI(), status, durationMillis
+                "HTTP request completed: host={} method={} path={} status={} durationMs={}",
+                request.getServerName(), request.getMethod(), request.getRequestURI(), status, durationMillis
         );
     }
 }

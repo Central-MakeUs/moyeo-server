@@ -310,8 +310,8 @@ current RFC 9457-based error response policy, and documented working rules.
   host-directory mount, which defaults to `./logs`.
 - Generate a server-owned trace ID for each HTTP request, return it through
   `X-Trace-Id`, and include it in application and exception logs.
-- Log the start and completion of every HTTP request with its method, path,
-  response status, and duration. Log every controller-handled exception with
+- Log the start and completion of every HTTP request with its host, method,
+  path, response status, and duration. Log every controller-handled exception with
   its exception type, stable error code, HTTP status, path, and trace ID;
   retain stack traces for 5xx failures. Never log request bodies, authorization
   headers, OAuth codes, provider tokens, private keys, or other secrets.
