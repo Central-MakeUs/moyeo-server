@@ -35,6 +35,7 @@ class KakaoRouteClientTest {
                         "test-rest-api-key",
                         3,
                         3,
+                        2,
                         Duration.ofSeconds(2),
                         Duration.ofSeconds(5)
                 )

@@ -32,6 +32,7 @@ import com.moyeo.repository.meeting.MeetingScheduleCandidateRepository;
 import com.moyeo.repository.meeting.MeetingScheduleCandidateAvailabilityRepository;
 import com.moyeo.repository.meeting.MeetingPlaceRecommendationSnapshotRepository;
 import com.moyeo.service.member.AuthenticatedMember;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -55,6 +56,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -79,6 +83,7 @@ public class MeetingService {
     private final MeetingCoverCleanupProcessor meetingCoverCleanupProcessor;
     private final KakaoRouteProperties kakaoRouteProperties;
     private final KakaoRouteClient kakaoRouteClient;
+    private final ExecutorService actualRouteExecutor;
 
     public MeetingService(
             MeetingRepository meetingRepository,
@@ -97,7 +102,8 @@ public class MeetingService {
             MeetingCoverProcessor meetingCoverProcessor,
             MeetingCoverCleanupProcessor meetingCoverCleanupProcessor,
             KakaoRouteProperties kakaoRouteProperties,
-            KakaoRouteClient kakaoRouteClient
+            KakaoRouteClient kakaoRouteClient,
+            @Qualifier("actualRouteExecutor") ExecutorService actualRouteExecutor
     ) {
         this.meetingRepository = meetingRepository;
         this.meetingParticipantRepository = meetingParticipantRepository;
@@ -116,6 +122,7 @@ public class MeetingService {
         this.meetingCoverCleanupProcessor = meetingCoverCleanupProcessor;
         this.kakaoRouteProperties = kakaoRouteProperties;
         this.kakaoRouteClient = kakaoRouteClient;
+        this.actualRouteExecutor = actualRouteExecutor;
     }
 
     @Transactional
@@ -759,11 +766,24 @@ public class MeetingService {
 
     private MeetingPlaceRecommendationSnapshot actualTimeSnapshot(Meeting meeting, List<MeetingParticipant> participants,
                                                                     PlaceViewResult.Recommendation recommendation) {
-        java.util.LongSummaryStatistics statistics = participants.stream()
-                .mapToLong(participant -> kakaoRouteClient.findShortestTravelTimeSeconds(
-                        participant.getTransportationMode(), participant.getDepartureLatitude(), participant.getDepartureLongitude(),
-                        recommendation.latitude(), recommendation.longitude()))
-                .summaryStatistics();
+        List<CompletableFuture<Long>> routeLookups = participants.stream()
+                .map(participant -> CompletableFuture.supplyAsync(
+                        () -> kakaoRouteClient.findShortestTravelTimeSeconds(
+                                participant.getTransportationMode(), participant.getDepartureLatitude(), participant.getDepartureLongitude(),
+                                recommendation.latitude(), recommendation.longitude()),
+                        actualRouteExecutor
+                ))
+                .toList();
+        java.util.LongSummaryStatistics statistics;
+        try {
+            statistics = routeLookups.stream().mapToLong(CompletableFuture::join).summaryStatistics();
+        } catch (CompletionException exception) {
+            routeLookups.forEach(routeLookup -> routeLookup.cancel(true));
+            if (exception.getCause() instanceof KakaoRouteUnavailableException unavailable) {
+                throw unavailable;
+            }
+            throw exception;
+        }
         return new MeetingPlaceRecommendationSnapshot(meeting, 0, recommendation.areaCode(), recommendation.areaName(),
                 recommendation.categoryName(), recommendation.latitude(), recommendation.longitude(), recommendation.guName(),
                 recommendation.dongName(), recommendation.averageStraightDistanceMeters(),

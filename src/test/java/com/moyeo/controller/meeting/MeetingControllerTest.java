@@ -35,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import javax.imageio.ImageIO;
@@ -53,6 +54,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -2909,6 +2911,39 @@ class MeetingControllerTest {
                 Integer.class,
                 inviteCode
         )).isEqualTo(3);
+    }
+
+    @Test
+    void actualRouteLookupUsesAtMostTwoConcurrentRequests() throws Exception {
+        String accessToken = signupAndGetAccessToken("actual-route-concurrency-host", "routeconcurrencyhost");
+        String inviteCode = createMeetingAndGetInviteCode(accessToken, defaultCreateMeetingRequest(3));
+        joinGuest(inviteCode, "routeconcurrencya");
+        joinGuest(inviteCode, "routeconcurrencyb");
+        AtomicInteger inFlight = new AtomicInteger();
+        AtomicInteger maximumInFlight = new AtomicInteger();
+        doAnswer(invocation -> {
+            int current = inFlight.incrementAndGet();
+            maximumInFlight.accumulateAndGet(current, Math::max);
+            try {
+                Thread.sleep(100);
+                return 1_200L;
+            } finally {
+                inFlight.decrementAndGet();
+            }
+        }).when(kakaoRouteClient).findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        );
+
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"));
+
+        assertThat(maximumInFlight.get()).isEqualTo(2);
+        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
+        );
     }
 
     @Test

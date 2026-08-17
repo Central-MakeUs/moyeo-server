@@ -94,6 +94,8 @@ moyeo:
     rest-api-key: ${KAKAO_ROUTE_REST_API_KEY:${KAKAO_LOCAL_REST_API_KEY:}}
     preliminary-candidate-count: ${MEETING_ACTUAL_ROUTE_PRELIMINARY_CANDIDATE_COUNT:3}
     final-recommendation-count: ${MEETING_ACTUAL_ROUTE_FINAL_RECOMMENDATION_COUNT:3}
+    # Server-wide cap for blocking Kakao route requests; start at two on the current dev EC2.
+    max-concurrent-requests: ${MEETING_ACTUAL_ROUTE_MAX_CONCURRENT_REQUESTS:2}
     connect-timeout: 2s
     read-timeout: 5s
   meeting-cover:

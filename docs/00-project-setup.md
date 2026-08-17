@@ -155,7 +155,9 @@ Finalize decision
   `KAKAO_LOCAL_REST_API_KEY`) for Kakao Map public-transit and Kakao Mobility
   driving directions. Keep this key only in the runtime environment. The
   preliminary candidate count (1 to 3) and returned recommendation count are
-  configurable through `MEETING_ACTUAL_ROUTE_*` environment values.
+  configurable through `MEETING_ACTUAL_ROUTE_*` environment values. Blocking
+  route lookups use one server-wide executor and default to two concurrent
+  requests; `MEETING_ACTUAL_ROUTE_MAX_CONCURRENT_REQUESTS` permits 1 to 4.
 - Before deploying full-meeting actual-time place recommendations to production,
   back up the target database and apply
   `scripts/db/2026-08-02-meeting-place-recommendation-snapshots.sql`.

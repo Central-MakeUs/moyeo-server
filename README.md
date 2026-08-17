@@ -116,7 +116,9 @@ GitHub Actions 명령에 넣지 않습니다.
 `KAKAO_ROUTE_REST_API_KEY`가 없으면 권한이 있는 `KAKAO_LOCAL_REST_API_KEY`를
 경로 조회에도 사용합니다. 실제 이동시간 추천 수는
 `MEETING_ACTUAL_ROUTE_PRELIMINARY_CANDIDATE_COUNT`,
-`MEETING_ACTUAL_ROUTE_FINAL_RECOMMENDATION_COUNT`로 조정할 수 있습니다.
+`MEETING_ACTUAL_ROUTE_FINAL_RECOMMENDATION_COUNT`로 조정할 수 있습니다. 카카오
+경로 요청은 서버 전체에서 기본 두 건까지만 동시에 실행하며,
+`MEETING_ACTUAL_ROUTE_MAX_CONCURRENT_REQUESTS`로 1~4 범위에서 조정할 수 있습니다.
 
 전체 환경 변수, CORS, 로그, 배포 절차는 [프로젝트 설정 문서](docs/00-project-setup.md)를
 확인합니다.

@@ -43,3 +43,7 @@ docs/local-deploy-env.md
 
 ### Codex temporary attachments ###
 .codex-remote-attachments/
+
+### Local benchmark output ###
+# Keep generated measurements local. Curated portfolio reports belong in docs/.
+artifacts/route-benchmarks/
