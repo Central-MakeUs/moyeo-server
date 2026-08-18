@@ -3,6 +3,7 @@ package com.moyeo.global.security;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
+import com.moyeo.service.member.RefreshTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -19,10 +20,16 @@ public class CurrentMemberArgumentResolver implements HandlerMethodArgumentResol
 
     private final JwtTokenProvider jwtTokenProvider;
     private final MemberAuthService memberAuthService;
+    private final RefreshTokenService refreshTokenService;
 
-    public CurrentMemberArgumentResolver(JwtTokenProvider jwtTokenProvider, MemberAuthService memberAuthService) {
+    public CurrentMemberArgumentResolver(
+            JwtTokenProvider jwtTokenProvider,
+            MemberAuthService memberAuthService,
+            RefreshTokenService refreshTokenService
+    ) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.memberAuthService = memberAuthService;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Override
@@ -59,6 +66,9 @@ public class CurrentMemberArgumentResolver implements HandlerMethodArgumentResol
 
         try {
             JwtClaims claims = jwtTokenProvider.parse(token);
+            if (claims.sessionId() != null && !refreshTokenService.isActiveSession(claims.userId(), claims.sessionId())) {
+                throw authenticationRequired();
+            }
             AuthenticatedMember member = memberAuthService.findAuthenticatedMember(claims.userId());
             if (currentMember != null && currentMember.onboardingRequired() && !member.onboardingCompleted()) {
                 throw new MoyeoException(AuthenticationErrorCode.ONBOARDING_REQUIRED);

@@ -268,7 +268,7 @@ class MemberWithdrawalControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
                 .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
-        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+        verify(kakaoRouteClient, times(15)).findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );

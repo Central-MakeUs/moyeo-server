@@ -72,6 +72,8 @@ class MemberWithdrawalServiceTest {
     private KakaoLoginService kakaoLoginService;
     @Mock
     private MemberWithdrawalSocialAccountExemption exemption;
+    @Mock
+    private RefreshTokenService refreshTokenService;
 
     private MemberWithdrawalService memberWithdrawalService;
 
@@ -93,7 +95,8 @@ class MemberWithdrawalServiceTest {
                 coverCleanupProcessor,
                 appleLoginService,
                 kakaoLoginService,
-                List.of(exemption)
+                List.of(exemption),
+                refreshTokenService
         );
     }
 
@@ -113,6 +116,7 @@ class MemberWithdrawalServiceTest {
 
         memberWithdrawalService.withdraw(1L);
 
+        verify(refreshTokenService).deleteAllByUserId(1L);
         InOrder order = inOrder(userRepository, appleLoginService);
         order.verify(userRepository).flush();
         order.verify(appleLoginService).disconnectStoredAuthorization(

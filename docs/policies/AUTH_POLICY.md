@@ -146,11 +146,23 @@ entry.
   authentication.
 - Validate Access JWT format, signature, required headers and claims, expiration,
   and required JWT configuration at startup.
-- Newly issued production Access JWTs expire 30 days after their `iat`. Changing
+- Newly issued production Access JWTs expire 24 hours after their `iat`. Changing
   this issuance setting does not alter an already-issued JWT; each token remains
   valid only until the `exp` value embedded and signed at issuance.
-- Keep the current JWT implementation minimal: no refresh token, logout, or
-  token rotation.
+- Successful social login also returns an opaque service Refresh Token. Store
+  only its SHA-256 hash server-side; never log a presented Refresh Token.
+- A Refresh Token is valid for 30 days after its latest successful use. The
+  refresh API replaces it with a new token and issues a new Access JWT.
+- Each newly issued production Access JWT contains the current device's opaque
+  session identifier. Every authenticated request confirms that this session is
+  still active.
+- `POST /api/auth/logout` invalidates the presented Refresh Token and its
+  session identifier, immediately ending Access JWT use on only the current
+  device. Multiple devices may hold independent Refresh Tokens and remain
+  logged in.
+- A missing, expired, or invalidated Refresh Token returns
+  `401 AUTHENTICATION_REQUIRED`; clients move to login without a separate
+  expiry notice.
 - Guest meeting participation does not issue an Access JWT or a guest JWT.
 - Until guest re-entry authentication is defined, guest leave is an explicit MVP
   exception: `DELETE /api/meetings/invitations/{inviteCode}/guests/{nickname}`
@@ -213,7 +225,7 @@ AUTH-005: An authenticated service user may withdraw through
   service-level nickname. Keep the `User` row only because participation records
   in meetings hosted by other users must retain a stable withdrawn-user
   reference.
-- Remove the user's social-account links, saved places, submitted feedback, and
+- Remove the user's Refresh Tokens, social-account links, saved places, submitted feedback, and
   member departure place search history. Removing the social-account link
   allows a later social login with the same provider identity to register a new
   service user.
@@ -226,8 +238,9 @@ AUTH-005: An authenticated service user may withdraw through
   lock ordering.
 - Every authenticated request resolves the JWT subject against an active
   `User`. After withdrawal commits, previously issued Access JWTs for the old
-  user return `401 AUTHENTICATION_REQUIRED`; a refresh token, token blacklist,
-  or Redis is not required for the current implementation.
+  user return `401 AUTHENTICATION_REQUIRED`. Delete all Refresh Tokens in the
+  same withdrawal transaction so every device loses its ability to renew a
+  session immediately; Redis is not required.
 - Delete every meeting hosted by the withdrawing user, including its
   participants, schedule candidates and availabilities, meeting-linked departure
   search history, and stored cover image.

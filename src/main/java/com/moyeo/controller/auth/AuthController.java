@@ -5,6 +5,7 @@ import com.moyeo.auth.kakao.KakaoLoginService;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
+import com.moyeo.service.member.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -28,15 +29,18 @@ public class AuthController {
     private final AppleLoginService appleLoginService;
     private final KakaoLoginService kakaoLoginService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthController(
             AppleLoginService appleLoginService,
             KakaoLoginService kakaoLoginService,
-            JwtTokenProvider jwtTokenProvider
+            JwtTokenProvider jwtTokenProvider,
+            RefreshTokenService refreshTokenService
     ) {
         this.appleLoginService = appleLoginService;
         this.kakaoLoginService = kakaoLoginService;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/apple")
@@ -75,7 +79,7 @@ public class AuthController {
     })
     public AuthResponse loginApple(@Valid @RequestBody AppleLoginRequest request) {
         AuthenticatedMember member = appleLoginService.login(request.code(), request.nonce(), request.redirectTarget());
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+        return issueTokens(member);
     }
 
     @PostMapping("/apple/native")
@@ -89,7 +93,7 @@ public class AuthController {
     public AuthResponse loginAppleNative(@Valid @RequestBody AppleNativeLoginRequest request) {
         AuthenticatedMember member = appleLoginService.loginNative(
                 request.identityToken(), request.authorizationCode(), request.nonce());
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+        return issueTokens(member);
     }
 
     @PostMapping("/kakao")
@@ -128,7 +132,7 @@ public class AuthController {
     })
     public AuthResponse loginKakao(@Valid @RequestBody KakaoLoginRequest request) {
         AuthenticatedMember member = kakaoLoginService.login(request.code(), request.redirectTarget());
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+        return issueTokens(member);
     }
 
     @PostMapping("/kakao/native")
@@ -167,7 +171,47 @@ public class AuthController {
     })
     public AuthResponse loginKakaoNative(@Valid @RequestBody KakaoNativeLoginRequest request) {
         AuthenticatedMember member = kakaoLoginService.loginWithAccessToken(request.accessToken());
-        return AuthResponse.of(jwtTokenProvider.createAccessToken(member), member);
+        return issueTokens(member);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "로그인 연장", description = "저장된 갱신 토큰으로 새 Access Token과 갱신 토큰을 발급합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "로그인 연장 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "갱신 토큰 요청값 검증 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                            """))
+            ),
+            @ApiResponse(responseCode = "401", description = "갱신 토큰이 없거나 만료 또는 무효화됨")
+    })
+    public AuthResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        RefreshTokenService.RefreshSession session = refreshTokenService.refresh(request.refreshToken());
+        return AuthResponse.of(
+                jwtTokenProvider.createAccessToken(session.member(), session.sessionId()),
+                session.refreshToken(),
+                session.member()
+        );
+    }
+
+    @PostMapping("/logout")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    @Operation(summary = "현재 기기 로그아웃", description = "현재 기기에 저장된 갱신 토큰과 Access Token을 즉시 무효화합니다. 다른 기기의 로그인은 유지됩니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "현재 기기 로그아웃 성공"),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "갱신 토큰 요청값 검증 실패",
+                    content = @Content(examples = @ExampleObject(value = """
+                            { "code": "COMMON_VALIDATION_FAILED", "status": 400 }
+                            """))
+            ),
+            @ApiResponse(responseCode = "401", description = "갱신 토큰이 없거나 만료 또는 무효화됨")
+    })
+    public void logout(@Valid @RequestBody RefreshTokenRequest request) {
+        refreshTokenService.logout(request.refreshToken());
     }
 
     @GetMapping("/me")
@@ -194,5 +238,14 @@ public class AuthController {
             @CurrentMember(onboardingRequired = false) AuthenticatedMember member
     ) {
         return AuthUserResponse.from(member);
+    }
+
+    private AuthResponse issueTokens(AuthenticatedMember member) {
+        RefreshTokenService.SessionToken session = refreshTokenService.issue(member.userId());
+        return AuthResponse.of(
+                jwtTokenProvider.createAccessToken(member, session.sessionId()),
+                session.refreshToken(),
+                member
+        );
     }
 }

@@ -1985,7 +1985,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
                 .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
-        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+        verify(kakaoRouteClient, times(15)).findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );
@@ -2019,7 +2019,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
                 .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
-        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+        verify(kakaoRouteClient, times(15)).findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );
@@ -2902,7 +2902,7 @@ class MeetingControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
                 .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
-        verify(kakaoRouteClient, times(6)).findShortestTravelTimeSeconds(
+        verify(kakaoRouteClient, times(10)).findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );
@@ -2940,7 +2940,7 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"));
 
         assertThat(maximumInFlight.get()).isEqualTo(2);
-        verify(kakaoRouteClient, times(9)).findShortestTravelTimeSeconds(
+        verify(kakaoRouteClient, times(15)).findShortestTravelTimeSeconds(
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()
         );

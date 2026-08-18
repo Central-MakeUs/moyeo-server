@@ -8,7 +8,7 @@ These scripts benchmark the existing place-view API against the deployed dev ser
 - Set `MOYEO_BENCHMARK_BASE_URL` and `MOYEO_BENCHMARK_HOST_TOKEN` in the local shell. Do not put values in a script, CSV, or commit.
 - The preparation script sets every participant to `CAR`. Kakao automobile directions therefore have no walking fallback.
 - A prepared meeting must be used for exactly one place-view request because a successful result is cached as a snapshot.
-- The current application permits three preliminary candidates. Five- and seven-candidate runs need a separately reviewed benchmark-only server configuration.
+- The current application permits up to five preliminary candidates. Seven-candidate runs need a separately reviewed benchmark-only server configuration.
 
 ## Baseline workflow
 

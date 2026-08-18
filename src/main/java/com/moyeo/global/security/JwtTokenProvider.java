@@ -44,7 +44,12 @@ public class JwtTokenProvider {
 
     public String createAccessToken(AuthenticatedMember member) {
         Instant issuedAt = Instant.now(clock);
-        return createToken(member, issuedAt, issuedAt.plusSeconds(jwtProperties.accessTokenValiditySeconds()));
+        return createToken(member, null, issuedAt, issuedAt.plusSeconds(jwtProperties.accessTokenValiditySeconds()));
+    }
+
+    public String createAccessToken(AuthenticatedMember member, String sessionId) {
+        Instant issuedAt = Instant.now(clock);
+        return createToken(member, sessionId, issuedAt, issuedAt.plusSeconds(jwtProperties.accessTokenValiditySeconds()));
     }
 
     /**
@@ -53,10 +58,10 @@ public class JwtTokenProvider {
      * uses {@link #createAccessToken(AuthenticatedMember)}.
      */
     public String createDevelopmentTestToken(AuthenticatedMember member) {
-        return createToken(member, DEVELOPMENT_TEST_TOKEN_ISSUED_AT, DEVELOPMENT_TEST_TOKEN_EXPIRES_AT);
+        return createToken(member, null, DEVELOPMENT_TEST_TOKEN_ISSUED_AT, DEVELOPMENT_TEST_TOKEN_EXPIRES_AT);
     }
 
-    private String createToken(AuthenticatedMember member, Instant issuedAt, Instant expiresAt) {
+    private String createToken(AuthenticatedMember member, String sessionId, Instant issuedAt, Instant expiresAt) {
 
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("typ", TOKEN_TYPE);
@@ -65,6 +70,9 @@ public class JwtTokenProvider {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("sub", String.valueOf(member.userId()));
         payload.put("role", ROLE_USER);
+        if (sessionId != null) {
+            payload.put("sid", sessionId);
+        }
         payload.put("iat", issuedAt.getEpochSecond());
         payload.put("exp", expiresAt.getEpochSecond());
 
@@ -108,7 +116,8 @@ public class JwtTokenProvider {
 
         return new JwtClaims(
                 parseUserId(requireString(payload, "sub")),
-                role
+                role,
+                optionalSessionId(payload)
         );
     }
 
@@ -140,6 +149,19 @@ public class JwtTokenProvider {
             throw new IllegalArgumentException("Invalid JWT claim");
         }
         return numberClaim;
+    }
+
+    private String optionalSessionId(Map<String, Object> value) {
+        if (!value.containsKey("sid")) {
+            return null;
+        }
+        String sessionId = requireString(value, "sid");
+        try {
+            java.util.UUID.fromString(sessionId);
+            return sessionId;
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("Invalid JWT session", exception);
+        }
     }
 
     private String encodeJson(Map<String, Object> value) {

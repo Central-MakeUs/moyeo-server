@@ -2,6 +2,7 @@ package com.moyeo.global.security;
 
 public record JwtClaims(
         Long userId,
-        String role
+        String role,
+        String sessionId
 ) {
 }

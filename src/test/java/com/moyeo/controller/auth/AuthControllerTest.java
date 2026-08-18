@@ -9,6 +9,7 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
+import com.moyeo.service.member.RefreshTokenService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -27,6 +28,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -68,6 +70,17 @@ class AuthControllerTest {
 
     @MockitoBean
     private KakaoLoginService kakaoLoginService;
+
+    @MockitoBean
+    private RefreshTokenService refreshTokenService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubRefreshTokenIssue() {
+        when(refreshTokenService.issue(anyLong())).thenReturn(new RefreshTokenService.SessionToken(
+                "test-refresh-token",
+                "11111111-1111-1111-1111-111111111111"
+        ));
+    }
 
     @Test
     void appleLoginReturnsPendingUserAndAccessToken() throws Exception {
@@ -311,6 +324,75 @@ class AuthControllerTest {
     }
 
     @Test
+    void refreshReturnsRotatedTokens() throws Exception {
+        when(refreshTokenService.refresh("old-refresh-token"))
+                .thenReturn(new RefreshTokenService.RefreshSession(
+                        new AuthenticatedMember(300L, "모여", true),
+                        "new-refresh-token",
+                        "22222222-2222-2222-2222-222222222222"
+                ));
+
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"old-refresh-token\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"))
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.user.id").value(300));
+    }
+
+    @Test
+    void refreshAndLogoutValidateRefreshTokenRequest() throws Exception {
+        mockMvc.perform(post("/api/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("COMMON_VALIDATION_FAILED"));
+    }
+
+    @Test
+    void logoutInvalidatesThePresentedRefreshTokenAndReturnsNoContent() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"current-device-token\"}"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(refreshTokenService).logout("current-device-token");
+    }
+
+    @Test
+    void sessionBoundAccessTokenStopsWorkingWhenItsCurrentDeviceSessionIsInactive() throws Exception {
+        String legacyToken = testMemberFactory.createAccessToken("세션사용자");
+        Long userId = jwtTokenProvider.parse(legacyToken).userId();
+        String sessionId = "33333333-3333-3333-3333-333333333333";
+        String accessToken = jwtTokenProvider.createAccessToken(
+                new AuthenticatedMember(userId, "세션사용자", true),
+                sessionId
+        );
+        when(refreshTokenService.isActiveSession(userId, sessionId)).thenReturn(true);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk());
+
+        when(refreshTokenService.isActiveSession(userId, sessionId)).thenReturn(false);
+
+        mockMvc.perform(get("/api/auth/me")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
     void generalSignupAndLoginEndpointsAreRemoved() throws Exception {
         mockMvc.perform(post("/api/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -487,6 +569,12 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao']['post']['responses']['503']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao/native']['post']['responses']['401']").exists())
                 .andExpect(jsonPath("$['paths']['/api/auth/kakao/native']['post']['responses']['503']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/refresh']['post']['responses']['200']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/refresh']['post']['responses']['400']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/refresh']['post']['responses']['401']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/logout']['post']['responses']['204']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/logout']['post']['responses']['400']").exists())
+                .andExpect(jsonPath("$['paths']['/api/auth/logout']['post']['responses']['401']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/onboarding']['put']['responses']['409']").exists())
                 .andExpect(jsonPath("$['paths']['/api/users/me/profile-color']['patch']['responses']['200']").exists())
                 .andExpect(jsonPath(

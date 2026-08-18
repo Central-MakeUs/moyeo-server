@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,6 +39,17 @@ class JwtTokenProviderTest {
 
         assertThat(claims.userId()).isEqualTo(1L);
         assertThat(claims.role()).isEqualTo("USER");
+        assertThat(claims.sessionId()).isNull();
+    }
+
+    @Test
+    void createAndParseSessionBoundAccessToken() {
+        String sessionId = UUID.randomUUID().toString();
+        String token = jwtTokenProvider.createAccessToken(new AuthenticatedMember(1L, "moyeo", true), sessionId);
+
+        JwtClaims claims = jwtTokenProvider.parse(token);
+
+        assertThat(claims.sessionId()).isEqualTo(sessionId);
     }
 
     @Test

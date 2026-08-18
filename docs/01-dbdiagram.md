@@ -31,6 +31,15 @@ Table social_accounts {
   }
 }
 
+Table refresh_tokens {
+  id bigint [pk, increment, note: "서비스 로그인 연장 상태 ID"]
+  user_id bigint [not null, note: "로그인 연장 상태의 소유 사용자 ID"]
+  token_hash varchar(64) [not null, unique, note: "원문을 저장하지 않는 SHA-256 해시"]
+  session_id varchar(36) [not null, unique, note: "현재 기기 Access Token을 즉시 무효화하기 위한 로그인 식별값"]
+  expires_at datetime [not null, note: "마지막 성공적 이용 기준 30일 만료 시각"]
+  created_at datetime [not null, note: "발급 시각"]
+}
+
 Table saved_places {
   id bigint [pk, increment, note: "회원 저장 장소 ID"]
   user_id bigint [not null, note: "장소를 저장한 서비스 사용자 ID"]
@@ -231,6 +240,7 @@ Table meeting_participants {
 }
 
 Ref fk_social_accounts_user: social_accounts.user_id > users.id
+Ref fk_refresh_tokens_user: refresh_tokens.user_id > users.id
 Ref fk_saved_places_user: saved_places.user_id > users.id
 Ref fk_feedbacks_user: feedbacks.user_id > users.id
 Ref fk_commercial_area_station_lines_area: commercial_area_station_lines.commercial_area_id > commercial_areas.id
@@ -259,6 +269,7 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
   lookup distinguishes these states through `users.deleted_at`; a separate
   onboarding flag is not stored.
 - `social_accounts` stores provider identity for Kakao/Apple-style social login.
+- `refresh_tokens` stores one independent hashed service-login renewal token per device/session. Its session ID is included in the corresponding Access JWT, so deleting this row immediately invalidates only that device's Access Token. It is rotated on successful renewal and all rows are deleted when the user withdraws.
   Apple refresh tokens are stored only as AES-256-GCM ciphertext bound to the
   Apple provider user ID; Kakao rows keep this field null.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.

@@ -708,6 +708,10 @@ public class MeetingService {
                 && coordinateParticipants.size() == participants.size();
         if (actualTravelTimeReady) {
             recommendations = actualTimeRecommendations(meeting, participants, recommendations);
+        } else {
+            recommendations = recommendations.stream()
+                    .limit(kakaoRouteProperties.finalRecommendationCount())
+                    .toList();
         }
         return new PlaceViewResult(
                 meeting.getId(),

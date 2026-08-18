@@ -50,6 +50,7 @@ public class MemberWithdrawalService {
     private final AppleLoginService appleLoginService;
     private final KakaoLoginService kakaoLoginService;
     private final List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions;
+    private final RefreshTokenService refreshTokenService;
 
     public MemberWithdrawalService(
             UserRepository userRepository,
@@ -67,7 +68,8 @@ public class MemberWithdrawalService {
             MeetingCoverCleanupProcessor coverCleanupProcessor,
             AppleLoginService appleLoginService,
             KakaoLoginService kakaoLoginService,
-            List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions
+            List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions,
+            RefreshTokenService refreshTokenService
     ) {
         this.userRepository = userRepository;
         this.socialAccountRepository = socialAccountRepository;
@@ -85,6 +87,7 @@ public class MemberWithdrawalService {
         this.appleLoginService = appleLoginService;
         this.kakaoLoginService = kakaoLoginService;
         this.socialAccountExemptions = socialAccountExemptions;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
@@ -184,6 +187,7 @@ public class MemberWithdrawalService {
     }
 
     private void deleteMemberOwnedData(Long userId) {
+        refreshTokenService.deleteAllByUserId(userId);
         savedPlaceRepository.deleteAllByUserId(userId);
         savedPlaceRepository.flush();
         feedbackRepository.deleteAllByUserId(userId);

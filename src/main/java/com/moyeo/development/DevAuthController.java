@@ -3,6 +3,7 @@ package com.moyeo.development;
 import com.moyeo.controller.auth.AuthResponse;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.service.member.AuthenticatedMember;
+import com.moyeo.service.member.RefreshTokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,10 +20,16 @@ class DevAuthController {
 
     private final DevTestAccountService devTestAccountService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
 
-    DevAuthController(DevTestAccountService devTestAccountService, JwtTokenProvider jwtTokenProvider) {
+    DevAuthController(
+            DevTestAccountService devTestAccountService,
+            JwtTokenProvider jwtTokenProvider,
+            RefreshTokenService refreshTokenService
+    ) {
         this.devTestAccountService = devTestAccountService;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @PostMapping("/tokens")
@@ -37,6 +44,11 @@ class DevAuthController {
 
     private AuthResponse issueToken(DevTestAccount account) {
         AuthenticatedMember member = devTestAccountService.getOrCreate(account);
-        return AuthResponse.of(jwtTokenProvider.createDevelopmentTestToken(member), member);
+        RefreshTokenService.SessionToken session = refreshTokenService.issue(member.userId());
+        return AuthResponse.of(
+                jwtTokenProvider.createDevelopmentTestToken(member),
+                session.refreshToken(),
+                member
+        );
     }
 }

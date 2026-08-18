@@ -339,7 +339,9 @@ general best practice into domain policy.
   multiply straight-line distance by the participant transportation weight
   (`CAR` 1.0, `PUBLIC_TRANSIT` 0.9), then sort by the lowest
   weighted-distance average plus weighted-distance maximum. Return up to three
-  preliminary candidates.
+  preview recommendations. Once capacity is reached, the server evaluates up
+  to five preliminary candidates with actual travel time before returning the
+  final top three.
 - Pre-confirmation commercial-area candidates use the persistent
   `commercial_areas` table. The initial recommendation dataset is the 255 Seoul
   areas from the confirmed source selection: 249 development areas and six
