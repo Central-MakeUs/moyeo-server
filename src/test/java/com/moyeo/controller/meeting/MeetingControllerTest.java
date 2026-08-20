@@ -7,6 +7,7 @@ import com.moyeo.controller.TestMemberFactory;
 import com.moyeo.repository.meeting.MeetingParticipantRepository;
 import com.moyeo.repository.meeting.MeetingParticipantScheduleAvailabilityRepository;
 import com.moyeo.repository.commercial.CommercialAreaRepository;
+import com.moyeo.repository.commercial.CommercialAreaStationLineRepository;
 import com.moyeo.service.meeting.MeetingService;
 import com.moyeo.service.meeting.MeetingCoverStorage;
 import com.moyeo.service.meeting.SaveParticipationCommand;
@@ -80,6 +81,9 @@ class MeetingControllerTest {
     private CommercialAreaRepository commercialAreaRepository;
 
     @Autowired
+    private CommercialAreaStationLineRepository commercialAreaStationLineRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Autowired
@@ -113,6 +117,15 @@ class MeetingControllerTest {
         assertThat(areas).hasSize(255);
         assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.DEVELOPMENT)).hasSize(249);
         assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.TOURIST_SPECIAL)).hasSize(6);
+
+        var gyeonggiAreas = commercialAreaRepository.findAllBySourceAndAreaTypeInOrderByExternalCodeAsc(
+                CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL,
+                List.of(CommercialAreaType.DEVELOPMENT)
+        );
+        assertThat(gyeonggiAreas).hasSize(858);
+        assertThat(commercialAreaStationLineRepository.countByCommercialArea_Source(
+                CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL
+        )).isEqualTo(118);
     }
 
     @Test

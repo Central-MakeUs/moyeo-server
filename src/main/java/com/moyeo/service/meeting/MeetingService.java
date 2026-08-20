@@ -1384,7 +1384,8 @@ public class MeetingService {
         }
         Map<String, PlaceViewResult.Station> stationsByAreaCode = commercialAreaStationLineRepository
                 .findAllForCommercialAreaCodes(
-                        CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+                        List.of(CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+                                CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL),
                         recommendations.stream().map(PlaceViewResult.Recommendation::areaCode).toList()
                 )
                 .stream()

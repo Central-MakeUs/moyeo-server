@@ -18,8 +18,9 @@ public class DatabaseCommercialAreaCatalog implements CommercialAreaCatalog {
 
     @Override
     public List<CommercialArea> findAll() {
-        return commercialAreaRepository.findAllBySourceAndAreaTypeInOrderByExternalCodeAsc(
-                        CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+        return commercialAreaRepository.findAllBySourceInAndAreaTypeInOrderBySourceAscExternalCodeAsc(
+                        List.of(CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS,
+                                CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL),
                         List.of(CommercialAreaType.DEVELOPMENT, CommercialAreaType.TOURIST_SPECIAL)
                 )
                 .stream()

@@ -17,12 +17,12 @@ public interface CommercialAreaStationLineRepository extends JpaRepository<Comme
             select stationLine
             from CommercialAreaStationLineEntity stationLine
             join fetch stationLine.commercialArea commercialArea
-            where commercialArea.source = :source
+            where commercialArea.source in :sources
               and commercialArea.externalCode in :areaCodes
             order by commercialArea.externalCode, stationLine.stationName, stationLine.lineName
             """)
     List<CommercialAreaStationLineEntity> findAllForCommercialAreaCodes(
-            @Param("source") CommercialAreaSource source,
+            @Param("sources") Collection<CommercialAreaSource> sources,
             @Param("areaCodes") Collection<String> areaCodes
     );
 }

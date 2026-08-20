@@ -73,8 +73,8 @@ Table feedbacks {
 
 Table commercial_areas {
   id bigint [pk, increment, note: "추천 후보 상권 내부 ID"]
-  source varchar(40) [not null, note: "상권 데이터 출처"]
-  external_code varchar(30) [not null, note: "출처가 부여한 상권 코드"]
+  source enum('SEOUL_COMMERCIAL_ANALYSIS', 'GYEONGGI_DEVELOPMENT_COMMERCIAL') [not null, note: "상권 데이터 출처"]
+  external_code varchar(30) [not null, note: "출처 상권 코드 또는 Gyeonggi 결정론적 GGD- import ID"]
   area_type varchar(30) [not null, note: "추천 대상 상권 유형: DEVELOPMENT/TOURIST_SPECIAL"]
   area_name varchar(255) [not null, note: "상권명"]
   latitude decimal(10,7) [not null, note: "상권 중심 WGS84 위도"]
@@ -278,9 +278,9 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
 - `saved_places.category` stores the member-selected icon category: `HOME`, `WORK`, or `OTHER`. Existing saved places are migrated as `OTHER`.
 - `saved_places.alias` is the only mutable place field; replacing the selected location creates a new saved place.
 - `feedbacks` stores authenticated members' submitted feedback with the submitting user, content, and submission time. Members can retrieve only their own history; feedback is deleted when its submitting member withdraws; no operator-facing feedback API is defined yet.
-- `commercial_areas` stores source-owned recommendation candidates independently from meetings. The initial seed contains only Seoul development areas and tourist-special areas from `SEOUL_COMMERCIAL_ANALYSIS`; later regional sources can use the same table through a different `source` value and source-owned code.
+- `commercial_areas` stores recommendation candidates independently from meetings. The seed contains 255 Seoul development/tourist-special areas and 858 Gyeonggi development areas. Seoul retains its source-owned code; Gyeonggi has no source code, so its `external_code` is a deterministic `GGD-` import identifier.
 - `commercial_areas.latitude` and `commercial_areas.longitude` are WGS84 center coordinates converted once during import from the source coordinate system, so route-provider calls do not transform coordinates at request time.
-- `commercial_area_station_lines` stores the verified Seoul subway station and line rows for a commercial area. One commercial area may have multiple rows for transfer lines; `distance_meters` is the straight-line distance between the commercial-area center and the station coordinate, not travel time.
+- `commercial_area_station_lines` stores the verified Seoul/Gyeonggi subway station and line rows for a commercial area. One commercial area may have multiple rows for transfer lines; `distance_meters` is the straight-line distance between the commercial-area center and the station coordinate, not travel time.
 - `meetings` stores the first milestone meeting creation and invite code base.
 - `meetings.planning_type` stores the FAB-selected creation type: `SCHEDULE_ONLY`, `PLACE_ONLY`, or `SCHEDULE_AND_PLACE`.
 - `meetings.schedule_mode` supports `VOTE`, `FIXED`, and `NONE`.

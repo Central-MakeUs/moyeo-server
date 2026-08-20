@@ -135,17 +135,15 @@ Finalize decision
 - Before deploying persistent commercial-area recommendations to an existing
   production database, back up the target database and apply
   `scripts/db/2026-07-27-commercial-areas.sql`, then
-  `scripts/db/2026-07-27-commercial-areas-seoul.sql`. Apply the verified
-  Seoul station-line mapping immediately after those scripts through
-  `scripts/db/2026-08-02-commercial-area-station-lines.sql`, then
-  `scripts/db/2026-08-02-commercial-area-station-lines-seoul.sql`. A database
-  client that cannot run MySQL CLI `SOURCE` commands may execute the combined
-  `scripts/db/2026-08-02-commercial-area-station-lines-all.sql` instead.
-- The local and dev profiles load the same 255 Seoul commercial-area seed from
-  `src/main/resources/commercial-areas-seoul.tsv` and 242 verified station-line
-  rows from `src/main/resources/commercial-area-station-lines-seoul.tsv` after
-  Hibernate creates or updates the schema. If either Seoul source has a partial
-  row count, startup fails instead of serving incomplete recommendations.
+  `scripts/db/2026-07-27-commercial-areas-seoul.sql`. Before importing the
+  Gyeonggi seed into a database where Hibernate created `source` as MySQL
+  `ENUM`, apply `scripts/db/2026-08-21-commercial-area-source-gyeonggi.sql`,
+  then `scripts/db/2026-08-21-commercial-areas-gyeonggi.sql`. Apply the
+  verified Seoul/Gyeonggi station-line mapping after each matching area seed.
+- The local and dev profiles load 255 Seoul and 858 Gyeonggi commercial areas,
+  plus their checked-in verified station-line TSV files, after Hibernate creates
+  or updates the schema. If a source has a partial row count, startup fails
+  instead of serving incomplete recommendations.
   Production keeps the explicit SQL-apply procedure above. When the commercial
   area source dataset changes, regenerate the production SQL and local/dev TSV
   together:

@@ -15,5 +15,10 @@ public interface CommercialAreaRepository extends JpaRepository<CommercialAreaEn
             Collection<CommercialAreaType> areaTypes
     );
 
+    List<CommercialAreaEntity> findAllBySourceInAndAreaTypeInOrderBySourceAscExternalCodeAsc(
+            Collection<CommercialAreaSource> sources,
+            Collection<CommercialAreaType> areaTypes
+    );
+
     long countBySource(CommercialAreaSource source);
 }
