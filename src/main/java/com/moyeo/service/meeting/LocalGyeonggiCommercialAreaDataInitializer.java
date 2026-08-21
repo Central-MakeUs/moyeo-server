@@ -24,7 +24,7 @@ import java.util.List;
 @Profile({"local", "dev"})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class LocalGyeonggiCommercialAreaDataInitializer implements ApplicationRunner {
-    private static final int EXPECTED_COUNT = 858;
+    private static final int EXPECTED_COUNT = 20;
 
     private final CommercialAreaRepository repository;
 
@@ -40,7 +40,7 @@ public class LocalGyeonggiCommercialAreaDataInitializer implements ApplicationRu
             return;
         }
         if (count != 0) {
-            throw new IllegalStateException("Expected 858 Gyeonggi commercial areas but found " + count);
+            throw new IllegalStateException("Expected 20 curated Gyeonggi commercial areas but found " + count);
         }
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -48,7 +48,7 @@ public class LocalGyeonggiCommercialAreaDataInitializer implements ApplicationRu
         ))) {
             List<CommercialAreaEntity> areas = reader.lines().skip(1).map(this::toEntity).toList();
             if (areas.size() != EXPECTED_COUNT) {
-                throw new IllegalStateException("Expected 858 Gyeonggi commercial areas but found " + areas.size());
+                throw new IllegalStateException("Expected 20 curated Gyeonggi commercial areas but found " + areas.size());
             }
             repository.saveAll(areas);
         }

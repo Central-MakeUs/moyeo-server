@@ -122,10 +122,10 @@ class MeetingControllerTest {
                 CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL,
                 List.of(CommercialAreaType.DEVELOPMENT)
         );
-        assertThat(gyeonggiAreas).hasSize(858);
+        assertThat(gyeonggiAreas).hasSize(20);
         assertThat(commercialAreaStationLineRepository.countByCommercialArea_Source(
                 CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL
-        )).isEqualTo(118);
+        )).isEqualTo(15);
     }
 
     @Test

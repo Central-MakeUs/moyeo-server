@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 @Profile({"local", "dev"})
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class LocalGyeonggiCommercialAreaStationLineDataInitializer implements ApplicationRunner {
-    private static final int EXPECTED_COUNT = 118;
+    private static final int EXPECTED_COUNT = 15;
 
     private final CommercialAreaRepository areaRepository;
     private final CommercialAreaStationLineRepository lineRepository;
@@ -50,7 +50,7 @@ public class LocalGyeonggiCommercialAreaStationLineDataInitializer implements Ap
             return;
         }
         if (count != 0) {
-            throw new IllegalStateException("Expected 118 Gyeonggi station lines but found " + count);
+            throw new IllegalStateException("Expected 15 curated Gyeonggi station lines but found " + count);
         }
 
         Map<String, CommercialAreaEntity> areas = areaRepository

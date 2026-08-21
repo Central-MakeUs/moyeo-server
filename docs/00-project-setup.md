@@ -140,7 +140,7 @@ Finalize decision
   `ENUM`, apply `scripts/db/2026-08-21-commercial-area-source-gyeonggi.sql`,
   then `scripts/db/2026-08-21-commercial-areas-gyeonggi.sql`. Apply the
   verified Seoul/Gyeonggi station-line mapping after each matching area seed.
-- The local and dev profiles load 255 Seoul and 858 Gyeonggi commercial areas,
+- The local and dev profiles load 255 Seoul and 20 curated Gyeonggi commercial areas,
   plus their checked-in verified station-line TSV files, after Hibernate creates
   or updates the schema. If a source has a partial row count, startup fails
   instead of serving incomplete recommendations.

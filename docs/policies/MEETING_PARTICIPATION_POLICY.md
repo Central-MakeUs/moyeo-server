@@ -348,11 +348,12 @@ general best practice into domain policy.
   tourist-special areas. Each source record is imported once with its WGS84
   center coordinate; a later regional source uses the same table with its own
   source identifier and source-owned area code.
-- The Gyeonggi catalog adds 858 development areas from the Gyeonggi Development
-  Commercial Area CSV (reference date 2025-07-31). Its source does not expose an
-  area code, so the import assigns a deterministic `GGD-` identifier from the
-  normalized area name and Polygon. The static seed is manually reviewed rather
-  than automatically refreshed.
+- The Gyeonggi catalog selects 20 development areas from the 858-row Gyeonggi
+  Development Commercial Area CSV (reference date 2025-07-31): candidates must
+  pass the curated name-quality classification and have at least 650 stores.
+  Its source does not expose an area code, so the import assigns a deterministic
+  `GGD-` identifier from the normalized area name and Polygon. The static seed
+  is manually reviewed rather than automatically refreshed.
 - Seoul commercial-area subway labels use the separately persisted
   `commercial_area_station_lines` mapping. A commercial area may expose multiple
   rows for transfer lines. The mapping stores Kakao SW8-verified station name,
