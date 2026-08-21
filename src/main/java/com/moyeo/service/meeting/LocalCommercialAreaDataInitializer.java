@@ -26,6 +26,7 @@ import java.util.List;
 public class LocalCommercialAreaDataInitializer implements ApplicationRunner {
 
     private static final String RESOURCE_PATH = "commercial-areas-seoul.tsv";
+    private static final int EXPECTED_COUNT = 100;
 
     private final CommercialAreaRepository commercialAreaRepository;
 
@@ -39,12 +40,12 @@ public class LocalCommercialAreaDataInitializer implements ApplicationRunner {
         long existingSourceCount = commercialAreaRepository.countBySource(
                 CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS
         );
-        if (existingSourceCount == 255) {
+        if (existingSourceCount == EXPECTED_COUNT) {
             return;
         }
         if (existingSourceCount != 0) {
             throw new IllegalStateException(
-                    "Expected 255 Seoul commercial areas but found " + existingSourceCount
+                    "Expected " + EXPECTED_COUNT + " Seoul commercial areas but found " + existingSourceCount
             );
         }
 
@@ -55,8 +56,8 @@ public class LocalCommercialAreaDataInitializer implements ApplicationRunner {
                     .skip(1)
                     .map(this::toEntity)
                     .toList();
-            if (areas.size() != 255) {
-                throw new IllegalStateException("Expected 255 Seoul commercial areas but found " + areas.size());
+            if (areas.size() != EXPECTED_COUNT) {
+                throw new IllegalStateException("Expected " + EXPECTED_COUNT + " Seoul commercial areas but found " + areas.size());
             }
             commercialAreaRepository.saveAll(areas);
         }

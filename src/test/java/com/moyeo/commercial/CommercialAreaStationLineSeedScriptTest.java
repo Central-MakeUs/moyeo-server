@@ -20,7 +20,7 @@ class CommercialAreaStationLineSeedScriptTest {
     void localTsvContainsVerifiedSeoulStationLinesWithoutDuplicates() throws Exception {
         List<String> rows = Files.readAllLines(Path.of("src/main/resources/commercial-area-station-lines-seoul.tsv"));
 
-        assertThat(rows).hasSize(243);
+        assertThat(rows).hasSize(158);
         assertThat(rows.getFirst()).isEqualTo(
                 "commercial_area_external_code\tstation_name\tline_name\tstation_address\tstation_latitude\tstation_longitude\tdistance_meters"
         );
@@ -33,7 +33,7 @@ class CommercialAreaStationLineSeedScriptTest {
             assertThat(columns[2]).isNotBlank();
             assertThat(keys.add(columns[0] + ":" + columns[1] + ":" + columns[2])).isTrue();
         }
-        assertThat(keys).hasSize(242);
+        assertThat(keys).hasSize(157);
     }
 
     @Test

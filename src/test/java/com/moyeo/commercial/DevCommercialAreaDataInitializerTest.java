@@ -29,9 +29,9 @@ class DevCommercialAreaDataInitializerTest {
     @Test
     void devProfileLoadsTheConfirmedSeoulCommercialAreaSeed() {
         assertThat(commercialAreaRepository.countBySource(CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS))
-                .isEqualTo(255);
+                .isEqualTo(100);
         assertThat(commercialAreaStationLineRepository.countByCommercialArea_Source(
                 CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS
-        )).isEqualTo(242);
+        )).isEqualTo(157);
     }
 }

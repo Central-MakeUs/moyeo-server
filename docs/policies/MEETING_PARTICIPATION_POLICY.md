@@ -343,11 +343,12 @@ general best practice into domain policy.
   to five preliminary candidates with actual travel time before returning the
   final top three.
 - Pre-confirmation commercial-area candidates use the persistent
-  `commercial_areas` table. The initial recommendation dataset is the 255 Seoul
-  areas from the confirmed source selection: 249 development areas and six
-  tourist-special areas. Each source record is imported once with its WGS84
-  center coordinate; a later regional source uses the same table with its own
-  source identifier and source-owned area code.
+  `commercial_areas` table. The Seoul source has 255 raw analysis areas, but the
+  demo catalog selects 100 meeting-core areas: 64 transfer-station areas, eight
+  representative single-line station areas, 22 named commercial anchors, and
+  six tourist-special areas. Each source record retains its WGS84 center
+  coordinate; a later regional source uses the same table with its own source
+  identifier and source-owned area code.
 - The Gyeonggi catalog selects 20 development areas from the 858-row Gyeonggi
   Development Commercial Area CSV (reference date 2025-07-31): candidates must
   pass the curated name-quality classification and have at least 650 stores.

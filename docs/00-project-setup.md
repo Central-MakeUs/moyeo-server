@@ -134,20 +134,21 @@ Finalize decision
   snapshot used by invite lookup and participant schedule input.
 - Before deploying persistent commercial-area recommendations to an existing
   production database, back up the target database and apply
-  `scripts/db/2026-07-27-commercial-areas.sql`, then
-  `scripts/db/2026-07-27-commercial-areas-seoul.sql`. Before importing the
-  Gyeonggi seed into a database where Hibernate created `source` as MySQL
+  `scripts/db/2026-07-27-commercial-areas.sql` if the table does not exist,
+  then `scripts/db/2026-08-22-commercial-areas-seoul-demo-core.sql` for the
+  current Seoul catalog. Before importing the Gyeonggi seed into a database
+  where Hibernate created `source` as MySQL
   `ENUM`, apply `scripts/db/2026-08-21-commercial-area-source-gyeonggi.sql`,
   then `scripts/db/2026-08-21-commercial-areas-gyeonggi.sql`. Apply the
-  verified Seoul/Gyeonggi station-line mapping after each matching area seed.
-- The local and dev profiles load 255 Seoul and 20 curated Gyeonggi commercial areas,
+  verified Gyeonggi station-line mapping after its area seed; the current Seoul
+  sync SQL includes its selected station-line rows.
+- The local and dev profiles load 100 curated Seoul and 20 curated Gyeonggi commercial areas,
   plus their checked-in verified station-line TSV files, after Hibernate creates
   or updates the schema. If a source has a partial row count, startup fails
   instead of serving incomplete recommendations.
-  Production keeps the explicit SQL-apply procedure above. When the commercial
-  area source dataset changes, regenerate the production SQL and local/dev TSV
-  together:
-  `python scripts/import-commercial-areas.py <source.dbf> scripts/db/2026-07-27-commercial-areas-seoul.sql src/main/resources/commercial-areas-seoul.tsv`.
+  Production keeps the explicit SQL-apply procedure above. The original 255-row
+  Seoul source is preserved under `docs/data/`; regenerate the current curated
+  SQL and local/dev TSV together with `scripts/build-seoul-demo-core-seed.py`.
 - When the verified station-line mapping changes, regenerate its production SQL
   and local/dev TSV together from the checked-in verification source:
   `python scripts/import-commercial-area-station-lines.py docs/data/commercial-area-station-api-verification.csv scripts/db/2026-08-02-commercial-area-station-lines-seoul.sql src/main/resources/commercial-area-station-lines-seoul.tsv`.

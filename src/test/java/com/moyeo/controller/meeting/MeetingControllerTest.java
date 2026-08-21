@@ -114,9 +114,12 @@ class MeetingControllerTest {
                 List.of(CommercialAreaType.DEVELOPMENT, CommercialAreaType.TOURIST_SPECIAL)
         );
 
-        assertThat(areas).hasSize(255);
-        assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.DEVELOPMENT)).hasSize(249);
+        assertThat(areas).hasSize(100);
+        assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.DEVELOPMENT)).hasSize(94);
         assertThat(areas.stream().filter(area -> area.getAreaType() == CommercialAreaType.TOURIST_SPECIAL)).hasSize(6);
+        assertThat(commercialAreaStationLineRepository.countByCommercialArea_Source(
+                CommercialAreaSource.SEOUL_COMMERCIAL_ANALYSIS
+        )).isEqualTo(157);
 
         var gyeonggiAreas = commercialAreaRepository.findAllBySourceAndAreaTypeInOrderByExternalCodeAsc(
                 CommercialAreaSource.GYEONGGI_DEVELOPMENT_COMMERCIAL,
@@ -2855,7 +2858,7 @@ class MeetingControllerTest {
 
         mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.recommendations[0].areaCode").value("3120004"))
+                .andExpect(jsonPath("$.recommendations[0].areaCode").value("3120008"))
                 .andExpect(jsonPath("$.recommendations[0].station").value(org.hamcrest.Matchers.nullValue()));
     }
 

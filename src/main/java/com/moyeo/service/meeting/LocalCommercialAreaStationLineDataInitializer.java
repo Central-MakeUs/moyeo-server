@@ -31,7 +31,8 @@ import java.util.stream.Collectors;
 public class LocalCommercialAreaStationLineDataInitializer implements ApplicationRunner {
 
     private static final String RESOURCE_PATH = "commercial-area-station-lines-seoul.tsv";
-    private static final int EXPECTED_LINE_COUNT = 242;
+    private static final int EXPECTED_AREA_COUNT = 100;
+    private static final int EXPECTED_LINE_COUNT = 157;
 
     private final CommercialAreaRepository commercialAreaRepository;
     private final CommercialAreaStationLineRepository stationLineRepository;
@@ -65,8 +66,8 @@ public class LocalCommercialAreaStationLineDataInitializer implements Applicatio
                         List.of(CommercialAreaType.DEVELOPMENT, CommercialAreaType.TOURIST_SPECIAL)
                 ).stream()
                 .collect(Collectors.toMap(CommercialAreaEntity::getExternalCode, Function.identity()));
-        if (areasByExternalCode.size() != 255) {
-            throw new IllegalStateException("Expected 255 Seoul commercial areas before station-line seeding");
+        if (areasByExternalCode.size() != EXPECTED_AREA_COUNT) {
+            throw new IllegalStateException("Expected " + EXPECTED_AREA_COUNT + " Seoul commercial areas before station-line seeding");
         }
 
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(

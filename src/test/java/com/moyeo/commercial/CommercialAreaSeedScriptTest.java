@@ -70,8 +70,8 @@ class CommercialAreaSeedScriptTest {
     }
 
     @Test
-    void localTsvAndProductionSqlContainTheSameCommercialAreas() throws Exception {
-        String sql = Files.readString(Path.of("scripts/db/2026-07-27-commercial-areas-seoul.sql"));
+    void localTsvAndCurrentProductionSqlContainTheSameCommercialAreas() throws Exception {
+        String sql = Files.readString(Path.of("scripts/db/2026-08-22-commercial-areas-seoul-demo-core.sql"));
         Set<String> sqlAreaKeys = new HashSet<>();
         Matcher matcher = AREA_KEY_PATTERN.matcher(sql);
         while (matcher.find()) {
@@ -85,7 +85,7 @@ class CommercialAreaSeedScriptTest {
                 .map(columns -> columns[1] + ":" + columns[2] + ":" + columns[3])
                 .collect(java.util.stream.Collectors.toSet());
 
-        assertThat(tsvAreaKeys).hasSize(255).isEqualTo(sqlAreaKeys);
+        assertThat(tsvAreaKeys).hasSize(100).isEqualTo(sqlAreaKeys);
     }
 
     @Test
