@@ -146,7 +146,7 @@ entry.
   authentication.
 - Validate Access JWT format, signature, required headers and claims, expiration,
   and required JWT configuration at startup.
-- Newly issued production Access JWTs expire 24 hours after their `iat`. Changing
+- Newly issued production Access JWTs expire 30 days after their `iat`. Changing
   this issuance setting does not alter an already-issued JWT; each token remains
   valid only until the `exp` value embedded and signed at issuance.
 - Successful social login also returns an opaque service Refresh Token. Store
