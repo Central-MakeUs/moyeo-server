@@ -1,7 +1,8 @@
 package com.moyeo.service.member;
 
 import com.moyeo.auth.apple.AppleLoginService;
-import com.moyeo.auth.kakao.KakaoLoginService;
+import com.moyeo.domain.member.KakaoUnlinkTask;
+import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
 import com.moyeo.domain.meeting.Meeting;
 import com.moyeo.domain.meeting.MeetingCoverCleanupTask;
 import com.moyeo.domain.meeting.MeetingParticipant;
@@ -48,7 +49,7 @@ public class MemberWithdrawalService {
     private final MeetingCoverCleanupTaskRepository coverCleanupTaskRepository;
     private final MeetingCoverCleanupProcessor coverCleanupProcessor;
     private final AppleLoginService appleLoginService;
-    private final KakaoLoginService kakaoLoginService;
+    private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     private final List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions;
     private final RefreshTokenService refreshTokenService;
 
@@ -67,7 +68,7 @@ public class MemberWithdrawalService {
             MeetingCoverCleanupTaskRepository coverCleanupTaskRepository,
             MeetingCoverCleanupProcessor coverCleanupProcessor,
             AppleLoginService appleLoginService,
-            KakaoLoginService kakaoLoginService,
+            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository,
             List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions,
             RefreshTokenService refreshTokenService
     ) {
@@ -85,13 +86,13 @@ public class MemberWithdrawalService {
         this.coverCleanupTaskRepository = coverCleanupTaskRepository;
         this.coverCleanupProcessor = coverCleanupProcessor;
         this.appleLoginService = appleLoginService;
-        this.kakaoLoginService = kakaoLoginService;
+        this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
         this.socialAccountExemptions = socialAccountExemptions;
         this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
-    public void withdraw(Long userId) {
+    public Long withdraw(Long userId) {
         User user = userRepository.findActiveByIdForUpdate(userId)
                 .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
         SocialDisconnectTarget disconnectTarget = resolveDisconnectTarget(user);
@@ -108,8 +109,15 @@ public class MemberWithdrawalService {
         deleteMemberOwnedData(userId);
         user.withdraw();
         userRepository.flush();
-        disconnectSocialAccount(disconnectTarget);
+        Long taskId = null;
+        if (disconnectTarget != null && disconnectTarget.provider() == AuthProvider.KAKAO) {
+            taskId = kakaoUnlinkTaskRepository.saveAndFlush(
+                    new KakaoUnlinkTask(userId, disconnectTarget.providerUserId())).getId();
+        } else {
+            disconnectSocialAccount(disconnectTarget);
+        }
         processCoverCleanupTasksAfterCommit(coverCleanupTaskIds);
+        return taskId;
     }
 
     private SocialDisconnectTarget resolveDisconnectTarget(User user) {
@@ -155,7 +163,7 @@ public class MemberWithdrawalService {
             );
             return;
         }
-        kakaoLoginService.disconnectStoredAccount(target.providerUserId());
+        throw new IllegalStateException("Kakao disconnection must run after the local transaction commits.");
     }
 
     private void deleteHostedMeetings(List<Meeting> hostedMeetings) {

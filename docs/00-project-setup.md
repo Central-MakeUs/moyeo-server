@@ -358,6 +358,41 @@ current RFC 9457-based error response policy, and documented working rules.
   RPO, RTO, and recovery owner remain human decisions until explicitly
   approved.
 
+## Kakao Withdrawal Recovery Runtime
+
+- Current dev uses `ddl-auto: update`, so JPA can create the new task table
+  on startup with normal DDL permissions; verify the table and indexes after
+  deployment. Prod uses `ddl-auto: none`: back up first under the Production
+  Data Durability Gate and apply `scripts/db/2026-11-02-kakao-unlink-tasks.sql`
+  before deploying. The SQL is additive; do not run it solely because JPA is used.
+- Retain outstanding tasks during rollback. An older image has neither the
+  new retry worker nor the re-registration gate; reverting an image alone does
+  not finish cleanup. Check pending tasks and plan their handling before rollback.
+  Never drop outstanding tasks merely to revert the schema.
+- Kakao withdrawal commits local deletion and a durable unlink task together,
+  attempts disconnection once after commit, and returns 204 on confirmed
+  completion or 202 while cleanup remains. Apple withdrawal is unchanged.
+- Reuse MySQL and the existing Spring scheduler; no queue service or extra
+  executor is required. Each scan processes at most 10 due tasks sequentially.
+  Only the task-row transaction/connection spans the external call; user and
+  meeting deletion locks have already been released.
+- Temporary technical defaults: scan every minute, retry after 1, 2, 4, ...
+  minutes capped at one hour. Configure `moyeo.kakao-unlink.scan-delay`,
+  `retry-delay` and `max-retry-delay` through Spring external configuration.
+  The existing Kakao connect/read timeouts remain 2s/3s.
+- Failure logs use task ID and attempt count, never tokens/keys/provider bodies.
+  At five consecutive failures, emit ERROR operator-review logs and continue
+  capped retries. Operations must check pending rows and oldest creation time,
+  repair credentials/connectivity or investigate conflicting active memberships;
+  do not delete a task merely to allow signup. ERROR logging is not an external
+  paging/notification integration. Completed tasks are deleted.
+- A first-time/new Kakao registration rechecks the provider token after the
+  pending-task gate, before committing, to cover cleanup completing between the
+  initial user lookup and registration. This small registration transaction
+  includes one extra timeout-bounded provider lookup; existing-member logins do not.
+- Recovery survives application restarts while the DB survives. This is not a
+  replacement for production backup/restore policy.
+
 ## Current Dev Infrastructure
 
 - Dev API base URL: `https://api.moyeo.app`

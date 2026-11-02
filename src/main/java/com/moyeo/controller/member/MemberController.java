@@ -4,7 +4,7 @@ import com.moyeo.controller.auth.AuthUserResponse;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberOnboardingService;
-import com.moyeo.service.member.MemberWithdrawalService;
+import com.moyeo.service.member.MemberWithdrawalApplicationService;
 import com.moyeo.service.place.SavedPlaceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,14 +15,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -31,12 +30,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberOnboardingService memberOnboardingService;
-    private final MemberWithdrawalService memberWithdrawalService;
+    private final MemberWithdrawalApplicationService memberWithdrawalService;
     private final SavedPlaceService savedPlaceService;
 
     public MemberController(
             MemberOnboardingService memberOnboardingService,
-            MemberWithdrawalService memberWithdrawalService,
+            MemberWithdrawalApplicationService memberWithdrawalService,
             SavedPlaceService savedPlaceService
     ) {
         this.memberOnboardingService = memberOnboardingService;
@@ -150,12 +149,14 @@ public class MemberController {
     }
 
     @DeleteMapping
-    @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(
             summary = "회원 탈퇴",
             description = """
                     현재 회원을 탈퇴 처리하고 본인이 생성한 모든 모임과 개인 소유 데이터를 삭제합니다.
-                    별도 소셜 로그인 없이 저장된 연결 정보로 Apple 토큰 철회 또는 Kakao 연결 해제를 완료합니다.
+                    카카오는 로컬 탈퇴와 연결 해제 작업 저장을 먼저 커밋한 뒤 연결 해제를 한 번 시도합니다.
+                    202는 모여 탈퇴는 완료됐고 카카오 연결 해제는 서버가 재시도 중임을 뜻합니다.
+                    204와 202 모두 클라이언트는 모여 세션을 종료하며, 미완료 작업이 있으면 같은 카카오 계정의 재가입은 보류됩니다.
+                    Apple은 기존과 같이 토큰 철회 성공 후 로컬 탈퇴를 커밋합니다.
                     방장인 모임은 참여자·일정 후보·일정 가능 정보·모임 출발지 검색 이력·커버 이미지까지 삭제합니다.
                     다른 회원이 생성한 모임에서는 본인의 참여 행과 일정·출발지 정보를 모두 삭제합니다.
                     따라서 탈퇴 회원은 해당 모임의 참여자 목록, 인원 수, 일정 및 장소 계산에 포함되지 않습니다.
@@ -165,20 +166,23 @@ public class MemberController {
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "소셜 연결 해제 및 회원 탈퇴 성공"),
+            @ApiResponse(responseCode = "202", description = "모여 탈퇴 완료. 카카오 연결 해제는 서버가 재시도 중이며 응답 본문은 없습니다."),
             @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(examples = @ExampleObject(value = """
                     { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
                     """))),
-            @ApiResponse(responseCode = "503", description = "소셜 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.", content = @Content(examples = @ExampleObject(value = """
+            @ApiResponse(responseCode = "503", description = "Apple 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.", content = @Content(examples = @ExampleObject(value = """
                     { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
                     """))),
             @ApiResponse(responseCode = "500", description = "활성 계정의 소셜 연결 정보가 없음", content = @Content(examples = @ExampleObject(value = """
                     { "code": "COMMON_INTERNAL_SERVER_ERROR", "status": 500 }
                     """)))
     })
-    public void withdraw(
+    public ResponseEntity<Void> withdraw(
             @Parameter(hidden = true)
             @CurrentMember(onboardingRequired = false) AuthenticatedMember member
     ) {
-        memberWithdrawalService.withdraw(member.userId());
+        return memberWithdrawalService.withdraw(member.userId())
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.accepted().build();
     }
 }

@@ -21,6 +21,13 @@ public enum AuthenticationErrorCode implements ErrorCode {
             "Social login failed",
             "The social login request could not be verified."
     ),
+    SOCIAL_DISCONNECTION_PENDING(
+            HttpStatus.CONFLICT,
+            "SOCIAL_DISCONNECTION_PENDING",
+            "social-disconnection-pending",
+            "소셜 연결 정리 중",
+            "이전 탈퇴의 소셜 연결을 정리 중입니다. 잠시 후 다시 로그인해 주세요."
+    ),
     SOCIAL_LOGIN_UNAVAILABLE(
             HttpStatus.SERVICE_UNAVAILABLE,
             "SOCIAL_LOGIN_UNAVAILABLE",

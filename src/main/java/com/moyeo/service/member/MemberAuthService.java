@@ -8,6 +8,7 @@ import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
+import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +18,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberAuthService {
 
     private final UserRepository userRepository;
+    private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final SocialAccountRegistrationService socialAccountRegistrationService;
 
     public MemberAuthService(
             UserRepository userRepository,
             SocialAccountRepository socialAccountRepository,
-            SocialAccountRegistrationService socialAccountRegistrationService
+            SocialAccountRegistrationService socialAccountRegistrationService,
+            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository
     ) {
         this.userRepository = userRepository;
+        this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
         this.socialAccountRepository = socialAccountRepository;
         this.socialAccountRegistrationService = socialAccountRegistrationService;
     }
@@ -36,6 +40,7 @@ public class MemberAuthService {
         return AuthenticatedMember.from(user, false);
     }
 
+    @Transactional
     public AuthenticatedMember loginSocial(
             AuthProvider provider,
             String providerUserId
@@ -59,8 +64,31 @@ public class MemberAuthService {
             String providerRefreshTokenCiphertext,
             AppleRefreshTokenClient appleRefreshTokenClient
     ) {
+        return loginSocial(provider, providerUserId, providerRefreshTokenCiphertext, appleRefreshTokenClient, null);
+    }
+
+    @Transactional
+    public AuthenticatedMember loginKakao(String providerUserId, Runnable verifyNewRegistration) {
+        return loginSocial(AuthProvider.KAKAO, providerUserId, null, null, verifyNewRegistration);
+    }
+
+    private AuthenticatedMember loginSocial(
+            AuthProvider provider,
+            String providerUserId,
+            String providerRefreshTokenCiphertext,
+            AppleRefreshTokenClient appleRefreshTokenClient,
+            Runnable verifyNewRegistration
+    ) {
+        if (provider == AuthProvider.KAKAO && kakaoUnlinkTaskRepository.existsByProviderUserId(providerUserId)) {
+            throw new MoyeoException(AuthenticationErrorCode.SOCIAL_DISCONNECTION_PENDING);
+        }
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
+                    if (provider == AuthProvider.KAKAO) {
+                        // Serialize login with withdrawal before issuing a new service session.
+                        userRepository.findActiveByIdForUpdate(socialAccount.getUser().getId())
+                                .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
+                    }
                     if (providerRefreshTokenCiphertext != null) {
                         if (appleRefreshTokenClient == null) {
                             socialAccount.updateProviderRefreshTokenCiphertext(providerRefreshTokenCiphertext);
@@ -74,7 +102,8 @@ public class MemberAuthService {
                         provider,
                         providerUserId,
                         providerRefreshTokenCiphertext,
-                        appleRefreshTokenClient
+                        appleRefreshTokenClient,
+                        verifyNewRegistration
                 ));
     }
 
@@ -89,9 +118,13 @@ public class MemberAuthService {
             AuthProvider provider,
             String providerUserId,
             String providerRefreshTokenCiphertext,
-            AppleRefreshTokenClient appleRefreshTokenClient
+            AppleRefreshTokenClient appleRefreshTokenClient,
+            Runnable verifyNewRegistration
     ) {
         try {
+            if (provider == AuthProvider.KAKAO && verifyNewRegistration != null) {
+                return socialAccountRegistrationService.registerKakao(providerUserId, verifyNewRegistration);
+            }
             return socialAccountRegistrationService.register(
                     provider,
                     providerUserId,

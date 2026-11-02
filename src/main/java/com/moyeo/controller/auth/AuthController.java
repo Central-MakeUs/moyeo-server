@@ -123,6 +123,13 @@ public class AuthController {
                             """))
             ),
             @ApiResponse(
+                    responseCode = "409",
+                    description = "이전 카카오 탈퇴의 연결 정리 중. 신규 가입을 보류하며 잠시 후 새 로그인으로 재시도합니다.",
+                    content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_DISCONNECTION_PENDING", "status": 409 }
+                            """))
+            ),
+            @ApiResponse(
                     responseCode = "503",
                     description = "카카오 로그인 서비스의 일시적 장애 또는 서버 설정 미완료",
                     content = @Content(examples = @ExampleObject(value = """
@@ -159,6 +166,13 @@ public class AuthController {
                     description = "카카오 Access Token이 유효하지 않거나 만료됨",
                     content = @Content(examples = @ExampleObject(value = """
                             { "code": "SOCIAL_LOGIN_FAILED", "status": 401 }
+                            """))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "이전 카카오 탈퇴의 연결 정리 중. 신규 가입을 보류하며 잠시 후 새 로그인으로 재시도합니다.",
+                    content = @Content(mediaType = "application/problem+json", examples = @ExampleObject(value = """
+                            { "code": "SOCIAL_DISCONNECTION_PENDING", "status": 409 }
                             """))
             ),
             @ApiResponse(

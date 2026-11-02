@@ -85,6 +85,13 @@ Swagger UI가 요청·응답 DTO, 인증 요구사항, enum, 오류 응답의 �
 Authorization: Bearer {accessToken}
 ```
 
+카카오 탈퇴는 로컬 탈퇴와 연결 해제 작업 저장을 먼저 확정합니다. 외부 정리까지
+완료하면 204, 재시도가 남으면 202를 반환하며 두 경우 모두 클라이언트 세션을
+종료합니다. 연결 정리 중 같은 카카오 계정의 신규 가입은 409로 보류합니다.
+현재 dev의 `ddl-auto: update`는 새 작업 테이블을 자동 생성합니다. prod의
+`ddl-auto: none` 환경에서는 백업 후 `scripts/db/2026-11-02-kakao-unlink-tasks.sql`을 적용합니다.
+Apple 탈퇴는 기존 동기 처리 방식을 유지합니다.
+
 성공 응답은 DTO를 직접 반환합니다. 오류는 RFC 9457 Problem Details
 (`application/problem+json`) 형식이며, 클라이언트 분기용 `code`를 포함합니다.
 모든 응답에는 로그 추적용 `X-Trace-Id` 헤더가 포함됩니다.
@@ -145,6 +152,7 @@ EC2 Docker Compose(Caddy, 애플리케이션, MySQL) 흐름으로 배포합니�
 | [모임 참여 정책](docs/policies/MEETING_PARTICIPATION_POLICY.md) | 생성, 초대, 참여, 조율, 확정 |
 | [DB 다이어그램](docs/01-dbdiagram.md) | DBML 및 스키마 계약 |
 | [UI 흐름 맵](docs/02-ui-flow-map.md) | 화면 흐름과 백엔드 라우팅 |
+| [프론트 전달사항](docs/04-frontend-handoff.md) | 외부 API 점검에 따른 프론트 변경 요청 |
 | [작업 규칙](AGENTS.md) | 변경·검증·문서 동기화 규칙 |
 
 ## README 유지 관리

@@ -195,9 +195,42 @@ AUTH-005: An authenticated service user may withdraw through
 - The withdrawal request requires only the current Moyeo Access JWT and has no
   request body. The backend derives the provider and provider identity from the
   stored `SocialAccount`; it does not trust client-supplied provider data.
-- Apply and flush all rollbackable local withdrawal changes, disconnect the
-  stored provider authorization immediately before committing, and roll back
-  the local transaction if provider disconnection fails.
+- Kakao withdrawal commits local account/data cleanup and a durable
+  `kakao_unlink_tasks` row in the same transaction before calling Kakao.
+  The task retains only the old service user ID, Kakao user ID, and retry
+  metadata; do not persist provider tokens. A failure to store the task rolls
+  back local withdrawal without calling Kakao.
+- After that commit, attempt Kakao disconnection once. Delete the task only
+  after a matching success ID or an already-disconnected response. Return
+  `204 No Content` only after task deletion commits. Failure, timeout, or
+  failure to confirm task deletion returns `202 Accepted` without a body;
+  local withdrawal stays committed and the task remains retryable.
+- A single existing-app scheduler processes small due batches sequentially.
+  Immediate and scheduled attempts use the same task-row lock and recheck the
+  due time to avoid overlapping calls. Back off transient/repeated failures;
+  retain long-failing tasks and emit operator-review logs rather than dropping
+  tasks or silently releasing the re-registration restriction.
+- Until task deletion commits, reject creation of a new Moyeo account/session
+  for that Kakao identity with `409 SOCIAL_DISCONNECTION_PENDING`. Check again
+  with a locking/current read in the registration transaction. Do not cancel
+  pending cleanup to allow re-registration. After completion, a fresh Kakao
+  authentication may create a new user; never restore withdrawn data. This is
+  a Moyeo membership gate, not a guarantee that the Kakao authorization page
+  cannot reconnect the provider account.
+- For a new Kakao membership, revalidate the provider token and its ID after
+  the registration task gate and before committing the new user. If cleanup
+  invalidated the token after the first provider lookup, roll back registration
+  and require fresh authentication. This extra provider lookup runs only for
+  new registration, within its small transaction; normal existing-member login
+  keeps the single external user lookup.
+- Both 204 and 202 end the Moyeo session. The frontend clears its session for
+  either response. The existing generic success flow is compatible; a separate
+  pending-cleanup message is a UX follow-up, not a backend rollout prerequisite.
+  Re-registration is user-initiated after cleanup, not an automatically queued
+  signup. No withdrawal-status API using a withdrawn user's JWT is added.
+- Apple withdrawal keeps the existing synchronous policy: flush rollbackable
+  local changes, revoke stored authorization immediately before committing,
+  and roll back local withdrawal if revocation fails.
 - For Apple, decrypt the stored refresh token using the server-only encryption
   key and verified stored `providerUserId` as authenticated context, then revoke
   that refresh token through Apple's revoke endpoint. Do not require a new Apple
@@ -210,17 +243,18 @@ AUTH-005: An authenticated service user may withdraw through
   Kakao service user ID as `target_id`. Require the success response ID to match
   that stored ID. Do not require a new Kakao authorization code or persist a
   Kakao provider token.
-- A provider timeout, service/configuration failure, or unsuccessful revoke or
-  unlink returns `503 SOCIAL_LOGIN_UNAVAILABLE` and leaves all local account
-  data unchanged. A provider response that confirms the authorization was
-  already disconnected is treated as successful.
+- An Apple timeout, service/configuration failure, or unsuccessful revoke
+  returns `503 SOCIAL_LOGIN_UNAVAILABLE` and leaves local account data
+  unchanged. Kakao failures after local commit follow the 202 recovery flow
+  above. A provider response confirming prior disconnection is successful.
 - Only the two fixed local/dev test users may withdraw without a
   `SocialAccount` and provider disconnection. An active user without exactly
   one `SocialAccount` in any other case is an internal data-integrity failure
   and returns `500 COMMON_INTERNAL_SERVER_ERROR` without completing withdrawal.
-- Withdrawal returns `204 No Content` without a response body.
-- Return `204 No Content` only after provider disconnection and the local
-  withdrawal transaction both complete.
+- Withdrawal returns 204 only after provider disconnection and local
+  withdrawal complete, or 202 for committed Kakao withdrawal with outstanding
+  provider cleanup. Both responses have no body. An unknown local DB commit
+  result must not be reported as confirmed completion.
 - Mark the service user as withdrawn with `users.deleted_at` and clear the
   service-level nickname. Keep the `User` row only because participation records
   in meetings hosted by other users must retain a stable withdrawn-user

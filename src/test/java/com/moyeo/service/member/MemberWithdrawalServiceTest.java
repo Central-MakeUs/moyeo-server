@@ -1,7 +1,7 @@
 package com.moyeo.service.member;
 
 import com.moyeo.auth.apple.AppleLoginService;
-import com.moyeo.auth.kakao.KakaoLoginService;
+import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.domain.member.SocialAccount;
@@ -69,7 +69,7 @@ class MemberWithdrawalServiceTest {
     @Mock
     private AppleLoginService appleLoginService;
     @Mock
-    private KakaoLoginService kakaoLoginService;
+    private KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     @Mock
     private MemberWithdrawalSocialAccountExemption exemption;
     @Mock
@@ -94,7 +94,7 @@ class MemberWithdrawalServiceTest {
                 coverCleanupTaskRepository,
                 coverCleanupProcessor,
                 appleLoginService,
-                kakaoLoginService,
+                kakaoUnlinkTaskRepository,
                 List.of(exemption),
                 refreshTokenService
         );
@@ -140,8 +140,7 @@ class MemberWithdrawalServiceTest {
         assertThatThrownBy(() -> memberWithdrawalService.withdraw(1L))
                 .isInstanceOf(DataAccessResourceFailureException.class);
 
-        verify(kakaoLoginService, never())
-                .disconnectStoredAccount("1234567890");
+        verifyNoInteractions(kakaoUnlinkTaskRepository);
     }
 
     @Test
@@ -167,7 +166,7 @@ class MemberWithdrawalServiceTest {
 
         memberWithdrawalService.withdraw(1L);
 
-        verifyNoInteractions(appleLoginService, kakaoLoginService);
+        verifyNoInteractions(appleLoginService, kakaoUnlinkTaskRepository);
         verify(userRepository).flush();
     }
 
@@ -201,7 +200,7 @@ class MemberWithdrawalServiceTest {
                 );
 
         verify(meetingRepository, never()).findAllByHostUserIdForUpdate(1L);
-        verifyNoInteractions(appleLoginService, kakaoLoginService);
+        verifyNoInteractions(appleLoginService, kakaoUnlinkTaskRepository);
     }
 
     private User activeUser() {

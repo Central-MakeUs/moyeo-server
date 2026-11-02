@@ -31,6 +31,22 @@ Table social_accounts {
   }
 }
 
+Table kakao_unlink_tasks {
+  id bigint [pk, increment]
+  user_id bigint [not null, note: "탈퇴한 원래 서비스 사용자 ID"]
+  provider_user_id varchar(191) [not null, note: "연결 해제할 카카오 ID. 토큰 저장 없음"]
+  attempt_count int [not null]
+  created_at datetime [not null]
+  last_attempted_at datetime
+  next_attempt_at datetime [not null]
+
+  indexes {
+    (user_id) [unique, name: "uk_kakao_unlink_tasks_user"]
+    (provider_user_id) [unique, name: "uk_kakao_unlink_tasks_provider_user"]
+    (next_attempt_at, id) [name: "idx_kakao_unlink_tasks_due"]
+  }
+}
+
 Table refresh_tokens {
   id bigint [pk, increment, note: "서비스 로그인 연장 상태 ID"]
   user_id bigint [not null, note: "로그인 연장 상태의 소유 사용자 ID"]
@@ -272,6 +288,10 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
 - `refresh_tokens` stores one independent hashed service-login renewal token per device/session. Its session ID is included in the corresponding Access JWT, so deleting this row immediately invalidates only that device's Access Token. It is rotated on successful renewal and all rows are deleted when the user withdraws.
   Apple refresh tokens are stored only as AES-256-GCM ciphertext bound to the
   Apple provider user ID; Kakao rows keep this field null.
+- `kakao_unlink_tasks` is saved atomically with local Kakao withdrawal. A row
+  means provider cleanup is unfinished and re-registration is gated; confirmed
+  cleanup deletes the row. `user_id` is original-request metadata, not a JPA
+  association or foreign key. Retry metadata survives process restarts.
 - `social_accounts.provider_user_id` is the provider-issued user identifier, not CI/DI.
 - Social accounts are never merged automatically by email.
 - `saved_places` stores member-owned place snapshots. It allows duplicates, has no count limit, and is listed by newest `created_at` with `id` as a tie-breaker.
