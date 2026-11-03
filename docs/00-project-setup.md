@@ -162,19 +162,34 @@ Finalize decision
 - Before deploying full-meeting actual-time place recommendations to production,
   back up the target database and apply
   `scripts/db/2026-08-02-meeting-place-recommendation-snapshots.sql`.
-- Account withdrawal, cover replacement, and cover deletion store their cleanup
-  tasks in the same database transaction as the local change, so a process
-  restart cannot lose the object key after commit. A transaction-rollback
-  callback immediately deletes a newly uploaded object and queues a failed
-  deletion when that callback runs. Pending tasks retry every five minutes by
-  default.
-  `MEETING_COVER_CLEANUP_RETRY_DELAY` may override the Spring duration value.
+- Account withdrawal, cover replacement, and cover deletion save cleanup tasks
+  atomically with their local DB changes. Application orchestration attempts S3
+  cleanup only after the transaction fully returns. Workers read a task, call S3
+  outside DB transactions, then briefly lock the task to remove it or record failure.
+  Concurrent workers may repeat deletion of a never-reused UUID key; a missing
+  task must not be recreated when another worker has already completed it.
+  Compensate a newly uploaded object only after a confirmed attachment rollback;
+  unknown commit outcomes use reference-checked orphan recovery. Pending tasks
+  retry every five minutes by default. `MEETING_COVER_CLEANUP_RETRY_DELAY` may
+  override that Spring duration.
 - Once per day, scan `meeting-covers/` and delete objects older than 24 hours
   only when no meeting row references the key. This recovers objects left by a
   process or instance failure between S3 upload and transaction completion.
   `MEETING_COVER_ORPHAN_SCAN_DELAY` and `MEETING_COVER_ORPHAN_GRACE_PERIOD`
   override those temporary operational values. The EC2 role therefore needs
   bucket-list permission in addition to object read/write/delete permission.
+- Cover creation commits the meeting before optional image processing. Received
+  image validation, upload or attachment failure keeps the meeting and the
+  existing 201 response. Source files are not retained for automatic re-upload.
+  Replacement uploads first and commits its new key and old-key cleanup task
+  together. Initial attachment never overwrites an already-attached replacement.
+- S3 operations default to 5 seconds total, including SDK retries, and 3 seconds
+  per attempt. `MEETING_COVER_API_CALL_TIMEOUT` and
+  `MEETING_COVER_API_CALL_ATTEMPT_TIMEOUT` accept positive Spring durations;
+  attempt timeout must not exceed total timeout. Limits apply per S3 API call,
+  not to the full HTTP request or an entire paginated orphan scan. The committed
+  Docker Compose `env_file` passes these optional variables through; no schema
+  or deployment architecture change is needed.
 - Before decoding an uploaded cover, reject a source wider or taller than 8,000
   pixels or containing more than 13,000,000 pixels. The encoded upload limit is
   10 MB. Override these temporary limits with `MEETING_COVER_MAX_SOURCE_WIDTH`,

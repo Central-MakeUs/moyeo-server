@@ -18,6 +18,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import javax.sql.DataSource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -27,6 +30,10 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 
@@ -35,7 +42,13 @@ import static org.mockito.Mockito.verify;
 class MeetingCoverRollbackIntegrationTest {
 
     @Autowired
-    private MeetingService meetingService;
+    private MeetingCoverApplicationService coverApplicationService;
+
+    @Autowired
+    private DataSource dataSource;
+
+    @MockitoSpyBean
+    private MeetingCoverCleanupProcessor cleanupProcessor;
 
     @Autowired
     private MeetingRepository meetingRepository;
@@ -80,18 +93,27 @@ class MeetingCoverRollbackIntegrationTest {
         meetingRepository.saveAndFlush(meeting);
         MockMultipartFile replacementImage = pngFile();
 
-        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
-            meetingService.replaceCoverImage(
-                    meeting.getId(),
-                    AuthenticatedMember.from(host, true),
-                    replacementImage
-            );
-            status.setRollbackOnly();
-        });
+        doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(TransactionSynchronizationManager.hasResource(dataSource)).isFalse();
+            return null;
+        }).when(meetingCoverStorage).put(any(String.class), any(byte[].class));
+        doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(TransactionSynchronizationManager.hasResource(dataSource)).isFalse();
+            return null;
+        }).when(meetingCoverStorage).delete(any(String.class));
+        new TransactionTemplate(transactionManager).executeWithoutResult(status ->
+                doThrow(new IllegalStateException("cleanup task write failed"))
+                        .when(cleanupProcessor).createDeletionTask("meeting-covers/original.jpg"));
+        assertThatThrownBy(() -> coverApplicationService.replaceCoverImage(
+                meeting.getId(), AuthenticatedMember.from(host, true), replacementImage))
+                .isInstanceOf(IllegalStateException.class);
 
         ArgumentCaptor<String> uploadedKey = ArgumentCaptor.forClass(String.class);
         verify(meetingCoverStorage).put(uploadedKey.capture(), any(byte[].class));
         verify(meetingCoverStorage).delete(uploadedKey.getValue());
+        verify(meetingCoverStorage, never()).delete("meeting-covers/original.jpg");
         assertThat(cleanupTaskRepository.count()).isZero();
 
         entityManager.clear();

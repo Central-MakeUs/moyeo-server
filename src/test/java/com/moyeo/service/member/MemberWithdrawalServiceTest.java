@@ -93,7 +93,6 @@ class MemberWithdrawalServiceTest {
                 meetingScheduleCandidateRepository,
                 meetingScheduleCandidateAvailabilityRepository,
                 coverCleanupTaskRepository,
-                coverCleanupProcessor,
                 appleRevokeTaskRepository,
                 kakaoUnlinkTaskRepository,
                 List.of(exemption),

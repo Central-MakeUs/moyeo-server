@@ -68,23 +68,35 @@ general best practice into domain policy.
   final meeting-creation request. That request may use multipart form data with
   the existing meeting JSON and an optional cover file; the response returns the
   same `meetingId` and `inviteCode` as JSON creation. The server does
-  not create temporary upload objects.
+  not expose a separate pre-upload endpoint or retain uploaded originals.
 - Temporary MVP policy: the host may later replace or delete the cover through a
   dedicated authenticated API. The invite-link meeting view may read the cover.
-  If the selected cover cannot be stored, the final meeting creation fails.
+  Meeting creation commits the meeting and host data before optional cover
+  processing. A received cover's decoding, upload or attachment failure does not
+  delete the created meeting: return the existing 201 response and use no cover.
+  Invalid meeting JSON and multipart requests rejected before the controller
+  (including transport size limits) still fail without creating a meeting.
+  The creation response does not add a photo-status field or schedule upload
+  retries that would require retaining the source file.
 - The cover-image response URL includes a value derived from the current stored
   object key only to distinguish browser cache entries. It is not a new database
-  field or object-storage path. When the host replaces the cover, clients use
-  the returned new URL; the former S3 object is deleted only after the database
-  transaction commits successfully. Store the former object's cleanup task in
-  the same database transaction as the cover-key change, then attempt it after
-  commit so a process restart cannot lose the object key. If a newly uploaded
-  object cannot be deleted by the transaction-rollback callback, queue that
-  failed deletion for the shared cover-cleanup scheduler.
-- Because S3 upload and the database transaction cannot commit atomically, scan
-  cover objects after a 24-hour grace period and delete only keys that are not
-  referenced by any meeting. This recovers an upload left behind by a process
-  or instance failure before the rollback callback can run.
+  field or object-storage path. Clients use the new URL returned by replacement.
+  Decode images and call S3 outside database transactions. Reads copy only the
+  key from a short read transaction. Replacement checks authority before upload,
+  then rechecks the active user and host under the meeting lock to store the new
+  key and the current old-key cleanup task in the same database transaction.
+  Initial attachment must not overwrite an already-attached replacement.
+- After the local transaction fully returns, attempt old-object cleanup once.
+  Delete an unused new object after a confirmed attachment rollback, and queue
+  failed deletion for the existing cleanup scheduler. Do not blindly delete on
+  unknown DB completion; use the reference-checked orphan scan instead. A failed
+  PUT may have created an object, so queue its never-attached key for cleanup.
+  Old-object deletion failure does not revert a committed cover replacement.
+- Scan cover objects after a 24-hour grace period and delete only keys that no
+  meeting references. This recovers uploads left by process failure or unknown
+  DB completion. Workers read task values in a short transaction, call S3
+  outside it, then lock the task only to remove it or record failure. Duplicate
+  deletion of a never-reused UUID key is allowed; an already-removed task is a no-op.
 - Temporary technical settings: JPEG/PNG input, 10 MB maximum upload size, a
   1280x720 output bounding box, an 8000x8000 source-dimension bound, a 13,000,000
   source-pixel bound, and JPEG quality 0.85. Validate source dimensions from the

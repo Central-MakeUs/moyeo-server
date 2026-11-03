@@ -413,15 +413,79 @@ class MeetingControllerTest {
                 pngImage()
         );
 
-        mockMvc.perform(multipart("/api/meetings")
+        var created = mockMvc.perform(multipart("/api/meetings")
                         .file(request)
                         .file(coverImage)
                         .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.meetingId").isNumber())
-                .andExpect(jsonPath("$.coverImageUrl").doesNotExist());
+                .andExpect(jsonPath("$.coverImageUrl").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        Long meetingId = objectMapper.readTree(created).path("meetingId").asLong();
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId))
+                .startsWith("meeting-covers/");
 
         verify(meetingCoverStorage).put(any(String.class), any(byte[].class));
+    }
+
+    @Test
+    void createMeetingKeepsCommittedMeetingWhenCoverUploadFails() throws Exception {
+        String accessToken = signupAndGetAccessToken("cover-failed-upload", "coverfail");
+        long meetingsBefore = jdbcTemplate.queryForObject("select count(*) from meetings", Long.class);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(jdbcTemplate.queryForObject("select count(*) from meetings", Long.class)).isEqualTo(meetingsBefore + 1);
+            throw new com.moyeo.global.error.MoyeoException(
+                    com.moyeo.service.meeting.MeetingCoverErrorCode.MEETING_COVER_IMAGE_UNAVAILABLE);
+        }).when(meetingCoverStorage).put(any(String.class), any(byte[].class));
+        var response = mockMvc.perform(multipart("/api/meetings")
+                        .file(new MockMultipartFile("request", "request.json", MediaType.APPLICATION_JSON_VALUE,
+                                objectMapper.writeValueAsBytes(defaultCreateMeetingRequest(6))))
+                        .file(new MockMultipartFile("coverImage", "cover.png", MediaType.IMAGE_PNG_VALUE, pngImage()))
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        Long meetingId = objectMapper.readTree(response).path("meetingId").asLong();
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId)).isNull();
+        assertThat(countRows("meeting_participants", "meeting_id", meetingId)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from meeting_cover_cleanup_tasks", Long.class)).isPositive();
+    }
+
+    @Test
+    void createMeetingKeepsMeetingWhenReceivedCoverCannotBeDecoded() throws Exception {
+        String accessToken = signupAndGetAccessToken("cover-invalid-upload", "invalidpic");
+        var response = mockMvc.perform(multipart("/api/meetings")
+                        .file(new MockMultipartFile("request", "request.json", MediaType.APPLICATION_JSON_VALUE,
+                                objectMapper.writeValueAsBytes(defaultCreateMeetingRequest(6))))
+                        .file(new MockMultipartFile("coverImage", "cover.png", MediaType.IMAGE_PNG_VALUE, new byte[]{1, 2, 3}))
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        Long meetingId = objectMapper.readTree(response).path("meetingId").asLong();
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId)).isNull();
+        verify(meetingCoverStorage, org.mockito.Mockito.never()).put(any(String.class), any(byte[].class));
+    }
+
+    @Test
+    void initialCoverAttachmentDoesNotOverwriteAConcurrentReplacement() throws Exception {
+        String accessToken = signupAndGetAccessToken("cover-initial-race", "picrace");
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            jdbcTemplate.update("update meetings set cover_image_key = ? where id = (select newest.id from (select max(id) id from meetings) newest)",
+                    "meeting-covers/concurrent.jpg");
+            return null;
+        }).when(meetingCoverStorage).put(any(String.class), any(byte[].class));
+        var response = mockMvc.perform(multipart("/api/meetings")
+                        .file(new MockMultipartFile("request", "request.json", MediaType.APPLICATION_JSON_VALUE,
+                                objectMapper.writeValueAsBytes(defaultCreateMeetingRequest(6))))
+                        .file(new MockMultipartFile("coverImage", "cover.png", MediaType.IMAGE_PNG_VALUE, pngImage()))
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        Long meetingId = objectMapper.readTree(response).path("meetingId").asLong();
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId))
+                .isEqualTo("meeting-covers/concurrent.jpg");
+        var uploadedKey = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(meetingCoverStorage).put(uploadedKey.capture(), any(byte[].class));
+        verify(meetingCoverStorage).delete(uploadedKey.getValue());
+        verify(meetingCoverStorage, org.mockito.Mockito.never()).delete("meeting-covers/concurrent.jpg");
     }
 
     @Test
@@ -441,6 +505,74 @@ class MeetingControllerTest {
                 .andExpect(jsonPath("$.meetingId").isNumber())
                 .andExpect(jsonPath("$.inviteCode").isString())
                 .andExpect(jsonPath("$.coverImageUrl").doesNotExist());
+    }
+
+    @Test
+    void coverReadAndDeletionDoNotHoldDatabaseTransactionsDuringStorageCalls() throws Exception {
+        String token = signupAndGetAccessToken("cover-boundary-host", "boundary");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        String key = "meeting-covers/boundary.jpg";
+        jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", key, meetingId);
+        when(meetingCoverStorage.get(key)).thenAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            return new MeetingCoverStorage.CoverObject(new byte[]{1, 2}, MediaType.IMAGE_JPEG_VALUE);
+        });
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/cover-image", inviteCode))
+                .andExpect(status().isOk()).andExpect(content().bytes(new byte[]{1, 2}));
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId)).isNull();
+            assertThat(jdbcTemplate.queryForObject("select count(*) from meeting_cover_cleanup_tasks where object_key = ?", Long.class, key))
+                    .isEqualTo(1);
+            return null;
+        }).when(meetingCoverStorage).delete(key);
+        mockMvc.perform(delete("/api/meetings/{meetingId}/cover-image", meetingId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        assertThat(jdbcTemplate.queryForObject("select count(*) from meeting_cover_cleanup_tasks where object_key = ?", Long.class, key)).isZero();
+    }
+
+    @Test
+    void failedReplacementPreservesTheOldCoverAndReturns503() throws Exception {
+        String token = signupAndGetAccessToken("cover-replace-fail", "replacefail");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        String oldKey = "meeting-covers/replace-original.jpg";
+        jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", oldKey, meetingId);
+        org.mockito.Mockito.doThrow(new com.moyeo.global.error.MoyeoException(
+                com.moyeo.service.meeting.MeetingCoverErrorCode.MEETING_COVER_IMAGE_UNAVAILABLE))
+                .when(meetingCoverStorage).put(any(String.class), any(byte[].class));
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/meetings/{meetingId}/cover-image", meetingId)
+                        .file(new MockMultipartFile("coverImage", "new.png", MediaType.IMAGE_PNG_VALUE, pngImage()))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("MEETING_COVER_IMAGE_UNAVAILABLE"));
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId)).isEqualTo(oldKey);
+        assertThat(jdbcTemplate.queryForObject("select count(*) from meeting_cover_cleanup_tasks where object_key = ?", Long.class, oldKey)).isZero();
+        verify(meetingCoverStorage, org.mockito.Mockito.never()).delete(oldKey);
+    }
+
+    @Test
+    void replacementQueuesTheCurrentCoverInsteadOfItsPreflightValue() throws Exception {
+        String token = signupAndGetAccessToken("cover-replace-race", "replacepic");
+        String inviteCode = createMeetingAndGetInviteCode(token, defaultCreateMeetingRequest(6));
+        Long meetingId = getMeetingId(inviteCode);
+        jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", "meeting-covers/preflight.jpg", meetingId);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            jdbcTemplate.update("update meetings set cover_image_key = ? where id = ?", "meeting-covers/newer.jpg", meetingId);
+            return null;
+        }).when(meetingCoverStorage).put(any(String.class), any(byte[].class));
+        mockMvc.perform(multipart(HttpMethod.PUT, "/api/meetings/{meetingId}/cover-image", meetingId)
+                        .file(new MockMultipartFile("coverImage", "new.png", MediaType.IMAGE_PNG_VALUE, pngImage()))
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        var uploadedKey = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(meetingCoverStorage).put(uploadedKey.capture(), any(byte[].class));
+        assertThat(jdbcTemplate.queryForObject("select cover_image_key from meetings where id = ?", String.class, meetingId)).isEqualTo(uploadedKey.getValue());
+        verify(meetingCoverStorage).delete("meeting-covers/newer.jpg");
+        verify(meetingCoverStorage, org.mockito.Mockito.never()).delete("meeting-covers/preflight.jpg");
     }
 
     @Test

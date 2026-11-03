@@ -25,11 +25,8 @@ import com.moyeo.repository.meeting.MeetingScheduleCandidateAvailabilityReposito
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.place.SavedPlaceRepository;
-import com.moyeo.service.meeting.MeetingCoverCleanupProcessor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 
@@ -48,7 +45,6 @@ public class MemberWithdrawalService {
     private final MeetingScheduleCandidateRepository meetingScheduleCandidateRepository;
     private final MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
     private final MeetingCoverCleanupTaskRepository coverCleanupTaskRepository;
-    private final MeetingCoverCleanupProcessor coverCleanupProcessor;
     private final AppleRevokeTaskRepository appleRevokeTaskRepository;
     private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     private final List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions;
@@ -67,7 +63,6 @@ public class MemberWithdrawalService {
             MeetingScheduleCandidateRepository meetingScheduleCandidateRepository,
             MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository,
             MeetingCoverCleanupTaskRepository coverCleanupTaskRepository,
-            MeetingCoverCleanupProcessor coverCleanupProcessor,
             AppleRevokeTaskRepository appleRevokeTaskRepository,
             KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository,
             List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions,
@@ -85,7 +80,6 @@ public class MemberWithdrawalService {
         this.meetingScheduleCandidateRepository = meetingScheduleCandidateRepository;
         this.meetingScheduleCandidateAvailabilityRepository = meetingScheduleCandidateAvailabilityRepository;
         this.coverCleanupTaskRepository = coverCleanupTaskRepository;
-        this.coverCleanupProcessor = coverCleanupProcessor;
         this.appleRevokeTaskRepository = appleRevokeTaskRepository;
         this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
         this.socialAccountExemptions = socialAccountExemptions;
@@ -93,7 +87,7 @@ public class MemberWithdrawalService {
     }
 
     @Transactional
-    public WithdrawalTask withdraw(Long userId) {
+    public WithdrawalResult withdraw(Long userId) {
         User user = userRepository.findActiveByIdForUpdate(userId)
                 .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
         SocialDisconnectTarget disconnectTarget = resolveDisconnectTarget(user);
@@ -123,8 +117,7 @@ public class MemberWithdrawalService {
                 task = new WithdrawalTask(AuthProvider.APPLE, id);
             }
         }
-        processCoverCleanupTasksAfterCommit(coverCleanupTaskIds);
-        return task;
+        return new WithdrawalResult(task, coverCleanupTaskIds);
     }
 
     private SocialDisconnectTarget resolveDisconnectTarget(User user) {
@@ -234,17 +227,7 @@ public class MemberWithdrawalService {
         return tasks.stream().map(MeetingCoverCleanupTask::getId).toList();
     }
 
-    private void processCoverCleanupTasksAfterCommit(List<Long> taskIds) {
-        if (taskIds.isEmpty()) {
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                coverCleanupProcessor.process(taskIds);
-            }
-        });
-    }
+    public record WithdrawalResult(WithdrawalTask socialTask, List<Long> coverCleanupTaskIds) {}
 
     public record WithdrawalTask(AuthProvider provider, Long taskId) {}
 

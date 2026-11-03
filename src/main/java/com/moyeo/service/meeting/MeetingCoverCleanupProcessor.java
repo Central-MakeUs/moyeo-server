@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
+@Transactional(propagation = Propagation.NEVER)
 public class MeetingCoverCleanupProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(MeetingCoverCleanupProcessor.class);
@@ -86,6 +87,10 @@ public class MeetingCoverCleanupProcessor {
         }
     }
 
+    public void enqueueUnreferencedUpload(String objectKey, RuntimeException uploadException) {
+        enqueue(objectKey, uploadException);
+    }
+
     private void enqueue(String objectKey, RuntimeException deletionException) {
         try {
             transactionTemplate.executeWithoutResult(status ->
@@ -104,21 +109,21 @@ public class MeetingCoverCleanupProcessor {
     }
 
     private void processOne(Long taskId) {
-        transactionTemplate.executeWithoutResult(status ->
-                cleanupTaskRepository.findByIdForUpdate(taskId).ifPresent(task -> {
-                    try {
-                        meetingCoverStorage.delete(task.getObjectKey());
-                        cleanupTaskRepository.delete(task);
-                    } catch (RuntimeException exception) {
+        String objectKey = transactionTemplate.execute(status -> cleanupTaskRepository.findById(taskId)
+                .map(MeetingCoverCleanupTask::getObjectKey).orElse(null));
+        if (objectKey == null) return;
+        try {
+            meetingCoverStorage.delete(objectKey);
+        } catch (RuntimeException exception) {
+            transactionTemplate.executeWithoutResult(status -> cleanupTaskRepository.findByIdForUpdate(taskId)
+                    .ifPresent(task -> {
                         task.recordFailure();
-                        log.warn(
-                                "Failed to delete meeting cover cleanup task. objectKey={}, attempt={}",
-                                task.getObjectKey(),
-                                task.getAttemptCount(),
-                                exception
-                        );
-                    }
-                })
-        );
+                        log.warn("Failed to delete meeting cover cleanup task. objectKey={}, attempt={}",
+                                task.getObjectKey(), task.getAttemptCount(), exception);
+                    }));
+            return;
+        }
+        transactionTemplate.executeWithoutResult(status -> cleanupTaskRepository.findByIdForUpdate(taskId)
+                .ifPresent(cleanupTaskRepository::delete));
     }
 }

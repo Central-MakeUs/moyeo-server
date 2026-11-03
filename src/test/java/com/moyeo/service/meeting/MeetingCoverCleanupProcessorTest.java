@@ -10,6 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.List;
@@ -66,6 +67,43 @@ class MeetingCoverCleanupProcessorTest {
 
         verify(meetingCoverStorage, times(2)).delete(objectKey);
         assertThat(cleanupTaskRepository.count()).isZero();
+    }
+
+    @Test
+    void scheduledDeletionRunsOutsideTheTaskTransactionAndRecordsFailures() {
+        Long taskId = new TransactionTemplate(transactionManager).execute(status ->
+                cleanupProcessor.createDeletionTask("meeting-covers/no-transaction.jpg"));
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            assertThat(cleanupTaskRepository.existsById(taskId)).isTrue();
+            throw new IllegalStateException("storage unavailable");
+        }).when(meetingCoverStorage).delete("meeting-covers/no-transaction.jpg");
+        cleanupProcessor.processPending();
+        assertThat(cleanupTaskRepository.findById(taskId)).get().satisfies(task -> {
+            assertThat(task.getAttemptCount()).isEqualTo(1);
+            assertThat(task.getLastAttemptedAt()).isNotNull();
+        });
+    }
+
+    @Test
+    void concurrentCleanupMayRepeatDeletionButRemovesTheTaskOnce() throws Exception {
+        String key = "meeting-covers/concurrent-cleanup.jpg";
+        Long taskId = new TransactionTemplate(transactionManager).execute(status -> cleanupProcessor.createDeletionTask(key));
+        var bothDeleting = new java.util.concurrent.CountDownLatch(2);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive()).isFalse();
+            bothDeleting.countDown();
+            assertThat(bothDeleting.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+            return null;
+        }).when(meetingCoverStorage).delete(key);
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var first = executor.submit(() -> cleanupProcessor.process(List.of(taskId)));
+            var second = executor.submit(() -> cleanupProcessor.process(List.of(taskId)));
+            first.get(10, java.util.concurrent.TimeUnit.SECONDS);
+            second.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        }
+        verify(meetingCoverStorage, times(2)).delete(key);
+        assertThat(cleanupTaskRepository.existsById(taskId)).isFalse();
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.moyeo.service.meeting;
 import com.moyeo.global.error.MoyeoException;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
@@ -22,9 +23,22 @@ public class S3MeetingCoverStorage implements MeetingCoverStorage {
     private final MeetingCoverProperties properties;
     private final S3Client s3Client;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public S3MeetingCoverStorage(MeetingCoverProperties properties) {
+        this(properties, S3Client.builder().region(Region.of(properties.region()))
+                .overrideConfiguration(clientOverride(properties)).build());
+    }
+
+    S3MeetingCoverStorage(MeetingCoverProperties properties, S3Client s3Client) {
         this.properties = properties;
-        this.s3Client = S3Client.builder().region(Region.of(properties.region())).build();
+        this.s3Client = s3Client;
+    }
+
+    static ClientOverrideConfiguration clientOverride(MeetingCoverProperties properties) {
+        return ClientOverrideConfiguration.builder()
+                .apiCallTimeout(properties.apiCallTimeout())
+                .apiCallAttemptTimeout(properties.apiCallAttemptTimeout())
+                .build();
     }
 
     @Override

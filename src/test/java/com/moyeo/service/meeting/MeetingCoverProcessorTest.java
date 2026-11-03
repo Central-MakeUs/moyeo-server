@@ -33,7 +33,9 @@ class MeetingCoverProcessorTest {
                     8000,
                     8000,
                     13_000_000,
-                    0.85f
+                    0.85f,
+                java.time.Duration.ofSeconds(5),
+                java.time.Duration.ofSeconds(3)
             )
     );
 

@@ -3,6 +3,7 @@ package com.moyeo.controller.meeting;
 import com.moyeo.global.security.CurrentMember;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.meeting.MeetingService;
+import com.moyeo.service.meeting.MeetingCoverApplicationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Hidden;
@@ -41,8 +42,11 @@ public class MeetingController {
 
     private final MeetingService meetingService;
 
-    public MeetingController(MeetingService meetingService) {
+    private final MeetingCoverApplicationService coverApplicationService;
+
+    public MeetingController(MeetingService meetingService, MeetingCoverApplicationService coverApplicationService) {
         this.meetingService = meetingService;
+        this.coverApplicationService = coverApplicationService;
     }
 
     @GetMapping("/me")
@@ -304,7 +308,7 @@ public class MeetingController {
             @PathVariable Long meetingId,
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
     ) {
-        meetingService.deleteMeeting(meetingId, member);
+        coverApplicationService.deleteMeeting(meetingId, member);
     }
 
     @DeleteMapping("/{meetingId}/participation")
@@ -922,7 +926,7 @@ public class MeetingController {
     )
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "모임 생성 성공"),
+            @ApiResponse(responseCode = "201", description = "모임 생성 성공. 수신한 커버 사진 처리에 실패해도 모임은 유지하며 사진 없이 사용합니다."),
             @ApiResponse(
                     responseCode = "400",
                     description = "request JSON 형식 검증 실패 또는 선택한 모임 플로우와 방장 참여 입력의 불일치",
@@ -956,9 +960,7 @@ public class MeetingController {
                             )
                     })
             ),
-            @ApiResponse(responseCode = "413", description = "커버 파일 10MB, 원본 이미지 13MP 또는 한 변 8,000px 제한 초과"),
-            @ApiResponse(responseCode = "415", description = "JPEG 또는 PNG가 아닌 커버 파일"),
-            @ApiResponse(responseCode = "503", description = "커버 이미지 저장소 일시 이용 불가")
+            @ApiResponse(responseCode = "413", description = "컨트롤러 진입 전 multipart 파일 10MB 또는 전체 요청 12MB 제한 초과"),
     })
     public CreateMeetingResponse createMeetingWithCover(
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
@@ -968,10 +970,10 @@ public class MeetingController {
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = CreateMeetingRequest.class))
             )
             @Valid @RequestPart("request") CreateMeetingRequest request,
-            @Parameter(description = "선택 JPEG 또는 PNG 파일. 최대 10MB, 13MP이고 한 변은 8,000px 이하여야 합니다. 사진이 없으면 이 파트를 생략합니다.")
+            @Parameter(description = "선택 JPEG 또는 PNG 파일. 최대 10MB, 13MP이고 한 변은 8,000px 이하여야 합니다. 사진이 없으면 생략합니다. 수신 후 사진 가공·저장에 실패해도 모임 생성은 201로 완료합니다. 연결된 커버가 없으면 기본 이미지를 사용합니다.")
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage
     ) {
-        return CreateMeetingResponse.from(meetingService.createMeeting(
+        return CreateMeetingResponse.from(coverApplicationService.createMeeting(
                 member, request.toCommand(), request.scheduleCandidateDates(), request.toParticipationCommand(), coverImage
         ));
     }
@@ -991,7 +993,7 @@ public class MeetingController {
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member,
             @RequestPart("coverImage") MultipartFile coverImage
     ) {
-        return MeetingCoverResponse.from(meetingService.replaceCoverImage(meetingId, member, coverImage));
+        return MeetingCoverResponse.from(coverApplicationService.replaceCoverImage(meetingId, member, coverImage));
     }
 
     @DeleteMapping("/{meetingId}/cover-image")
@@ -1007,7 +1009,7 @@ public class MeetingController {
             @PathVariable Long meetingId,
             @Parameter(hidden = true) @CurrentMember AuthenticatedMember member
     ) {
-        meetingService.deleteCoverImage(meetingId, member);
+        coverApplicationService.deleteCoverImage(meetingId, member);
     }
 
     @GetMapping("/invitations/{inviteCode}/cover-image")
@@ -1021,7 +1023,7 @@ public class MeetingController {
             @PathVariable String inviteCode,
             @Parameter(description = "브라우저 캐시를 구분하는 응답 전용 버전값", example = "15v9zq") @RequestParam(required = false) String v
     ) {
-        var cover = meetingService.getCoverImage(inviteCode);
+        var cover = coverApplicationService.getCoverImage(inviteCode);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(cover.contentType()))
                 .cacheControl(CacheControl.maxAge(java.time.Duration.ofDays(365)).cachePublic().immutable())
