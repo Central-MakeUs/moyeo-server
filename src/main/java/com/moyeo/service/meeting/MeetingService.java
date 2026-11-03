@@ -517,6 +517,7 @@ public class MeetingService {
                 departure.longitude(),
                 departure.transportationMode()
         );
+        deletePlaceRecommendationSnapshots(meeting.getId());
         return toMyParticipationResult(meeting, participant);
     }
 
@@ -550,6 +551,7 @@ public class MeetingService {
         validateSupportedDepartureRegion(departureAddress);
         participant.updateDeparture(normalizeOptional(departure.name()), departureAddress, departure.latitude(),
                 departure.longitude(), departure.transportationMode());
+        deletePlaceRecommendationSnapshots(meeting.getId());
         return toMyParticipationResult(meeting, participant);
     }
 

@@ -18,6 +18,8 @@ import com.moyeo.domain.commercial.CommercialAreaType;
 import com.moyeo.global.security.JwtTokenProvider;
 import com.moyeo.route.KakaoRouteClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Disabled;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -2927,6 +2929,136 @@ class MeetingControllerTest {
                 Integer.class,
                 inviteCode
         )).isEqualTo(3);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"HOST", "MEMBER", "GUEST"})
+    void departureUpdateInvalidatesStoredRecommendationsAndNextViewUsesLatestInput(String role) throws Exception {
+        String hostToken = signupAndGetAccessToken("departure-refresh-host", "refreshhost");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        String editorToken = hostToken;
+        if ("MEMBER".equals(role)) {
+            editorToken = signupAndGetAccessToken("departure-refresh-member", "refmember");
+            joinMember(inviteCode, editorToken, "refmember");
+        } else {
+            joinGuest(inviteCode, "refguest");
+        }
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(any(), any(), any(), any(), any())).thenReturn(1200L);
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1200));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3);
+
+        var updateRequest = "GUEST".equals(role)
+                ? patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure", inviteCode, "refguest")
+                : patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + editorToken);
+        mockMvc.perform(updateRequest.contentType(MediaType.APPLICATION_JSON).content("""
+                        {"name":"new-home","address":"서울 강북구","latitude":37.6,"longitude":127.0,"transportationMode":"CAR"}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departure.name").value("new-home"));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isZero();
+        verify(kakaoRouteClient, times(10)).findShortestTravelTimeSeconds(any(), any(), any(), any(), any());
+
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    BigDecimal latitude = invocation.getArgument(1);
+                    return latitude.compareTo(new BigDecimal("37.6")) == 0
+                            && invocation.getArgument(0) == com.moyeo.domain.meeting.TransportationMode.CAR
+                            ? 2400L : 1200L;
+                });
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendationBasis").value("ACTUAL_TRAVEL_TIME"))
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1800))
+                .andExpect(jsonPath("$.recommendations[0].maxTravelTimeSeconds").value(2400));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(1800));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3);
+        verify(kakaoRouteClient, times(20)).findShortestTravelTimeSeconds(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void scheduleUpdateAndRejectedDepartureUpdatesKeepStoredRecommendations() throws Exception {
+        String hostToken = signupAndGetAccessToken("departure-keep-host", "keephost");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        joinGuest(inviteCode, "keepguest");
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(any(), any(), any(), any(), any())).thenReturn(1200L);
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk());
+        var originalIds = jdbcTemplate.queryForList(
+                "select id from meeting_place_recommendation_snapshots where meeting_id = ? order by id", Long.class, meetingId);
+        assertThat(originalIds).hasSize(3);
+
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/schedule-response", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"availableTimeRanges":[{"candidateDate":"2026-07-01","startTime":"09:00","endTime":"10:00"}]}
+                                """))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"address":"부산 해운대구","latitude":35.16,"longitude":129.16,"transportationMode":"CAR"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_DEPARTURE_REGION"));
+        assertThat(jdbcTemplate.queryForList(
+                "select id from meeting_place_recommendation_snapshots where meeting_id = ? order by id", Long.class, meetingId))
+                .containsExactlyElementsOf(originalIds);
+
+        confirmMeeting(meetingId, inviteCode, hostToken);
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/members/me/participation/departure", inviteCode)
+                        .header("Authorization", "Bearer " + hostToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"address":"서울 강북구","latitude":37.6,"longitude":127.0,"transportationMode":"CAR"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEETING_PARTICIPATION_CLOSED"));
+        assertThat(jdbcTemplate.queryForList(
+                "select id from meeting_place_recommendation_snapshots where meeting_id = ? order by id", Long.class, meetingId))
+                .containsExactlyElementsOf(originalIds);
+        verify(kakaoRouteClient, times(10)).findShortestTravelTimeSeconds(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void recalculationFailureAfterDepartureUpdateDoesNotRestoreStaleRecommendations() throws Exception {
+        String hostToken = signupAndGetAccessToken("departure-failure-host", "failurehost");
+        String inviteCode = createMeetingAndGetInviteCode(hostToken, defaultCreateMeetingRequest(2));
+        Long meetingId = getMeetingId(inviteCode);
+        joinGuest(inviteCode, "failguest");
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(any(), any(), any(), any(), any())).thenReturn(1200L);
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation/departure", inviteCode, "failguest")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"address":"서울 강북구","latitude":37.6,"longitude":127.0,"transportationMode":"CAR"}
+                                """))
+                .andExpect(status().isOk());
+        when(kakaoRouteClient.findShortestTravelTimeSeconds(any(), any(), any(), any(), any()))
+                .thenThrow(new com.moyeo.route.KakaoRouteUnavailableException(null));
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("ACTUAL_ROUTE_RECOMMENDATION_UNAVAILABLE"));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isZero();
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/guests/{nickname}/participation", inviteCode, "failguest"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departure.transportationMode").value("CAR"));
+
+        org.mockito.Mockito.doReturn(2400L).when(kakaoRouteClient)
+                .findShortestTravelTimeSeconds(any(), any(), any(), any(), any());
+        mockMvc.perform(get("/api/meetings/invitations/{inviteCode}/view/places", inviteCode))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommendations[0].averageTravelTimeSeconds").value(2400));
+        assertThat(countRows("meeting_place_recommendation_snapshots", "meeting_id", meetingId)).isEqualTo(3);
     }
 
     @Test

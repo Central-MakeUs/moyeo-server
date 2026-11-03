@@ -168,7 +168,7 @@ public class MeetingController {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "내 출발지 참여 응답 수정",
-            description = "로그인한 방장 또는 회원의 출발지와 교통수단 응답 전체를 교체합니다. 장소 조율이 없는 모임에서는 수정할 수 없습니다."
+            description = "로그인한 방장 또는 회원의 출발지와 교통수단 응답 전체를 교체합니다. 장소 조율이 없는 모임에서는 수정할 수 없습니다. 성공 시 저장된 실제 이동시간 추천을 삭제하며, 다음 장소 현황 조회에서 최신 입력으로 다시 계산합니다. 확정된 장소는 유지합니다."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "내 출발지 참여 응답 수정 성공"),
@@ -243,7 +243,7 @@ public class MeetingController {
     @PatchMapping("/invitations/{inviteCode}/guests/{nickname}/participation/departure")
     @Operation(
             summary = "게스트 출발지 참여 응답 수정",
-            description = "초대 코드와 게스트 닉네임으로 대상을 식별한 뒤, 출발지와 교통수단 응답을 교체합니다.",
+            description = "초대 코드와 게스트 닉네임으로 대상을 식별한 뒤, 출발지와 교통수단 응답을 교체합니다. 성공 시 저장된 실제 이동시간 추천을 삭제하며, 다음 장소 현황 조회에서 최신 입력으로 다시 계산합니다. 확정된 장소는 유지합니다.",
             requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, examples = @ExampleObject(value = """
                             {
@@ -1204,7 +1204,8 @@ public class MeetingController {
             description = """
                     확정 전 모임 상세 화면의 장소 조율 현황을 조회합니다.<br>
                     정원 미달 시 참여자 출발지 좌표와 상권 카탈로그를 이용한 직선거리 기반 미리보기를 반환합니다.<br>
-                    정원이 찬 뒤 최초 조회에서는 카카오 실제 이동시간으로 추천을 계산해 저장하며, 이후 조회는 저장된 평균·최대 이동시간 추천을 반환합니다.
+                    정원이 찬 뒤 최초 조회에서는 카카오 실제 이동시간으로 추천을 계산해 저장하며, 이후 조회는 저장된 평균·최대 이동시간 추천을 반환합니다.<br>
+                    출발지·이동수단 수정이나 참여 취소·탈퇴로 저장된 추천이 삭제되면, 다음 조회에서 현재 계산 조건에 따라 추천을 다시 계산합니다.
                     """
     )
     @ApiResponses({

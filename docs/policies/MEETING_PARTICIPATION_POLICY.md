@@ -291,6 +291,12 @@ general best practice into domain policy.
   A later personal-response modification does not replace those snapshots.
 - Departure modification replaces only the caller's departure snapshot and
   transportation mode. It does not replace the caller's schedule response.
+  A successful host/member/guest departure update deletes the meeting's stored
+  actual-travel-time recommendations in the same transaction. The next place
+  view recalculates them from the latest input when calculation conditions are
+  met; the update itself does not call Kakao. Schedule-only updates and rejected
+  departure updates keep the stored recommendations. Confirmed place selections
+  are not changed by this recommendation invalidation.
 - Join requests save departure and transportation mode for
   `PLACE_ONLY` and `SCHEDULE_AND_PLACE` meetings.
 - Place participation stores the participant departure name, address, latitude, longitude, and transportation mode snapshot on `meeting_participants`. Departure `name` is optional; when omitted, the place-view response uses the saved departure address as its display name. A client using departure-place search sends the selected candidate's WGS84 coordinate pair. A legacy request may omit both coordinates; one without the other is invalid.
@@ -372,7 +378,10 @@ general best practice into domain policy.
   actual travel times for the preliminary candidates through Kakao. It waits for
   the calculation, ranks up to three recommendations by travel-time average plus
   maximum, and stores that first result as the meeting's recommendation snapshot.
-  Later place-view requests return the stored snapshot without calling Kakao.
+  Later place-view requests return the stored snapshot without calling Kakao
+  until it is invalidated by a successful departure update or the documented
+  participant leave/withdrawal flow. The first view after invalidation applies
+  the current calculation conditions and stores a new complete result when ready.
 - A full-meeting actual-time snapshot includes each recommendation's average and
   maximum travel time in seconds. Before capacity is reached, the same endpoint
   returns the straight-line preview and both actual-time fields are null.

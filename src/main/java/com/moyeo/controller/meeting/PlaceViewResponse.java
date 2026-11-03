@@ -17,7 +17,13 @@ public record PlaceViewResponse(
         @Schema(description = "장소 추천 방식입니다. 장소 조율 모임이 아니면 null입니다.", example = "MIDDLE_POINT", allowableValues = {"MIDDLE_POINT", "RANDOM"}, nullable = true, types = {"string", "null"})
         String placeRecommendationStrategy,
 
-        @Schema(description = "추천 산출 방식입니다. MIDDLE_POINT는 좌표가 있으면 STRAIGHT_LINE_PREVIEW를, 좌표가 하나도 없으면 COORDINATES_PENDING을 반환합니다. RANDOM은 RANDOM_CATALOG_PREVIEW를 반환하고, 장소 조율 모임이 아니면 null입니다.", example = "STRAIGHT_LINE_PREVIEW", allowableValues = {"STRAIGHT_LINE_PREVIEW", "COORDINATES_PENDING", "RANDOM_CATALOG_PREVIEW"}, nullable = true, types = {"string", "null"})
+        @Schema(
+                description = "추천 산출 방식입니다. MIDDLE_POINT에서 출발지 좌표가 하나도 없으면 COORDINATES_PENDING, 정원이 찼고 모든 참여자의 출발지 좌표와 이동수단이 입력되면 ACTUAL_TRAVEL_TIME, 그 외에는 STRAIGHT_LINE_PREVIEW를 반환합니다. RANDOM은 RANDOM_CATALOG_PREVIEW를 반환하고, 장소 조율 모임이 아니면 null입니다.",
+                example = "STRAIGHT_LINE_PREVIEW",
+                allowableValues = {"STRAIGHT_LINE_PREVIEW", "COORDINATES_PENDING", "RANDOM_CATALOG_PREVIEW", "ACTUAL_TRAVEL_TIME"},
+                nullable = true,
+                types = {"string", "null"}
+        )
         String recommendationBasis,
 
         @Schema(description = "참여자 출발지 좌표의 단순 평균 지점입니다. MIDDLE_POINT에서 출발지가 하나 이상 있을 때만 반환하고, RANDOM 또는 장소 조율 모임이 아니면 null입니다.", nullable = true, types = {"object", "null"})
