@@ -13,6 +13,8 @@ import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
@@ -186,6 +188,56 @@ class AppleIdentityTokenVerifierTest {
                 "com.moyeo.web",
                 ""
         ));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void mapsEmptyKeySetToSocialLoginUnavailable(boolean nativeLogin) throws Exception {
+        server.expect(requestTo("https://appleid.apple.com/auth/keys"))
+                .andRespond(withSuccess("{\"keys\":[]}", MediaType.APPLICATION_JSON));
+        String token = identityToken("expected-nonce", NOW.plusSeconds(300), keyPair,
+                "https://appleid.apple.com", nativeLogin ? "com.moyeozo.moyeo" : "com.moyeo.web", "apple-user-sub");
+
+        assertThatThrownBy(() -> {
+            if (nativeLogin) verifier.verifyNativeAndGetSubject(token, "expected-nonce");
+            else verifier.verifyAndGetSubject(token, "expected-nonce");
+        }).isInstanceOfSatisfying(MoyeoException.class, exception -> {
+            assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE);
+            assertThat(exception.getErrorCode().status().value()).isEqualTo(503);
+        });
+        server.verify();
+    }
+
+    @Test
+    void emptyRefreshDoesNotReplacePreviouslyCachedKeys() throws Exception {
+        expectAppleJwks();
+        server.expect(requestTo("https://appleid.apple.com/auth/keys"))
+                .andRespond(withSuccess("{\"keys\":[]}", MediaType.APPLICATION_JSON));
+        String knownToken = identityToken("expected-nonce", NOW.plusSeconds(300));
+        String unknownKeyToken = identityTokenWithKeyId("rotated-key");
+        assertThat(verifier.verifyAndGetSubject(knownToken, "expected-nonce")).isEqualTo("apple-user-sub");
+
+        assertThatThrownBy(() -> verifier.verifyAndGetSubject(unknownKeyToken, "expected-nonce"))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE));
+
+        assertThat(verifier.verifyAndGetSubject(knownToken, "expected-nonce")).isEqualTo("apple-user-sub");
+        server.verify();
+    }
+
+    @Test
+    void nonEmptyKeySetWithoutMatchingKeyStillReturnsSocialLoginFailed() throws Exception {
+        expectAppleJwks();
+
+        assertRejected(identityTokenWithKeyId("unknown-key"));
+        server.verify();
+    }
+
+    private String identityTokenWithKeyId(String keyId) throws Exception {
+        JWTClaimsSet claims = SignedJWT.parse(identityToken("expected-nonce", NOW.plusSeconds(300))).getJWTClaimsSet();
+        SignedJWT token = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(keyId).build(), claims);
+        token.sign(new RSASSASigner((RSAPrivateKey) keyPair.getPrivate()));
+        return token.serialize();
     }
 
     private void assertRejected(String identityToken) {

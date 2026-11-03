@@ -155,6 +155,10 @@ class AppleIdentityTokenVerifier {
                 throw AppleOAuthException.unavailable();
             }
             JWKSet jwkSet = JWKSet.parse(response);
+            if (jwkSet.getKeys().isEmpty()) {
+                log.warn("Apple login failed: stage=jwks_fetch reason=empty_key_set.");
+                throw AppleOAuthException.unavailable();
+            }
             cachedJwkSet = new CachedJwkSet(jwkSet, Instant.now(clock));
             RSAKey refreshed = rsaKey(jwkSet, keyId);
             if (refreshed == null) {

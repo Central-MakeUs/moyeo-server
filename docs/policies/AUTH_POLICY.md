@@ -43,6 +43,10 @@ then issues a Moyeo Access JWT.
 - Treat a successful Apple token-exchange response with an empty body or
   a missing, null, or blank `id_token` as `503 SOCIAL_LOGIN_UNAVAILABLE`
   for both web and native login.
+- Treat an Apple JWKS response with an empty key list as
+  `503 SOCIAL_LOGIN_UNAVAILABLE` and do not store it in the key cache.
+  If a non-empty refreshed key set does not contain the token key ID, retain
+  `401 SOCIAL_LOGIN_FAILED`. Apply this to both web and native login.
 - Require an Apple refresh token in every successful authorization-code
   exchange. Encrypt it with the server-only AES-256-GCM key before persistence,
   bind the ciphertext to the verified Apple `sub`, and replace the stored
