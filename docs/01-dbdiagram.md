@@ -22,12 +22,16 @@ Table social_accounts {
   provider varchar(20) [not null, note: "소셜 로그인 제공자"]
   provider_user_id varchar(191) [not null, note: "소셜 제공자가 발급한 사용자 식별자"]
   email varchar(255) [note: "소셜 제공자로부터 받은 이메일"]
-  provider_refresh_token_ciphertext varchar(2048) [note: "서버 키로 암호화한 제공자 refresh token. 현재 Apple만 저장"]
+  provider_refresh_token_ciphertext varchar(2048) [note: "암호화 refresh token. Apple은 NULL·공백 금지, Kakao는 NULL 허용"]
   created_at datetime [not null, note: "소셜 계정 연결 생성 일시"]
 
   indexes {
     (provider, provider_user_id) [unique, name: "uk_social_accounts_provider_user"]
     (user_id, provider) [unique, name: "uk_social_accounts_user_provider"]
+  }
+
+  checks {
+    `provider <> 'APPLE' OR (provider_refresh_token_ciphertext IS NOT NULL AND CHAR_LENGTH(TRIM(provider_refresh_token_ciphertext)) > 0)` [name: 'ck_social_accounts_apple_refresh_token']
   }
 }
 
@@ -44,6 +48,24 @@ Table kakao_unlink_tasks {
     (user_id) [unique, name: "uk_kakao_unlink_tasks_user"]
     (provider_user_id) [unique, name: "uk_kakao_unlink_tasks_provider_user"]
     (next_attempt_at, id) [name: "idx_kakao_unlink_tasks_due"]
+  }
+}
+
+Table apple_revoke_tasks {
+  id bigint [pk, increment]
+  user_id bigint [not null, note: "탈퇴한 원래 서비스 사용자 ID"]
+  provider_user_id varchar(191) [not null, note: "Apple sub. 토큰 복호화 인증에 사용"]
+  provider_refresh_token_ciphertext varchar(2048) [not null, note: "철회 완료까지만 보관하는 암호화 토큰"]
+  apple_refresh_token_client varchar(20) [not null, note: "토큰 발급 client: WEB/NATIVE"]
+  attempt_count int [not null]
+  created_at datetime [not null]
+  last_attempted_at datetime
+  next_attempt_at datetime [not null]
+
+  indexes {
+    (user_id) [unique, name: "uk_apple_revoke_tasks_user"]
+    (provider_user_id) [unique, name: "uk_apple_revoke_tasks_provider_user"]
+    (next_attempt_at, id) [name: "idx_apple_revoke_tasks_due"]
   }
 }
 
@@ -330,3 +352,7 @@ Ref fk_meeting_participant_schedule_date_availabilities_candidate: meeting_parti
 - Guest `meeting_participants.nickname` duplication is rejected only against other guests in the same meeting by the join application logic; the table does not keep a general nickname unique constraint.
 - `meeting_participants.user_id` is unique only inside a meeting when a participant is linked to a service user.
 - Logged-in member participants use `users.id`; guest participants keep `meeting_participants.user_id` null.
+
+- `apple_revoke_tasks` atomically records Apple cleanup with local withdrawal.
+  It has no user FK so cleanup survives membership removal; completed rows and
+  their encrypted tokens are deleted. Pending rows gate re-registration.

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
@@ -283,6 +284,43 @@ class AppleTokenClientTest {
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE)
                 );
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void validatesOriginalRefreshTokenWithItsIssuingClient(boolean nativeLogin) {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andExpect(content().string(org.hamcrest.Matchers.allOf(
+                        org.hamcrest.Matchers.containsString("grant_type=refresh_token"),
+                        org.hamcrest.Matchers.containsString("refresh_token=original-refresh"),
+                        org.hamcrest.Matchers.containsString(nativeLogin
+                                ? "client_id=com.moyeozo.moyeo" : "client_id=com.moyeo.web"))))
+                .andRespond(withSuccess("{\"access_token\":\"validated-access\"}", MediaType.APPLICATION_JSON));
+        tokenClient.validateRefreshToken("original-refresh",
+                nativeLogin ? AppleRefreshTokenClient.NATIVE : AppleRefreshTokenClient.WEB);
+        server.verify();
+    }
+
+    @Test
+    void rejectsRevokedRefreshTokenAsLoginFailure() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withBadRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_grant\"}"));
+        assertThatThrownBy(() -> tokenClient.validateRefreshToken("revoked", AppleRefreshTokenClient.WEB))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
+        server.verify();
+    }
+
+    @Test
+    void refreshValidationConfigurationFailureReturnsUnavailable() {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withBadRequest().contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"error\":\"invalid_client\"}"));
+        assertThatThrownBy(() -> tokenClient.validateRefreshToken("refresh", AppleRefreshTokenClient.NATIVE))
+                .isInstanceOfSatisfying(MoyeoException.class, exception ->
+                        assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE));
+        server.verify();
     }
 
     private AppleOAuthProperties properties() {

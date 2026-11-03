@@ -11,6 +11,8 @@ import com.moyeo.domain.meeting.PlanningType;
 import com.moyeo.domain.meeting.ScheduleInputType;
 import com.moyeo.domain.meeting.TransportationMode;
 import com.moyeo.domain.member.AuthProvider;
+import com.moyeo.domain.member.SocialAccount;
+import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.domain.member.AppleRefreshTokenClient;
 import com.moyeo.global.error.MoyeoException;
 import com.moyeo.global.security.AuthenticationErrorCode;
@@ -28,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -75,6 +78,9 @@ class MemberWithdrawalControllerTest {
 
     @MockitoBean
     private MeetingCoverStorage meetingCoverStorage;
+
+    @MockitoSpyBean
+    private SocialAccountRepository socialAccountRepository;
 
     @MockitoBean
     private AppleLoginService appleLoginService;
@@ -381,7 +387,7 @@ class MemberWithdrawalControllerTest {
     }
 
     @Test
-    void providerDisconnectFailureKeepsLocalAccountAndSocialLink() throws Exception {
+    void providerDisconnectFailureCommitsLocalWithdrawalAndRetainsRevokeTask() throws Exception {
         String accessToken = testMemberFactory.createAccessToken("withdraw-provider-failure");
         Long userId = jwtTokenProvider.parse(accessToken).userId();
         String providerUserId = "withdraw-provider-failure-sub";
@@ -400,33 +406,31 @@ class MemberWithdrawalControllerTest {
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", bearer(accessToken)))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_UNAVAILABLE"));
+                .andExpect(status().isAccepted());
 
         assertThat(jdbcTemplate.queryForObject(
                 "select deleted_at is null from users where id = ?",
                 Boolean.class,
                 userId
-        )).isTrue();
-        assertThat(count("social_accounts", "user_id", userId)).isEqualTo(1);
-        assertThat(count("saved_places", "user_id", userId)).isEqualTo(1);
-        assertThat(count("meetings", "id", hostedMeetingId)).isEqualTo(1);
-        assertThat(count("meeting_participants", "meeting_id", hostedMeetingId)).isPositive();
-        assertThat(count("meeting_schedule_candidates", "meeting_id", hostedMeetingId)).isPositive();
+        )).isFalse();
+        assertThat(count("social_accounts", "user_id", userId)).isZero();
+        assertThat(count("saved_places", "user_id", userId)).isZero();
+        assertThat(count("meetings", "id", hostedMeetingId)).isZero();
+        assertThat(count("meeting_participants", "meeting_id", hostedMeetingId)).isZero();
+        assertThat(count("meeting_schedule_candidates", "meeting_id", hostedMeetingId)).isZero();
         assertThat(count("meeting_cover_cleanup_tasks", "object_key", coverObjectKey)).isZero();
+        assertThat(count("apple_revoke_tasks", "user_id", userId)).isEqualTo(1);
     }
 
     @Test
     void appleWithdrawalRequiresStoredRefreshTokenAndKeepsLocalAccountWhenMissing() throws Exception {
         String accessToken = testMemberFactory.createAccessToken("withdraw-missing-refresh-token");
         Long userId = jwtTokenProvider.parse(accessToken).userId();
-        jdbcTemplate.update(
-                """
-                insert into social_accounts(user_id, provider, provider_user_id, email, created_at)
-                values (?, 'APPLE', 'withdraw-missing-token-sub', null, current_timestamp)
-                """,
-                userId
-        );
+        insertSocialAccount(userId, AuthProvider.APPLE, "withdraw-missing-token-sub");
+        // Simulate a pre-migration legacy row at the repository boundary without disabling the DB constraint.
+        SocialAccount legacyAccount = org.mockito.Mockito.mock(SocialAccount.class);
+        org.mockito.Mockito.when(legacyAccount.getProvider()).thenReturn(AuthProvider.APPLE);
+        org.mockito.Mockito.doReturn(List.of(legacyAccount)).when(socialAccountRepository).findAllByUserId(userId);
 
         mockMvc.perform(delete("/api/users/me")
                         .header("Authorization", bearer(accessToken)))

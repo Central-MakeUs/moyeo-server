@@ -371,7 +371,7 @@ current RFC 9457-based error response policy, and documented working rules.
   Never drop outstanding tasks merely to revert the schema.
 - Kakao withdrawal commits local deletion and a durable unlink task together,
   attempts disconnection once after commit, and returns 204 on confirmed
-  completion or 202 while cleanup remains. Apple withdrawal is unchanged.
+  completion or 202 while cleanup remains. Apple recovery follows the section below.
 - Reuse MySQL and the existing Spring scheduler; no queue service or extra
   executor is required. Each scan processes at most 10 due tasks sequentially.
   Only the task-row transaction/connection spans the external call; user and
@@ -392,6 +392,36 @@ current RFC 9457-based error response policy, and documented working rules.
   includes one extra timeout-bounded provider lookup; existing-member logins do not.
 - Recovery survives application restarts while the DB survives. This is not a
   replacement for production backup/restore policy.
+
+## Apple Withdrawal Recovery Runtime
+
+- Apple uses the same DB-first withdrawal and 204/202/409 recovery contract as
+  Kakao. The separate `apple_revoke_tasks` table stores an encrypted refresh token,
+  verified subject and issuing WEB/NATIVE client until cleanup succeeds. Never
+  print token columns in operations output; preserve the encryption key while
+  tasks remain and delete completed rows including their token ciphertext.
+- Dev `ddl-auto: update` can create the table; verify its unique constraints and
+  due index after deployment. Prod `ddl-auto: none` requires backup under the
+  Production Data Durability Gate and additive migration
+  `scripts/db/2026-11-03-apple-revoke-tasks.sql` before application deployment.
+- For an existing `social_accounts` table in either dev or prod, do not rely on
+  `ddl-auto: update` to add the Apple-only token CHECK. Back up, verify the
+  missing/blank Apple-token preflight count is zero, then apply
+  `scripts/db/2026-11-03-social-account-apple-token-check.sql` once and verify
+  `ck_social_accounts_apple_refresh_token` is ENFORCED. Existing Kakao null tokens
+  remain valid. If the named constraint already exists, verify it rather than
+  adding it again. Never backfill a missing provider credential with a dummy.
+- Reuse the existing scheduler with `moyeo.apple-revoke.scan-delay=1m`,
+  `retry-delay=1m`, `max-retry-delay=1h` defaults. Each provider processes at most
+  10 due rows per scan sequentially on the shared scheduler. No new server or
+  executor. Retain pending rows, emit operator-review ERROR logs from five
+  failures, and retain the 2s/3s provider timeouts.
+- Only the task row and its transaction/connection span the revoke request;
+  local withdrawal has committed already. New Apple registration validates the
+  original refresh token once after the task gate inside its small transaction;
+  existing-member login has no additional provider call.
+- An older application image has no Apple worker/gate. Do not roll back without
+  planning pending-task handling; never drop pending encrypted tasks as rollback.
 
 ## Current Dev Infrastructure
 

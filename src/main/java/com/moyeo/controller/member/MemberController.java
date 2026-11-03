@@ -154,9 +154,10 @@ public class MemberController {
             description = """
                     현재 회원을 탈퇴 처리하고 본인이 생성한 모든 모임과 개인 소유 데이터를 삭제합니다.
                     카카오는 로컬 탈퇴와 연결 해제 작업 저장을 먼저 커밋한 뒤 연결 해제를 한 번 시도합니다.
-                    202는 모여 탈퇴는 완료됐고 카카오 연결 해제는 서버가 재시도 중임을 뜻합니다.
+                    202는 모여 탈퇴는 완료됐고 소셜 연결 해제는 서버가 재시도 중임을 뜻합니다.
                     204와 202 모두 클라이언트는 모여 세션을 종료하며, 미완료 작업이 있으면 같은 카카오 계정의 재가입은 보류됩니다.
-                    Apple은 기존과 같이 토큰 철회 성공 후 로컬 탈퇴를 커밋합니다.
+                    Apple도 로컬 탈퇴와 암호화된 토큰 철회 작업을 함께 커밋한 뒤 철회를 한 번 시도합니다.
+                    Apple·카카오 연결 정리가 남으면 202를 반환하고 서버가 재시도합니다.
                     방장인 모임은 참여자·일정 후보·일정 가능 정보·모임 출발지 검색 이력·커버 이미지까지 삭제합니다.
                     다른 회원이 생성한 모임에서는 본인의 참여 행과 일정·출발지 정보를 모두 삭제합니다.
                     따라서 탈퇴 회원은 해당 모임의 참여자 목록, 인원 수, 일정 및 장소 계산에 포함되지 않습니다.
@@ -166,11 +167,11 @@ public class MemberController {
     @SecurityRequirement(name = "bearerAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "소셜 연결 해제 및 회원 탈퇴 성공"),
-            @ApiResponse(responseCode = "202", description = "모여 탈퇴 완료. 카카오 연결 해제는 서버가 재시도 중이며 응답 본문은 없습니다."),
+            @ApiResponse(responseCode = "202", description = "모여 탈퇴 완료. 소셜 연결 해제는 서버가 재시도 중이며 응답 본문은 없습니다."),
             @ApiResponse(responseCode = "401", description = "인증 필요", content = @Content(examples = @ExampleObject(value = """
                     { "code": "AUTHENTICATION_REQUIRED", "status": 401 }
                     """))),
-            @ApiResponse(responseCode = "503", description = "Apple 연결 해제를 완료할 수 없음. 로컬 계정은 유지됩니다.", content = @Content(examples = @ExampleObject(value = """
+            @ApiResponse(responseCode = "503", description = "저장된 Apple 철회 토큰이 없어 탈퇴를 시작할 수 없음. 로컬 계정은 유지됩니다.", content = @Content(examples = @ExampleObject(value = """
                     { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
                     """))),
             @ApiResponse(responseCode = "500", description = "활성 계정의 소셜 연결 정보가 없음", content = @Content(examples = @ExampleObject(value = """

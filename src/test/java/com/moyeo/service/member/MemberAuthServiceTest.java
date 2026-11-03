@@ -40,7 +40,7 @@ class MemberAuthServiceTest {
 
     @Test
     void socialLoginCreatesPendingUserOnFirstLogin() {
-        AuthenticatedMember member = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
+        AuthenticatedMember member = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123", "encrypted-test-token");
 
         assertThat(member.userId()).isNotNull();
         assertThat(member.nickname()).isNull();
@@ -54,8 +54,8 @@ class MemberAuthServiceTest {
 
     @Test
     void socialLoginReturnsSameUserForSameProviderSubject() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
-        AuthenticatedMember loggedIn = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123");
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123", "encrypted-test-token");
+        AuthenticatedMember loggedIn = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-123", "encrypted-test-token");
 
         assertThat(loggedIn.userId()).isEqualTo(registered.userId());
         assertThat(loggedIn.registered()).isFalse();
@@ -126,7 +126,7 @@ class MemberAuthServiceTest {
 
     @Test
     void differentProvidersCreateSeparateUsersWithoutEmailMerge() {
-        AuthenticatedMember apple = memberAuthService.loginSocial(AuthProvider.APPLE, "same-person");
+        AuthenticatedMember apple = memberAuthService.loginSocial(AuthProvider.APPLE, "same-person", "encrypted-test-token");
         AuthenticatedMember kakao = memberAuthService.loginSocial(AuthProvider.KAKAO, "same-person");
 
         assertThat(kakao.userId()).isNotEqualTo(apple.userId());
@@ -134,10 +134,10 @@ class MemberAuthServiceTest {
 
     @Test
     void socialLoginRejectsSoftDeletedUser() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple");
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple", "encrypted-test-token");
         softDeleteUser(registered.userId());
 
-        assertThatThrownBy(() -> memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple"))
+        assertThatThrownBy(() -> memberAuthService.loginSocial(AuthProvider.APPLE, "deleted-apple", "encrypted-test-token"))
                 .isInstanceOfSatisfying(MoyeoException.class, exception ->
                         assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED)
                 );
@@ -145,7 +145,7 @@ class MemberAuthServiceTest {
 
     @Test
     void onboardingIsIdempotentForSameNickname() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "onboarding-apple");
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "onboarding-apple", "encrypted-test-token");
 
         AuthenticatedMember completed = memberOnboardingService.complete(registered.userId(), "모여");
         AuthenticatedMember retried = memberOnboardingService.complete(registered.userId(), "모여");
@@ -157,7 +157,7 @@ class MemberAuthServiceTest {
 
     @Test
     void onboardingRejectsDifferentNicknameAfterCompletion() {
-        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "completed-apple");
+        AuthenticatedMember registered = memberAuthService.loginSocial(AuthProvider.APPLE, "completed-apple", "encrypted-test-token");
         memberOnboardingService.complete(registered.userId(), "모여");
 
         assertThatThrownBy(() -> memberOnboardingService.complete(registered.userId(), "다른 이름"))

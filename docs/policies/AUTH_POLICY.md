@@ -235,9 +235,24 @@ AUTH-005: An authenticated service user may withdraw through
   pending-cleanup message is a UX follow-up, not a backend rollout prerequisite.
   Re-registration is user-initiated after cleanup, not an automatically queued
   signup. No withdrawal-status API using a withdrawn user's JWT is added.
-- Apple withdrawal keeps the existing synchronous policy: flush rollbackable
-  local changes, revoke stored authorization immediately before committing,
-  and roll back local withdrawal if revocation fails.
+- Apple withdrawal commits local account/data cleanup and an `apple_revoke_tasks`
+  row together before calling Apple. Keep only the original user ID, verified
+  Apple subject, encrypted refresh token, issuing WEB/NATIVE client, and retry
+  metadata. Task storage failure rolls back local withdrawal without calling Apple.
+- After commit, attempt Apple revocation once. Confirmed success and committed
+  task deletion return 204; provider failure, timeout, or completion-record
+  failure return 202 with no body, leaving local withdrawal complete.
+  Delete the task and its encrypted token only after successful revocation.
+- Apple uses the same bounded single-app scheduler, backoff, and task-row
+  serialization as Kakao. Pending tasks reject Apple account/session creation
+  with `409 SOCIAL_DISCONNECTION_PENDING`; new registration rechecks the pending
+  task with a locking read. Existing Apple login locks the active user row
+  against withdrawal, as Kakao does.
+- Before committing a new Apple registration, validate the original refresh
+  token with its issuing client using `grant_type=refresh_token`. This covers
+  cleanup completing between code exchange and registration. Do not reuse the
+  one-time code or replace the saved refresh token with a refresh-validation
+  response. Existing-member login does not make this extra external request.
 - For Apple, decrypt the stored refresh token using the server-only encryption
   key and verified stored `providerUserId` as authenticated context, then revoke
   that refresh token through Apple's revoke endpoint. Do not require a new Apple
@@ -246,20 +261,33 @@ AUTH-005: An authenticated service user may withdraw through
   `503 SOCIAL_LOGIN_UNAVAILABLE` and leave the local account unchanged. Its next
   successful Apple login stores a fresh encrypted refresh token, after which
   immediate withdrawal is available.
+- Require a non-null, non-blank encrypted refresh token for Apple social-account
+  creation and token updates. Member login, registration and concurrent-login
+  recovery services reject a missing/blank Apple token as
+  `503 SOCIAL_LOGIN_UNAVAILABLE` before account writes. Member login and
+  concurrent-login recovery check the pending-task 409 gate first; direct
+  registration validates the token before starting account writes. Enforce
+  the Apple-only condition again in the entity
+  and `ck_social_accounts_apple_refresh_token` database CHECK. The shared token
+  column remains nullable because Kakao does not store a refresh token.
+- Retain the defensive pre-withdrawal 503 for legacy/inconsistent Apple rows
+  without a token. A decryption failure after task creation retains the task,
+  202 response and 409 gate for operator review; restore the correct encryption
+  key or repair the credential before retrying. Do not drop the task, claim
+  completed provider cleanup, or introduce a manual-revocation fallback in this change.
 - For Kakao, call the Unlink API with the server-owned Admin Key and the stored
   Kakao service user ID as `target_id`. Require the success response ID to match
   that stored ID. Do not require a new Kakao authorization code or persist a
   Kakao provider token.
-- An Apple timeout, service/configuration failure, or unsuccessful revoke
-  returns `503 SOCIAL_LOGIN_UNAVAILABLE` and leaves local account data
-  unchanged. Kakao failures after local commit follow the 202 recovery flow
+- Apple and Kakao failures after local commit follow the 202 recovery flow
   above. A provider response confirming prior disconnection is successful.
+  Apple revoke returns 200 even when that token was already invalidated.
 - Only the two fixed local/dev test users may withdraw without a
   `SocialAccount` and provider disconnection. An active user without exactly
   one `SocialAccount` in any other case is an internal data-integrity failure
   and returns `500 COMMON_INTERNAL_SERVER_ERROR` without completing withdrawal.
 - Withdrawal returns 204 only after provider disconnection and local
-  withdrawal complete, or 202 for committed Kakao withdrawal with outstanding
+  withdrawal complete, or 202 for committed Apple/Kakao withdrawal with outstanding
   provider cleanup. Both responses have no body. An unknown local DB commit
   result must not be reported as confirmed completion.
 - Mark the service user as withdrawn with `users.deleted_at` and clear the

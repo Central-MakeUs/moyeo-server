@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
-import com.moyeo.auth.apple.AppleLoginService;
+import com.moyeo.repository.member.AppleRevokeTaskRepository;
+import com.moyeo.domain.member.AppleRevokeTask;
 import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
 import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.domain.member.AppleRefreshTokenClient;
@@ -67,7 +68,7 @@ class MemberWithdrawalServiceTest {
     @Mock
     private MeetingCoverCleanupProcessor coverCleanupProcessor;
     @Mock
-    private AppleLoginService appleLoginService;
+    private AppleRevokeTaskRepository appleRevokeTaskRepository;
     @Mock
     private KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     @Mock
@@ -93,7 +94,7 @@ class MemberWithdrawalServiceTest {
                 meetingScheduleCandidateAvailabilityRepository,
                 coverCleanupTaskRepository,
                 coverCleanupProcessor,
-                appleLoginService,
+                appleRevokeTaskRepository,
                 kakaoUnlinkTaskRepository,
                 List.of(exemption),
                 refreshTokenService
@@ -101,7 +102,7 @@ class MemberWithdrawalServiceTest {
     }
 
     @Test
-    void disconnectsProviderOnlyAfterLocalChangesAreFlushed() {
+    void storesAppleRevokeTaskAfterLocalChangesAreFlushed() {
         User user = activeUser();
         when(userRepository.findActiveByIdForUpdate(1L)).thenReturn(Optional.of(user));
         when(socialAccountRepository.findAllByUserId(1L))
@@ -114,16 +115,16 @@ class MemberWithdrawalServiceTest {
                 )));
         when(meetingRepository.findAllByHostUserIdForUpdate(1L)).thenReturn(List.of());
 
+        AppleRevokeTask storedTask = org.mockito.Mockito.mock(AppleRevokeTask.class);
+        when(storedTask.getId()).thenReturn(10L);
+        when(appleRevokeTaskRepository.saveAndFlush(org.mockito.ArgumentMatchers.any(AppleRevokeTask.class)))
+                .thenReturn(storedTask);
         memberWithdrawalService.withdraw(1L);
 
         verify(refreshTokenService).deleteAllByUserId(1L);
-        InOrder order = inOrder(userRepository, appleLoginService);
+        InOrder order = inOrder(userRepository, appleRevokeTaskRepository);
         order.verify(userRepository).flush();
-        order.verify(appleLoginService).disconnectStoredAuthorization(
-                "apple-subject",
-                "encrypted-refresh-token",
-                AppleRefreshTokenClient.WEB
-        );
+        order.verify(appleRevokeTaskRepository).saveAndFlush(org.mockito.ArgumentMatchers.any(AppleRevokeTask.class));
     }
 
     @Test
@@ -166,7 +167,7 @@ class MemberWithdrawalServiceTest {
 
         memberWithdrawalService.withdraw(1L);
 
-        verifyNoInteractions(appleLoginService, kakaoUnlinkTaskRepository);
+        verifyNoInteractions(appleRevokeTaskRepository, kakaoUnlinkTaskRepository);
         verify(userRepository).flush();
     }
 
@@ -190,8 +191,9 @@ class MemberWithdrawalServiceTest {
     void missingStoredAppleRefreshTokenPreventsLocalWithdrawal() {
         User user = activeUser();
         when(userRepository.findActiveByIdForUpdate(1L)).thenReturn(Optional.of(user));
-        when(socialAccountRepository.findAllByUserId(1L))
-                .thenReturn(List.of(new SocialAccount(user, AuthProvider.APPLE, "apple-subject", null)));
+        SocialAccount legacyAccount = org.mockito.Mockito.mock(SocialAccount.class);
+        when(legacyAccount.getProvider()).thenReturn(AuthProvider.APPLE);
+        when(socialAccountRepository.findAllByUserId(1L)).thenReturn(List.of(legacyAccount));
 
         assertThatThrownBy(() -> memberWithdrawalService.withdraw(1L))
                 .isInstanceOfSatisfying(com.moyeo.global.error.MoyeoException.class, exception ->
@@ -200,7 +202,7 @@ class MemberWithdrawalServiceTest {
                 );
 
         verify(meetingRepository, never()).findAllByHostUserIdForUpdate(1L);
-        verifyNoInteractions(appleLoginService, kakaoUnlinkTaskRepository);
+        verifyNoInteractions(appleRevokeTaskRepository, kakaoUnlinkTaskRepository);
     }
 
     private User activeUser() {

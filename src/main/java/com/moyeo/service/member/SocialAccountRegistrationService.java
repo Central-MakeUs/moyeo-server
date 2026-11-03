@@ -9,6 +9,7 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
+import com.moyeo.repository.member.AppleRevokeTaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,15 +21,18 @@ public class SocialAccountRegistrationService {
 
     private final UserRepository userRepository;
     private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
+    private final AppleRevokeTaskRepository appleRevokeTaskRepository;
     private final SocialAccountRepository socialAccountRepository;
 
     public SocialAccountRegistrationService(
             UserRepository userRepository,
             SocialAccountRepository socialAccountRepository,
-            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository
+            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository,
+            AppleRevokeTaskRepository appleRevokeTaskRepository
     ) {
         this.userRepository = userRepository;
         this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
+        this.appleRevokeTaskRepository = appleRevokeTaskRepository;
         this.socialAccountRepository = socialAccountRepository;
     }
 
@@ -61,6 +65,12 @@ public class SocialAccountRegistrationService {
         return register(AuthProvider.KAKAO, providerUserId, null, null, verifyNewRegistration);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public AuthenticatedMember registerApple(String providerUserId, String ciphertext,
+            AppleRefreshTokenClient client, Runnable verifyNewRegistration) {
+        return register(AuthProvider.APPLE, providerUserId, ciphertext, client, verifyNewRegistration);
+    }
+
     private AuthenticatedMember register(
             AuthProvider provider,
             String providerUserId,
@@ -68,6 +78,7 @@ public class SocialAccountRegistrationService {
             AppleRefreshTokenClient appleRefreshTokenClient,
             Runnable verifyNewRegistration
     ) {
+        validateProviderToken(provider, providerRefreshTokenCiphertext);
         User user = userRepository.save(User.pendingOnboarding());
         SocialAccount socialAccount = new SocialAccount(
                 user,
@@ -78,8 +89,10 @@ public class SocialAccountRegistrationService {
                 appleRefreshTokenClient
         );
         socialAccountRepository.saveAndFlush(socialAccount);
-        if (provider == AuthProvider.KAKAO
-                && kakaoUnlinkTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent()) {
+        if ((provider == AuthProvider.KAKAO
+                && kakaoUnlinkTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent())
+                || (provider == AuthProvider.APPLE
+                && appleRevokeTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent())) {
             // Locking/current read covers withdrawal committing while registration was starting.
             throw new MoyeoException(AuthenticationErrorCode.SOCIAL_DISCONNECTION_PENDING);
         }
@@ -110,10 +123,13 @@ public class SocialAccountRegistrationService {
             String providerRefreshTokenCiphertext,
             AppleRefreshTokenClient appleRefreshTokenClient
     ) {
-        if (provider == AuthProvider.KAKAO
-                && kakaoUnlinkTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent()) {
+        if ((provider == AuthProvider.KAKAO
+                && kakaoUnlinkTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent())
+                || (provider == AuthProvider.APPLE
+                && appleRevokeTaskRepository.findByProviderUserIdForUpdate(providerUserId).isPresent())) {
             throw new MoyeoException(AuthenticationErrorCode.SOCIAL_DISCONNECTION_PENDING);
         }
+        validateProviderToken(provider, providerRefreshTokenCiphertext);
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
                     User user = socialAccount.getUser();
@@ -130,4 +146,10 @@ public class SocialAccountRegistrationService {
                     return AuthenticatedMember.from(user, false);
                 });
     }
+    private void validateProviderToken(AuthProvider provider, String ciphertext) {
+        if (provider == AuthProvider.APPLE && (ciphertext == null || ciphertext.isBlank())) {
+            throw new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE);
+        }
+    }
+
 }

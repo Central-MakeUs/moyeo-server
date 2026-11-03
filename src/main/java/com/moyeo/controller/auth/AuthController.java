@@ -54,6 +54,7 @@ public class AuthController {
                     """
     )
     @ApiResponses({
+            @ApiResponse(responseCode = "409", description = "이전 탈퇴의 Apple 연결 정리가 진행 중입니다. SOCIAL_DISCONNECTION_PENDING"),
             @ApiResponse(responseCode = "200", description = "Apple 로그인 및 Access Token 발급 성공"),
             @ApiResponse(
                     responseCode = "400",
@@ -85,6 +86,7 @@ public class AuthController {
     @PostMapping("/apple/native")
     @Operation(summary = "Apple 네이티브 SDK 로그인", description = "네이티브 앱이 Apple SDK에서 받은 identityToken, authorizationCode, nonce를 전달합니다. 서버는 App ID audience와 nonce, 두 identity token의 동일한 sub를 검증한 뒤 Access Token을 발급합니다.")
     @ApiResponses({
+            @ApiResponse(responseCode = "409", description = "이전 탈퇴의 Apple 연결 정리가 진행 중입니다. SOCIAL_DISCONNECTION_PENDING"),
             @ApiResponse(responseCode = "200", description = "Apple 네이티브 SDK 로그인 및 Access Token 발급 성공"),
             @ApiResponse(responseCode = "400", description = "identityToken, authorizationCode 또는 nonce 요청값 검증 실패"),
             @ApiResponse(responseCode = "401", description = "Apple identity token 또는 authorization code 검증 실패"),

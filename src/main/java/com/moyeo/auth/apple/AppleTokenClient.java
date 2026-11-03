@@ -125,6 +125,40 @@ class AppleTokenClient {
         return exchange(code, OAuthRedirectTarget.DEV);
     }
 
+    void validateRefreshToken(String refreshToken, AppleRefreshTokenClient refreshTokenClient) {
+        boolean nativeClient = refreshTokenClient == AppleRefreshTokenClient.NATIVE;
+        if ((!nativeClient && !properties.enabled()) || (nativeClient && !nativeProperties.enabled())) {
+            throw AppleOAuthException.unavailable();
+        }
+        if (refreshToken == null || refreshToken.isBlank()) throw AppleOAuthException.unavailable();
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("client_id", nativeClient ? nativeProperties.clientId() : properties.clientId());
+        form.add("client_secret", nativeClient ? clientSecretGenerator.generateForNative() : clientSecretGenerator.generate());
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", refreshToken);
+        try {
+            AppleTokenResponse response = restClient.post().uri(properties.tokenUri())
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED).body(form)
+                    .retrieve().body(AppleTokenResponse.class);
+            // Refresh validation does not issue a new refresh token; preserve the original one.
+            if (response == null || response.accessToken() == null || response.accessToken().isBlank()) {
+                throw AppleOAuthException.unavailable();
+            }
+        } catch (RestClientResponseException exception) {
+            String error = providerError(exception);
+            log.warn("Apple login failed: stage=refresh_validation providerStatus={} providerError={}.",
+                    exception.getStatusCode().value(), error);
+            if (exception.getStatusCode().is4xxClientError() && "invalid_grant".equals(error)) {
+                throw AppleOAuthException.failed();
+            }
+            throw AppleOAuthException.unavailable();
+        } catch (RestClientException exception) {
+            log.warn("Apple login failed: stage=refresh_validation reason=request_failed exception={}.",
+                    exception.getClass().getSimpleName());
+            throw AppleOAuthException.unavailable();
+        }
+    }
+
     void revokeRefreshToken(String refreshToken, AppleRefreshTokenClient refreshTokenClient) {
         boolean nativeClient = refreshTokenClient == AppleRefreshTokenClient.NATIVE;
         if ((!nativeClient && !properties.enabled()) || (nativeClient && !nativeProperties.enabled())) {

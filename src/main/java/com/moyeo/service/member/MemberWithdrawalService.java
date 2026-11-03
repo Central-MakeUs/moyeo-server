@@ -1,6 +1,7 @@
 package com.moyeo.service.member;
 
-import com.moyeo.auth.apple.AppleLoginService;
+import com.moyeo.domain.member.AppleRevokeTask;
+import com.moyeo.repository.member.AppleRevokeTaskRepository;
 import com.moyeo.domain.member.KakaoUnlinkTask;
 import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
 import com.moyeo.domain.meeting.Meeting;
@@ -48,7 +49,7 @@ public class MemberWithdrawalService {
     private final MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository;
     private final MeetingCoverCleanupTaskRepository coverCleanupTaskRepository;
     private final MeetingCoverCleanupProcessor coverCleanupProcessor;
-    private final AppleLoginService appleLoginService;
+    private final AppleRevokeTaskRepository appleRevokeTaskRepository;
     private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
     private final List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions;
     private final RefreshTokenService refreshTokenService;
@@ -67,7 +68,7 @@ public class MemberWithdrawalService {
             MeetingScheduleCandidateAvailabilityRepository meetingScheduleCandidateAvailabilityRepository,
             MeetingCoverCleanupTaskRepository coverCleanupTaskRepository,
             MeetingCoverCleanupProcessor coverCleanupProcessor,
-            AppleLoginService appleLoginService,
+            AppleRevokeTaskRepository appleRevokeTaskRepository,
             KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository,
             List<MemberWithdrawalSocialAccountExemption> socialAccountExemptions,
             RefreshTokenService refreshTokenService
@@ -85,14 +86,14 @@ public class MemberWithdrawalService {
         this.meetingScheduleCandidateAvailabilityRepository = meetingScheduleCandidateAvailabilityRepository;
         this.coverCleanupTaskRepository = coverCleanupTaskRepository;
         this.coverCleanupProcessor = coverCleanupProcessor;
-        this.appleLoginService = appleLoginService;
+        this.appleRevokeTaskRepository = appleRevokeTaskRepository;
         this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
         this.socialAccountExemptions = socialAccountExemptions;
         this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional
-    public Long withdraw(Long userId) {
+    public WithdrawalTask withdraw(Long userId) {
         User user = userRepository.findActiveByIdForUpdate(userId)
                 .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.AUTHENTICATION_REQUIRED));
         SocialDisconnectTarget disconnectTarget = resolveDisconnectTarget(user);
@@ -109,15 +110,21 @@ public class MemberWithdrawalService {
         deleteMemberOwnedData(userId);
         user.withdraw();
         userRepository.flush();
-        Long taskId = null;
-        if (disconnectTarget != null && disconnectTarget.provider() == AuthProvider.KAKAO) {
-            taskId = kakaoUnlinkTaskRepository.saveAndFlush(
-                    new KakaoUnlinkTask(userId, disconnectTarget.providerUserId())).getId();
-        } else {
-            disconnectSocialAccount(disconnectTarget);
+        WithdrawalTask task = null;
+        if (disconnectTarget != null) {
+            if (disconnectTarget.provider() == AuthProvider.KAKAO) {
+                Long id = kakaoUnlinkTaskRepository.saveAndFlush(
+                        new KakaoUnlinkTask(userId, disconnectTarget.providerUserId())).getId();
+                task = new WithdrawalTask(AuthProvider.KAKAO, id);
+            } else if (disconnectTarget.provider() == AuthProvider.APPLE) {
+                Long id = appleRevokeTaskRepository.saveAndFlush(new AppleRevokeTask(userId,
+                        disconnectTarget.providerUserId(), disconnectTarget.providerRefreshTokenCiphertext(),
+                        disconnectTarget.appleRefreshTokenClient())).getId();
+                task = new WithdrawalTask(AuthProvider.APPLE, id);
+            }
         }
         processCoverCleanupTasksAfterCommit(coverCleanupTaskIds);
-        return taskId;
+        return task;
     }
 
     private SocialDisconnectTarget resolveDisconnectTarget(User user) {
@@ -149,21 +156,6 @@ public class MemberWithdrawalService {
     private boolean isSocialAccountExempt(User user) {
         return socialAccountExemptions.stream()
                 .anyMatch(exemption -> exemption.appliesTo(user));
-    }
-
-    private void disconnectSocialAccount(SocialDisconnectTarget target) {
-        if (target == null) {
-            return;
-        }
-        if (target.provider() == AuthProvider.APPLE) {
-            appleLoginService.disconnectStoredAuthorization(
-                    target.providerUserId(),
-                    target.providerRefreshTokenCiphertext(),
-                    target.appleRefreshTokenClient()
-            );
-            return;
-        }
-        throw new IllegalStateException("Kakao disconnection must run after the local transaction commits.");
     }
 
     private void deleteHostedMeetings(List<Meeting> hostedMeetings) {
@@ -253,6 +245,8 @@ public class MemberWithdrawalService {
             }
         });
     }
+
+    public record WithdrawalTask(AuthProvider provider, Long taskId) {}
 
     private record SocialDisconnectTarget(
             AuthProvider provider,

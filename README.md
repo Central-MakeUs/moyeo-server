@@ -85,12 +85,15 @@ Swagger UI가 요청·응답 DTO, 인증 요구사항, enum, 오류 응답의 �
 Authorization: Bearer {accessToken}
 ```
 
-카카오 탈퇴는 로컬 탈퇴와 연결 해제 작업 저장을 먼저 확정합니다. 외부 정리까지
+카카오·Apple 탈퇴는 로컬 탈퇴와 연결 해제 작업 저장을 먼저 확정합니다. 외부 정리까지
 완료하면 204, 재시도가 남으면 202를 반환하며 두 경우 모두 클라이언트 세션을
-종료합니다. 연결 정리 중 같은 카카오 계정의 신규 가입은 409로 보류합니다.
+종료합니다. 연결 정리 중 같은 소셜 계정의 신규 가입은 409로 보류합니다.
 현재 dev의 `ddl-auto: update`는 새 작업 테이블을 자동 생성합니다. prod의
 `ddl-auto: none` 환경에서는 백업 후 `scripts/db/2026-11-02-kakao-unlink-tasks.sql`을 적용합니다.
-Apple 탈퇴는 기존 동기 처리 방식을 유지합니다.
+Apple 작업 테이블은 `scripts/db/2026-11-03-apple-revoke-tasks.sql`을 적용하며,
+해제 완료까지 암호화 토큰과 발급 클라이언트 정보를 보관합니다.
+기존 DB의 Apple 전용 토큰 필수 CHECK는 dev·prod 모두 백업·사전 점검 후
+`scripts/db/2026-11-03-social-account-apple-token-check.sql`로 별도 적용·확인합니다.
 
 성공 응답은 DTO를 직접 반환합니다. 오류는 RFC 9457 Problem Details
 (`application/problem+json`) 형식이며, 클라이언트 분기용 `code`를 포함합니다.

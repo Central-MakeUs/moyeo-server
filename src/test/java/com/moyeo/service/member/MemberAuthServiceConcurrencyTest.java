@@ -27,6 +27,9 @@ class MemberAuthServiceConcurrencyTest {
     @Mock
     private SocialAccountRegistrationService socialAccountRegistrationService;
 
+    @Mock
+    private com.moyeo.repository.member.AppleRevokeTaskRepository appleRevokeTaskRepository;
+
     @InjectMocks
     private MemberAuthService memberAuthService;
 
@@ -37,19 +40,19 @@ class MemberAuthServiceConcurrencyTest {
         when(socialAccountRegistrationService.register(
                 AuthProvider.APPLE,
                 "apple-user",
-                null,
+                "encrypted-refresh-token",
                 null
         ))
                 .thenThrow(new DataIntegrityViolationException("duplicate provider identity"));
         when(socialAccountRegistrationService.findRegistered(
                 AuthProvider.APPLE,
                 "apple-user",
-                null,
+                "encrypted-refresh-token",
                 null
         ))
                 .thenReturn(Optional.of(new AuthenticatedMember(7L, null, false)));
 
-        AuthenticatedMember result = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-user");
+        AuthenticatedMember result = memberAuthService.loginSocial(AuthProvider.APPLE, "apple-user", "encrypted-refresh-token");
 
         assertThat(result.userId()).isEqualTo(7L);
         assertThat(result.registered()).isFalse();

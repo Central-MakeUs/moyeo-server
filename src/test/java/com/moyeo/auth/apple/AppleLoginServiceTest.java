@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,11 +45,11 @@ class AppleLoginServiceTest {
                 .thenReturn("apple-subject");
         when(refreshTokenCipher.encrypt("apple-subject", "refresh-token"))
                 .thenReturn("encrypted-refresh-token");
-        when(memberAuthService.loginSocial(
-                AuthProvider.APPLE,
-                "apple-subject",
-                "encrypted-refresh-token",
-                AppleRefreshTokenClient.WEB
+        when(memberAuthService.loginApple(
+                eq("apple-subject"),
+                eq("encrypted-refresh-token"),
+                eq(AppleRefreshTokenClient.WEB),
+                any(Runnable.class)
         )).thenReturn(expected);
 
         AuthenticatedMember result = appleLoginService.login("one-time-code", "nonce", OAuthRedirectTarget.DEV);
@@ -93,11 +95,11 @@ class AppleLoginServiceTest {
                 .thenReturn("apple-subject");
         when(refreshTokenCipher.encrypt("apple-subject", "refresh-token"))
                 .thenReturn("encrypted-refresh-token");
-        when(memberAuthService.loginSocial(
-                AuthProvider.APPLE,
-                "apple-subject",
-                "encrypted-refresh-token",
-                AppleRefreshTokenClient.NATIVE
+        when(memberAuthService.loginApple(
+                eq("apple-subject"),
+                eq("encrypted-refresh-token"),
+                eq(AppleRefreshTokenClient.NATIVE),
+                any(Runnable.class)
         ))
                 .thenReturn(expected);
 

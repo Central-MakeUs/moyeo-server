@@ -12,13 +12,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import org.hibernate.annotations.Comment;
+import org.hibernate.annotations.Check;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Check(name = "ck_social_accounts_apple_refresh_token",
+        constraints = "provider <> 'APPLE' OR (provider_refresh_token_ciphertext IS NOT NULL "
+                + "AND CHAR_LENGTH(TRIM(provider_refresh_token_ciphertext)) > 0)")
 @Comment("소셜 로그인 제공자 계정 연결 정보")
 @Table(
         name = "social_accounts",
@@ -96,6 +101,7 @@ public class SocialAccount {
             String providerRefreshTokenCiphertext,
             AppleRefreshTokenClient appleRefreshTokenClient
     ) {
+        requireAppleToken(provider, providerRefreshTokenCiphertext);
         this.user = user;
         this.provider = provider;
         this.providerUserId = providerUserId;
@@ -106,7 +112,19 @@ public class SocialAccount {
 
     @PrePersist
     void prePersist() {
+        validateToken();
         this.createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    void validateToken() {
+        requireAppleToken(provider, providerRefreshTokenCiphertext);
+    }
+
+    private static void requireAppleToken(AuthProvider provider, String ciphertext) {
+        if (provider == AuthProvider.APPLE && (ciphertext == null || ciphertext.isBlank())) {
+            throw new IllegalArgumentException("Apple refresh token ciphertext is required.");
+        }
     }
 
     public Long getId() {
@@ -134,6 +152,7 @@ public class SocialAccount {
     }
 
     public void updateProviderRefreshTokenCiphertext(String providerRefreshTokenCiphertext) {
+        requireAppleToken(provider, providerRefreshTokenCiphertext);
         this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
     }
 
@@ -141,6 +160,7 @@ public class SocialAccount {
             String providerRefreshTokenCiphertext,
             AppleRefreshTokenClient appleRefreshTokenClient
     ) {
+        requireAppleToken(provider, providerRefreshTokenCiphertext);
         this.providerRefreshTokenCiphertext = providerRefreshTokenCiphertext;
         this.appleRefreshTokenClient = appleRefreshTokenClient;
     }

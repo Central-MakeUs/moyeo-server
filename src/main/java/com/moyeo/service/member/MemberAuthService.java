@@ -9,6 +9,7 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import com.moyeo.repository.member.SocialAccountRepository;
 import com.moyeo.repository.member.UserRepository;
 import com.moyeo.repository.member.KakaoUnlinkTaskRepository;
+import com.moyeo.repository.member.AppleRevokeTaskRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class MemberAuthService {
 
     private final UserRepository userRepository;
     private final KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository;
+    private final AppleRevokeTaskRepository appleRevokeTaskRepository;
     private final SocialAccountRepository socialAccountRepository;
     private final SocialAccountRegistrationService socialAccountRegistrationService;
 
@@ -26,10 +28,12 @@ public class MemberAuthService {
             UserRepository userRepository,
             SocialAccountRepository socialAccountRepository,
             SocialAccountRegistrationService socialAccountRegistrationService,
-            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository
+            KakaoUnlinkTaskRepository kakaoUnlinkTaskRepository,
+            AppleRevokeTaskRepository appleRevokeTaskRepository
     ) {
         this.userRepository = userRepository;
         this.kakaoUnlinkTaskRepository = kakaoUnlinkTaskRepository;
+        this.appleRevokeTaskRepository = appleRevokeTaskRepository;
         this.socialAccountRepository = socialAccountRepository;
         this.socialAccountRegistrationService = socialAccountRegistrationService;
     }
@@ -72,6 +76,12 @@ public class MemberAuthService {
         return loginSocial(AuthProvider.KAKAO, providerUserId, null, null, verifyNewRegistration);
     }
 
+    @Transactional
+    public AuthenticatedMember loginApple(String providerUserId, String ciphertext,
+            AppleRefreshTokenClient client, Runnable verifyNewRegistration) {
+        return loginSocial(AuthProvider.APPLE, providerUserId, ciphertext, client, verifyNewRegistration);
+    }
+
     private AuthenticatedMember loginSocial(
             AuthProvider provider,
             String providerUserId,
@@ -79,12 +89,17 @@ public class MemberAuthService {
             AppleRefreshTokenClient appleRefreshTokenClient,
             Runnable verifyNewRegistration
     ) {
-        if (provider == AuthProvider.KAKAO && kakaoUnlinkTaskRepository.existsByProviderUserId(providerUserId)) {
+        if ((provider == AuthProvider.KAKAO && kakaoUnlinkTaskRepository.existsByProviderUserId(providerUserId))
+                || (provider == AuthProvider.APPLE && appleRevokeTaskRepository.existsByProviderUserId(providerUserId))) {
             throw new MoyeoException(AuthenticationErrorCode.SOCIAL_DISCONNECTION_PENDING);
+        }
+        if (provider == AuthProvider.APPLE
+                && (providerRefreshTokenCiphertext == null || providerRefreshTokenCiphertext.isBlank())) {
+            throw new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE);
         }
         return socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId)
                 .map(socialAccount -> {
-                    if (provider == AuthProvider.KAKAO) {
+                    if (provider == AuthProvider.KAKAO || provider == AuthProvider.APPLE) {
                         // Serialize login with withdrawal before issuing a new service session.
                         userRepository.findActiveByIdForUpdate(socialAccount.getUser().getId())
                                 .orElseThrow(() -> new MoyeoException(AuthenticationErrorCode.SOCIAL_LOGIN_FAILED));
@@ -124,6 +139,10 @@ public class MemberAuthService {
         try {
             if (provider == AuthProvider.KAKAO && verifyNewRegistration != null) {
                 return socialAccountRegistrationService.registerKakao(providerUserId, verifyNewRegistration);
+            }
+            if (provider == AuthProvider.APPLE && verifyNewRegistration != null) {
+                return socialAccountRegistrationService.registerApple(providerUserId,
+                        providerRefreshTokenCiphertext, appleRefreshTokenClient, verifyNewRegistration);
             }
             return socialAccountRegistrationService.register(
                     provider,

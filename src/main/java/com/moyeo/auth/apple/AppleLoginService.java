@@ -2,7 +2,6 @@ package com.moyeo.auth.apple;
 
 import com.moyeo.auth.OAuthRedirectTarget;
 import com.moyeo.domain.member.AppleRefreshTokenClient;
-import com.moyeo.domain.member.AuthProvider;
 import com.moyeo.service.member.AuthenticatedMember;
 import com.moyeo.service.member.MemberAuthService;
 import org.springframework.stereotype.Service;
@@ -31,11 +30,11 @@ public class AppleLoginService {
         AppleTokenClient.AppleTokenResult tokens = tokenClient.exchange(code, redirectTarget);
         String subject = identityTokenVerifier.verifyAndGetSubject(tokens.idToken(), nonce);
         String encryptedRefreshToken = refreshTokenCipher.encrypt(subject, tokens.refreshToken());
-        return memberAuthService.loginSocial(
-                AuthProvider.APPLE,
+        return memberAuthService.loginApple(
                 subject,
                 encryptedRefreshToken,
-                AppleRefreshTokenClient.WEB
+                AppleRefreshTokenClient.WEB,
+                () -> tokenClient.validateRefreshToken(tokens.refreshToken(), AppleRefreshTokenClient.WEB)
         );
     }
 
@@ -47,11 +46,11 @@ public class AppleLoginService {
             throw AppleOAuthException.failed();
         }
         String encryptedRefreshToken = refreshTokenCipher.encrypt(sdkSubject, tokens.refreshToken());
-        return memberAuthService.loginSocial(
-                AuthProvider.APPLE,
+        return memberAuthService.loginApple(
                 sdkSubject,
                 encryptedRefreshToken,
-                AppleRefreshTokenClient.NATIVE
+                AppleRefreshTokenClient.NATIVE,
+                () -> tokenClient.validateRefreshToken(tokens.refreshToken(), AppleRefreshTokenClient.NATIVE)
         );
     }
 
