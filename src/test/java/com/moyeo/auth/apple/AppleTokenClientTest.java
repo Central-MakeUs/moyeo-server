@@ -8,6 +8,9 @@ import com.moyeo.global.security.AuthenticationErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpMethod;
@@ -17,6 +20,7 @@ import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -129,6 +133,27 @@ class AppleTokenClientTest {
         assertThat(result.idToken()).isEqualTo("native-identity-token");
         assertThat(result.refreshToken()).isEqualTo("apple-refresh-token");
         server.verify();
+    }
+
+    @ParameterizedTest
+    @MethodSource("missingIdentityTokenResponses")
+    void mapsMissingIdentityTokenToSocialLoginUnavailable(boolean nativeLogin, String responseBody) {
+        server.expect(requestTo("https://appleid.apple.com/auth/token"))
+                .andRespond(withSuccess(responseBody, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> {
+            if (nativeLogin) tokenClient.exchangeNative("native-one-time-code");
+            else tokenClient.exchange("one-time-code");
+        }).isInstanceOfSatisfying(MoyeoException.class, exception -> {
+            assertThat(exception.getErrorCode()).isEqualTo(AuthenticationErrorCode.SOCIAL_LOGIN_UNAVAILABLE);
+            assertThat(exception.getErrorCode().status().value()).isEqualTo(503);
+        });
+        server.verify();
+    }
+
+    private static Stream<Arguments> missingIdentityTokenResponses() {
+        return Stream.of("", "{}", "{\"id_token\":null}", "{\"id_token\":\" \"}")
+                .flatMap(body -> Stream.of(Arguments.of(false, body), Arguments.of(true, body)));
     }
 
     @Test

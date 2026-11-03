@@ -71,7 +71,7 @@ public class AuthController {
             ),
             @ApiResponse(
                     responseCode = "503",
-                    description = "Apple 로그인 서비스의 일시적 장애 또는 서버 설정 미완료",
+                    description = "Apple 로그인 서비스의 일시적 장애, 서버 설정 미완료 또는 토큰 교환 응답의 id_token 누락",
                     content = @Content(examples = @ExampleObject(value = """
                             { "code": "SOCIAL_LOGIN_UNAVAILABLE", "status": 503 }
                             """))
@@ -88,7 +88,7 @@ public class AuthController {
             @ApiResponse(responseCode = "200", description = "Apple 네이티브 SDK 로그인 및 Access Token 발급 성공"),
             @ApiResponse(responseCode = "400", description = "identityToken, authorizationCode 또는 nonce 요청값 검증 실패"),
             @ApiResponse(responseCode = "401", description = "Apple identity token 또는 authorization code 검증 실패"),
-            @ApiResponse(responseCode = "503", description = "Apple 로그인 서비스 설정 미완료 또는 일시적 장애")
+            @ApiResponse(responseCode = "503", description = "Apple 로그인 서비스 설정 미완료, 일시적 장애 또는 토큰 교환 응답의 id_token 누락")
     })
     public AuthResponse loginAppleNative(@Valid @RequestBody AppleNativeLoginRequest request) {
         AuthenticatedMember member = appleLoginService.loginNative(

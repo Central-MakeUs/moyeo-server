@@ -40,6 +40,9 @@ then issues a Moyeo Access JWT.
 - Treat an Apple timeout, service failure, or provider response indicating
   invalid server credentials or configuration as
   `503 SOCIAL_LOGIN_UNAVAILABLE`.
+- Treat a successful Apple token-exchange response with an empty body or
+  a missing, null, or blank `id_token` as `503 SOCIAL_LOGIN_UNAVAILABLE`
+  for both web and native login.
 - Require an Apple refresh token in every successful authorization-code
   exchange. Encrypt it with the server-only AES-256-GCM key before persistence,
   bind the ciphertext to the verified Apple `sub`, and replace the stored

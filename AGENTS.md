@@ -66,6 +66,9 @@ For deployment or environment work:
 - Redis, Kafka, WebSocket, NoSQL, Nginx, blue/green deployment, complex hooks,
   MCP, and sub-agents remain examples of infrastructure to avoid unless a
   concrete need and explicit direction exist.
+- Code reviews, including pre-commit self-reviews, must include an independent
+  sub-agent review under `docs/ai/CODE_REVIEW.md`. This is explicitly authorized
+  for review work and does not authorize unrelated implementation delegation.
 
 ## Schema Change Rule
 

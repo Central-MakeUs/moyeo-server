@@ -98,7 +98,7 @@ class AppleTokenClient {
                     .body(AppleTokenResponse.class);
             if (response == null || response.idToken() == null || response.idToken().isBlank()) {
                 log.warn("Apple login failed: stage=token_exchange providerStatus=200 reason=missing_id_token.");
-                throw AppleOAuthException.failed();
+                throw AppleOAuthException.unavailable();
             }
             return new AppleTokenResult(response.idToken(), response.accessToken(), response.refreshToken());
         } catch (RestClientResponseException exception) {

@@ -239,6 +239,21 @@ self-code review.
 Do not claim that a review followed the project harness when these routing and
 reporting steps were not completed.
 
+## Sub-Agent Review
+
+사용자가 요청한 코드 리뷰와 커밋 전 셀프 리뷰는 주 에이전트와 최소 1명의
+서브에이전트가 함께 검토한다. 리뷰를 위한 서브에이전트 사용은 상시 승인된 범위이며,
+매번 별도 허가를 요청하지 않는다.
+
+- 서브에이전트는 같은 diff, 직접 영향받는 코드와 적용 정책을 독립적으로 확인한다.
+  검토 중 파일을 수정하거나 커밋하지 않는다.
+- 주 에이전트는 서브에이전트 결과를 받은 뒤 코드와 정책 근거를 대조해 최종 결과를 정리한다.
+  의견이 다르면 근거를 확인하고, 해결되지 않은 불확실성은 명시한다.
+- 최종 보고에는 서브에이전트 검토 여부와 남은 조치 사항을 간단히 적는다.
+  이 절차는 새로운 제품 정책이나 추가 점검 기준을 만드는 근거가 아니다.
+- 서브에이전트를 사용할 수 없으면 그 사유와 주 에이전트만 검토한 범위를 명시한다.
+  공동 검토를 완료했다고 보고하지 않는다.
+
 ## Pre-Commit Self Review
 
 Before creating a commit, run this review against the staged and unstaged diff:
