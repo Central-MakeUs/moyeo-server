@@ -346,6 +346,7 @@ the `prod` profile.
 
 - Configure CORS with explicit frontend origins and update them when frontend
   deployment URLs are decided.
+- The dev and production profiles allow `https://www.moyeo.app` by default.
 - The dev profile also allows Vercel PR Preview origins matching
   `https://moyeo-*-hyeonjirohs-projects.vercel.app`.
 - The dev and production profiles allow HTTP frontend origins on port 3000 from

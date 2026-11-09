@@ -558,6 +558,8 @@ current RFC 9457-based error response policy, and documented working rules.
   `https://moyeo-web.vercel.app/auth/callback/apple`.
 - The dev profile allows Vercel PR Preview origins matching
   `https://moyeo-*-hyeonjirohs-projects.vercel.app` through CORS.
+- The dev and production profiles allow `https://www.moyeo.app` through CORS
+  by default. If `CORS_ALLOWED_ORIGINS` is set, include this origin in its value.
 - The production profile allows `https://moyeo-web.vercel.app`,
   `http://192.168.219.59:3000`, and `http://172.30.1.36:3000` through CORS by
   default. It also allows HTTP frontend origins on port 3000 from the private
